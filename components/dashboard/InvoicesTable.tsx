@@ -59,10 +59,14 @@ export function InvoicesTable({
   invoices,
   search,
   sort,
+  status,
+  perPage,
 }: {
   invoices: Invoice[];
   search: string;
   sort: string;
+  status: string;
+  perPage: number;
 }) {
   return (
     <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
@@ -77,40 +81,80 @@ export function InvoicesTable({
       </div>
 
       <div className="border-b border-slate-50 p-6">
-        <form action="/sales" className="flex flex-col gap-3 md:flex-row">
-          <input
-            type="text"
-            name="q"
-            defaultValue={search}
-            placeholder="Search by invoice number or customer"
-            className="flex-1 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition focus:border-blue-500 focus:bg-white"
-          />
-          <select
-            name="sort"
-            defaultValue={sort}
-            className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition focus:border-blue-500 focus:bg-white"
-          >
-            <option value="date_desc">Sort: Latest</option>
-            <option value="name_asc">Sort: Name</option>
-            <option value="amount_desc">Sort: Amount High-Low</option>
-            <option value="amount_asc">Sort: Amount Low-High</option>
-            <option value="status_asc">Sort: Status</option>
-          </select>
-          <div className="flex gap-3">
+        <form action="/sales" className="rounded-2xl border border-slate-200 bg-slate-50/70 p-3">
+          <div className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1.7fr)_220px_220px_220px]">
+            <div>
+              <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-600">
+                Search
+              </label>
+              <input
+                type="text"
+                name="q"
+                defaultValue={search}
+                placeholder="Invoice no or customer name"
+                className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-blue-500"
+              />
+            </div>
+            <div>
+              <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-600">
+                Status
+              </label>
+              <select
+                name="status"
+                defaultValue={status}
+                className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-blue-500"
+              >
+                <option value="ALL">All</option>
+                <option value="PAID">Paid</option>
+                <option value="PARTIAL">Partial</option>
+                <option value="PENDING">Pending</option>
+                <option value="OVERDUE">Overdue</option>
+              </select>
+            </div>
+            <div>
+              <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-600">
+                Sort
+              </label>
+              <select
+                name="sort"
+                defaultValue={sort}
+                className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-blue-500"
+              >
+                <option value="date_desc">Latest</option>
+                <option value="name_asc">Name</option>
+                <option value="amount_desc">Amount High-Low</option>
+                <option value="amount_asc">Amount Low-High</option>
+                <option value="status_asc">Status</option>
+              </select>
+            </div>
+            <div>
+              <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-600">
+                Per Page
+              </label>
+              <select
+                name="perPage"
+                defaultValue={String(perPage)}
+                className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-blue-500"
+              >
+                <option value="10">10</option>
+                <option value="25">25</option>
+                <option value="50">50</option>
+              </select>
+            </div>
+          </div>
+          <div className="mt-3 flex items-center gap-3">
             <button
               type="submit"
               className="rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white"
             >
-              Search
+              Apply
             </button>
-            {search && (
-              <Link
-                href={sort !== "date_desc" ? `/sales?sort=${sort}` : "/sales"}
-                className="inline-flex items-center justify-center rounded-xl border border-slate-200 px-5 py-3 text-sm font-semibold text-slate-700"
-              >
-                Clear
-              </Link>
-            )}
+            <Link
+              href="/sales"
+              className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-700"
+            >
+              Reset
+            </Link>
           </div>
         </form>
       </div>

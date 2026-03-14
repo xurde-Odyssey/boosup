@@ -1,6 +1,7 @@
 import { FilePlus2, Printer, ReceiptText } from "lucide-react";
 import { Header } from "@/components/dashboard/Header";
 import { Sidebar } from "@/components/dashboard/Sidebar";
+import { SalesPrintPreview } from "@/components/sales/SalesPrintPreview";
 import { SalesForm } from "@/components/sales/SalesForm";
 import { formatCurrency } from "@/lib/presentation";
 import { getSupabaseClient } from "@/lib/supabase/server";
@@ -57,19 +58,31 @@ export default async function CreateSalesPage({
   } | null = null;
 
   if (editId) {
-    const { data: saleData } = await supabase
-      .from("sales")
-      .select(
-        "id, invoice_number, customer_name, sales_date, payment_status, subtotal, discount, tax, amount_received, remaining_amount, notes, sales_items(product_id, product_name, quantity, rate), sales_payments(id, payment_date, amount, created_at)",
-      )
-      .eq("id", editId)
-      .single();
+    const [{ data: saleData }, itemsResponse, paymentsResponse] = await Promise.all([
+      supabase
+        .from("sales")
+        .select(
+          "id, invoice_number, customer_name, sales_date, payment_status, subtotal, discount, tax, amount_received, remaining_amount, notes",
+        )
+        .eq("id", editId)
+        .single(),
+      supabase
+        .from("sales_items")
+        .select("product_id, product_name, quantity, rate, taxable")
+        .eq("sale_id", editId)
+        .order("created_at", { ascending: true }),
+      supabase
+        .from("sales_payments")
+        .select("id, payment_date, amount, created_at")
+        .eq("sale_id", editId)
+        .order("payment_date", { ascending: false }),
+    ]);
 
     if (saleData) {
       editingSale = {
         ...saleData,
-        sales_items: saleData.sales_items ?? [],
-        sales_payments: saleData.sales_payments ?? [],
+        sales_items: itemsResponse.data ?? [],
+        sales_payments: paymentsResponse.data ?? [],
       };
     }
   }
@@ -161,13 +174,18 @@ export default async function CreateSalesPage({
                 </div>
               </div>
               <div className="mt-4 border-t border-slate-100 pt-4">
-                <button
-                  type="button"
-                  className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-slate-800"
-                >
-                  <Printer className="h-4 w-4" />
-                  Print Invoice
-                </button>
+                {editingSale ? (
+                  <SalesPrintPreview sale={editingSale} />
+                ) : (
+                  <button
+                    type="button"
+                    disabled
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-slate-300 px-4 py-3 text-sm font-semibold text-white"
+                  >
+                    <Printer className="h-4 w-4" />
+                    Save Sales To Enable Print
+                  </button>
+                )}
               </div>
             </section>
 
