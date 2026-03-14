@@ -13,6 +13,18 @@ const readNumber = (formData: FormData, key: string) => {
   return Number.isFinite(value) ? value : 0;
 };
 
+const generateNextCode = (codes: (string | null | undefined)[], prefix: string) => {
+  const maxSequence = codes.reduce((maxValue, code) => {
+    const normalized = String(code ?? "").trim().toUpperCase();
+    if (!normalized.startsWith(prefix)) return maxValue;
+
+    const numericPart = Number(normalized.slice(prefix.length));
+    return Number.isFinite(numericPart) ? Math.max(maxValue, numericPart) : maxValue;
+  }, 0);
+
+  return `${prefix}${String(maxSequence + 1).padStart(2, "0")}`;
+};
+
 const revalidateAll = (...paths: string[]) => {
   paths.forEach((path) => revalidatePath(path));
 };
@@ -32,9 +44,18 @@ export async function upsertProduct(formData: FormData) {
   const supabase = getSupabaseClient();
   const id = readText(formData, "id");
   const actionType = id ? "updated" : "created";
+  let productCode = readText(formData, "code");
+
+  if (!productCode) {
+    const { data: existingProducts = [] } = await supabase.from("products").select("code");
+    productCode = generateNextCode(
+      existingProducts.map((product) => product.code),
+      "DS",
+    );
+  }
 
   const payload = {
-    code: readText(formData, "code"),
+    code: productCode,
     name: readText(formData, "name"),
     category: readText(formData, "category") || "General",
     sales_rate: readNumber(formData, "sales_rate"),
@@ -282,6 +303,8 @@ export async function upsertSale(formData: FormData) {
   const supabase = getSupabaseClient();
   const id = readText(formData, "id");
   const actionType = id ? "updated" : "created";
+  const invoiceNumber = readText(formData, "invoice_number");
+  const customerName = readText(formData, "customer_name");
   const productIds = formData.getAll("product_id").map((value) => String(value ?? "").trim());
   const productNames = formData
     .getAll("product_name")
@@ -297,6 +320,21 @@ export async function upsertSale(formData: FormData) {
     const numericValue = Number(String(value ?? "").trim());
     return Number.isFinite(numericValue) && numericValue >= 0 ? numericValue : 0;
   });
+
+  const salesFormPath = id ? `/sales/create?edit=${id}` : "/sales/create";
+
+  if (!invoiceNumber) {
+    redirect(`${salesFormPath}${salesFormPath.includes("?") ? "&" : "?"}notice=Bill%20number%20is%20required`);
+  }
+
+  if (!customerName) {
+    redirect(`${salesFormPath}${salesFormPath.includes("?") ? "&" : "?"}notice=Customer%20name%20is%20required`);
+  }
+
+  if (!productIds.length || productIds.some((productId) => !productId)) {
+    redirect(`${salesFormPath}${salesFormPath.includes("?") ? "&" : "?"}notice=Select%20product%20for%20each%20sales%20item`);
+  }
+
   const saleItems = await Promise.all(
     productNames.map(async (productName, index) => {
       const productId = productIds[index] || null;
@@ -363,8 +401,8 @@ export async function upsertSale(formData: FormData) {
           ? "OVERDUE"
           : "PENDING";
   const salesPayload = {
-    invoice_number: readText(formData, "invoice_number"),
-    customer_name: readText(formData, "customer_name"),
+    invoice_number: invoiceNumber,
+    customer_name: customerName,
     sales_date: readText(formData, "sales_date"),
     payment_status: paymentStatus,
     subtotal,

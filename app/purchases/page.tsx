@@ -16,10 +16,19 @@ import { Sidebar } from "@/components/dashboard/Sidebar";
 import { SummaryCard } from "@/components/dashboard/SummaryCard";
 import { ActionNotice } from "@/components/shared/ActionNotice";
 import { ConfirmActionForm } from "@/components/shared/ConfirmActionForm";
+import { PaginationControls } from "@/components/shared/PaginationControls";
 import { formatCurrency, formatDate } from "@/lib/presentation";
 import { getSupabaseClient } from "@/lib/supabase/server";
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
+const parsePage = (value: string | string[] | undefined) => {
+  const rawValue = Array.isArray(value) ? value[0] : value;
+  const parsed = Number(rawValue);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 1;
+};
+const PURCHASES_PAGE_SIZE = 8;
+const EXPENSES_PAGE_SIZE = 8;
+const PAYMENTS_PAGE_SIZE = 8;
 
 export default async function PurchasesPage({
   searchParams,
@@ -29,6 +38,9 @@ export default async function PurchasesPage({
   const supabase = getSupabaseClient();
   const params = await searchParams;
   const notice = typeof params.notice === "string" ? params.notice : "";
+  const purchasesPage = parsePage(params.purchasesPage);
+  const expensesPage = parsePage(params.expensesPage);
+  const paymentsPage = parsePage(params.paymentsPage);
 
   const [purchasesResponse, expensesResponse, paymentsResponse] = await Promise.all([
     supabase
@@ -53,6 +65,21 @@ export default async function PurchasesPage({
   const purchases = purchasesResponse.data ?? [];
   const expenses = expensesResponse.data ?? [];
   const purchasePayments = paymentsResponse.data ?? [];
+  const purchasesTotalPages = Math.max(Math.ceil(purchases.length / PURCHASES_PAGE_SIZE), 1);
+  const expensesTotalPages = Math.max(Math.ceil(expenses.length / EXPENSES_PAGE_SIZE), 1);
+  const paymentsTotalPages = Math.max(Math.ceil(purchasePayments.length / PAYMENTS_PAGE_SIZE), 1);
+  const visiblePurchases = purchases.slice(
+    (Math.min(purchasesPage, purchasesTotalPages) - 1) * PURCHASES_PAGE_SIZE,
+    Math.min(purchasesPage, purchasesTotalPages) * PURCHASES_PAGE_SIZE,
+  );
+  const visibleExpenses = expenses.slice(
+    (Math.min(expensesPage, expensesTotalPages) - 1) * EXPENSES_PAGE_SIZE,
+    Math.min(expensesPage, expensesTotalPages) * EXPENSES_PAGE_SIZE,
+  );
+  const visiblePayments = purchasePayments.slice(
+    (Math.min(paymentsPage, paymentsTotalPages) - 1) * PAYMENTS_PAGE_SIZE,
+    Math.min(paymentsPage, paymentsTotalPages) * PAYMENTS_PAGE_SIZE,
+  );
 
   const totalPurchase = purchases.reduce(
     (sum, purchase) => sum + Number(purchase.total_amount ?? 0),
@@ -158,7 +185,7 @@ export default async function PurchasesPage({
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-50">
-                    {purchases.map((purchase) => (
+                    {visiblePurchases.map((purchase) => (
                       <tr key={purchase.id} className="transition-colors hover:bg-slate-50/50">
                         <td className="px-6 py-4 text-sm font-semibold text-slate-900">
                           {purchase.purchase_number}
@@ -229,6 +256,15 @@ export default async function PurchasesPage({
                   </tbody>
                 </table>
               </div>
+              <PaginationControls
+                basePath="/purchases"
+                pageParam="purchasesPage"
+                currentPage={Math.min(purchasesPage, purchasesTotalPages)}
+                totalPages={purchasesTotalPages}
+                totalItems={purchases.length}
+                pageSize={PURCHASES_PAGE_SIZE}
+                searchParams={params}
+              />
             </section>
 
             <section className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
@@ -248,7 +284,7 @@ export default async function PurchasesPage({
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-50">
-                    {expenses.map((expense) => (
+                    {visibleExpenses.map((expense) => (
                       <tr key={expense.id} className="transition-colors hover:bg-slate-50/50">
                         <td className="px-6 py-4 text-sm text-slate-600">
                           {formatDate(expense.expense_date)}
@@ -300,6 +336,15 @@ export default async function PurchasesPage({
                   </tbody>
                 </table>
               </div>
+              <PaginationControls
+                basePath="/purchases"
+                pageParam="expensesPage"
+                currentPage={Math.min(expensesPage, expensesTotalPages)}
+                totalPages={expensesTotalPages}
+                totalItems={expenses.length}
+                pageSize={EXPENSES_PAGE_SIZE}
+                searchParams={params}
+              />
             </section>
 
             <section className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
@@ -319,7 +364,7 @@ export default async function PurchasesPage({
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-50">
-                    {purchasePayments.map((payment) => (
+                    {visiblePayments.map((payment) => (
                       <tr key={payment.id} className="transition-colors hover:bg-slate-50/50">
                         <td className="px-6 py-4 text-sm text-slate-600">
                           {formatDate(payment.payment_date)}
@@ -361,6 +406,15 @@ export default async function PurchasesPage({
                   </tbody>
                 </table>
               </div>
+              <PaginationControls
+                basePath="/purchases"
+                pageParam="paymentsPage"
+                currentPage={Math.min(paymentsPage, paymentsTotalPages)}
+                totalPages={paymentsTotalPages}
+                totalItems={purchasePayments.length}
+                pageSize={PAYMENTS_PAGE_SIZE}
+                searchParams={params}
+              />
             </section>
         </div>
       </main>

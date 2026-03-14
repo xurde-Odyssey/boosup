@@ -5,10 +5,29 @@ import { Header } from "@/components/dashboard/Header";
 import { Sidebar } from "@/components/dashboard/Sidebar";
 import { ActionNotice } from "@/components/shared/ActionNotice";
 import { ConfirmActionForm } from "@/components/shared/ConfirmActionForm";
+import { PaginationControls } from "@/components/shared/PaginationControls";
 import { getSupabaseClient } from "@/lib/supabase/server";
 import { formatCurrency } from "@/lib/presentation";
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
+const parsePage = (value: string | string[] | undefined) => {
+  const rawValue = Array.isArray(value) ? value[0] : value;
+  const parsed = Number(rawValue);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 1;
+};
+const DEFAULT_PER_PAGE = 10;
+
+const generateNextProductCode = (codes: string[]) => {
+  const maxSequence = codes.reduce((maxValue, code) => {
+    const normalized = code.trim().toUpperCase();
+    if (!normalized.startsWith("DS")) return maxValue;
+
+    const numericPart = Number(normalized.slice(2));
+    return Number.isFinite(numericPart) ? Math.max(maxValue, numericPart) : maxValue;
+  }, 0);
+
+  return `DS${String(maxSequence + 1).padStart(2, "0")}`;
+};
 
 export default async function ProductsPage({
   searchParams,
@@ -19,15 +38,60 @@ export default async function ProductsPage({
   const params = await searchParams;
   const editId = typeof params.edit === "string" ? params.edit : "";
   const notice = typeof params.notice === "string" ? params.notice : "";
+  const search = typeof params.q === "string" ? params.q.trim() : "";
+  const status = typeof params.status === "string" ? params.status : "ALL";
+  const sort = typeof params.sort === "string" ? params.sort : "code_asc";
+  const currentPage = parsePage(params.page);
+  const perPage = (() => {
+    const rawValue =
+      typeof params.perPage === "string" ? Number(params.perPage) : DEFAULT_PER_PAGE;
+    return [10, 25, 50].includes(rawValue) ? rawValue : DEFAULT_PER_PAGE;
+  })();
 
   const { data: products = [] } = await supabase
     .from("products")
     .select("id, code, name, category, sales_rate, unit, status, notes")
-    .order("created_at", { ascending: false });
+    .order("code", { ascending: true });
 
   const editingProduct = products.find((product) => product.id === editId) ?? null;
+  const nextProductCode = generateNextProductCode(products.map((product) => product.code));
   const activeProducts = products.filter((product) => product.status === "ACTIVE").length;
   const draftProducts = products.filter((product) => product.status === "DRAFT").length;
+  const searchedProducts = search
+    ? products.filter((product) => {
+        const haystack = `${product.code} ${product.name} ${product.category} ${product.unit}`.toLowerCase();
+        return haystack.includes(search.toLowerCase());
+      })
+    : products;
+  const filteredProducts =
+    status === "ALL"
+      ? searchedProducts
+      : searchedProducts.filter((product) => product.status === status);
+  const sortedProducts = [...filteredProducts].sort((left, right) => {
+    if (sort === "name_asc") {
+      return left.name.localeCompare(right.name);
+    }
+
+    if (sort === "rate_desc") {
+      return Number(right.sales_rate ?? 0) - Number(left.sales_rate ?? 0);
+    }
+
+    if (sort === "rate_asc") {
+      return Number(left.sales_rate ?? 0) - Number(right.sales_rate ?? 0);
+    }
+
+    if (sort === "status_asc") {
+      return left.status.localeCompare(right.status);
+    }
+
+    return left.code.localeCompare(right.code);
+  });
+  const totalPages = Math.max(Math.ceil(sortedProducts.length / perPage), 1);
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+  const visibleProducts = sortedProducts.slice(
+    (safeCurrentPage - 1) * perPage,
+    safeCurrentPage * perPage,
+  );
 
   return (
     <div className="flex min-h-screen bg-slate-50/50">
@@ -86,8 +150,14 @@ export default async function ProductsPage({
               </p>
             </div>
 
-            <form action={upsertProduct} className="space-y-4">
+            <form key={editingProduct?.id ?? "new-product"} action={upsertProduct} className="space-y-4">
               <input type="hidden" name="id" defaultValue={editingProduct?.id ?? ""} />
+              <input
+                type="hidden"
+                name="code"
+                value={editingProduct?.code ?? nextProductCode}
+                readOnly
+              />
 
               <div>
                 <label className="mb-2 block text-sm font-semibold text-slate-700">Product Name</label>
@@ -104,13 +174,14 @@ export default async function ProductsPage({
               <div>
                 <label className="mb-2 block text-sm font-semibold text-slate-700">Product Code</label>
                 <input
-                  name="code"
                   type="text"
-                  required
-                  defaultValue={editingProduct?.code ?? ""}
-                  placeholder="PRD-001"
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition focus:border-blue-500 focus:bg-white"
+                  readOnly
+                  value={editingProduct?.code ?? nextProductCode}
+                  className="w-full rounded-xl border border-slate-200 bg-slate-100 px-4 py-3 text-sm font-semibold text-slate-700 outline-none"
                 />
+                <p className="mt-2 text-xs text-slate-500">
+                  Product codes are generated automatically in the DS01 format.
+                </p>
               </div>
 
               <div>
@@ -202,6 +273,84 @@ export default async function ProductsPage({
               </div>
             </div>
 
+            <div className="border-b border-slate-50 p-6">
+              <form action="/products" className="rounded-2xl border border-slate-200 bg-slate-50/70 p-3">
+                <div className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1.7fr)_220px_220px_220px]">
+                  <div>
+                    <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-600">
+                      Search
+                    </label>
+                    <input
+                      type="text"
+                      name="q"
+                      defaultValue={search}
+                      placeholder="Code, name, category, unit"
+                      className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-600">
+                      Status
+                    </label>
+                    <select
+                      name="status"
+                      defaultValue={status}
+                      className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-blue-500"
+                    >
+                      <option value="ALL">All</option>
+                      <option value="ACTIVE">Active</option>
+                      <option value="DRAFT">Draft</option>
+                      <option value="INACTIVE">Inactive</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-600">
+                      Sort
+                    </label>
+                    <select
+                      name="sort"
+                      defaultValue={sort}
+                      className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-blue-500"
+                    >
+                      <option value="code_asc">Code</option>
+                      <option value="name_asc">Name</option>
+                      <option value="rate_desc">Rate High-Low</option>
+                      <option value="rate_asc">Rate Low-High</option>
+                      <option value="status_asc">Status</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-600">
+                      Per Page
+                    </label>
+                    <select
+                      name="perPage"
+                      defaultValue={String(perPage)}
+                      className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-blue-500"
+                    >
+                      <option value="10">10</option>
+                      <option value="25">25</option>
+                      <option value="50">50</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="mt-3 flex items-center gap-3">
+                  <button
+                    type="submit"
+                    className="rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white"
+                  >
+                    Apply
+                  </button>
+                  <Link
+                    href="/products"
+                    className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-700"
+                  >
+                    Reset
+                  </Link>
+                </div>
+              </form>
+            </div>
+
             <div className="overflow-x-auto">
               <table className="w-full text-left">
                 <thead>
@@ -216,7 +365,7 @@ export default async function ProductsPage({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-50">
-                  {products.map((product) => (
+                  {visibleProducts.map((product) => (
                     <tr key={product.id} className="transition-colors hover:bg-slate-50/50">
                       <td className="px-6 py-4 text-sm font-bold text-slate-900">{product.code}</td>
                       <td className="px-6 py-4 text-sm font-semibold text-slate-900">{product.name}</td>
@@ -263,7 +412,7 @@ export default async function ProductsPage({
                       </td>
                     </tr>
                   ))}
-                  {products.length === 0 && (
+                  {visibleProducts.length === 0 && (
                     <tr>
                       <td colSpan={7} className="px-6 py-10 text-center text-sm text-slate-500">
                         No products added yet. Use the form to create your first product.
@@ -273,6 +422,15 @@ export default async function ProductsPage({
                 </tbody>
               </table>
             </div>
+            <PaginationControls
+              basePath="/products"
+              pageParam="page"
+              currentPage={safeCurrentPage}
+              totalPages={totalPages}
+              totalItems={sortedProducts.length}
+              pageSize={perPage}
+              searchParams={params}
+            />
           </section>
         </div>
       </main>

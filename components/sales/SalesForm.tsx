@@ -255,6 +255,7 @@ export function SalesForm({
                   </label>
                   <select
                     name="product_id"
+                    required
                     value={item.productId}
                     onChange={(event) => {
                       const nextProductId = event.target.value;

@@ -147,3 +147,47 @@
     transform: scaleX(0);
   }
 }
+
+@media print {
+  @page {
+    size: A4;
+    margin: 10mm;
+  }
+
+  body.invoice-print-active > *:not([data-print-root="sales-invoice"]) {
+    display: none !important;
+  }
+
+  body.invoice-print-active [data-print-root="sales-invoice"] {
+    position: static !important;
+    inset: auto !important;
+    overflow: visible !important;
+    background: white !important;
+    padding: 0 !important;
+  }
+
+  body.invoice-print-active [data-print-card="sales-invoice"] {
+    width: auto !important;
+    max-width: none !important;
+    min-height: auto !important;
+    margin: 0 !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    box-sizing: border-box !important;
+  }
+
+  body.invoice-print-active .print-hide {
+    display: none !important;
+  }
+
+  body.invoice-print-active table,
+  body.invoice-print-active tr,
+  body.invoice-print-active td,
+  body.invoice-print-active th,
+  body.invoice-print-active section,
+  body.invoice-print-active header,
+  body.invoice-print-active footer {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+}

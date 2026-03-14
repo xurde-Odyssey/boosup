@@ -4,8 +4,17 @@ import { InvoicesTable } from "@/components/dashboard/InvoicesTable";
 import { Sidebar } from "@/components/dashboard/Sidebar";
 import { SummaryCard } from "@/components/dashboard/SummaryCard";
 import { ActionNotice } from "@/components/shared/ActionNotice";
+import { PaginationControls } from "@/components/shared/PaginationControls";
 import { formatCurrency, formatDate, getAvatarTone, getInitials } from "@/lib/presentation";
 import { getSupabaseClient } from "@/lib/supabase/server";
+
+const parsePage = (value: string | string[] | undefined) => {
+  const rawValue = Array.isArray(value) ? value[0] : value;
+  const parsed = Number(rawValue);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 1;
+};
+
+const PAGE_SIZE = 10;
 
 export default async function SalesPage({
   searchParams,
@@ -16,6 +25,12 @@ export default async function SalesPage({
   const notice = typeof params.notice === "string" ? params.notice : "";
   const search = typeof params.q === "string" ? params.q.trim() : "";
   const sort = typeof params.sort === "string" ? params.sort : "date_desc";
+  const status = typeof params.status === "string" ? params.status : "ALL";
+  const currentPage = parsePage(params.page);
+  const perPage = (() => {
+    const rawValue = typeof params.perPage === "string" ? Number(params.perPage) : PAGE_SIZE;
+    return [10, 25, 50].includes(rawValue) ? rawValue : PAGE_SIZE;
+  })();
   const supabase = getSupabaseClient();
   const { data: allSales = [] } = await supabase
     .from("sales")
@@ -24,12 +39,16 @@ export default async function SalesPage({
     )
     .order("created_at", { ascending: false });
 
-  const filteredSales = search
+  const searchedSales = search
     ? allSales.filter((sale) => {
         const haystack = `${sale.invoice_number} ${sale.customer_name}`.toLowerCase();
         return haystack.includes(search.toLowerCase());
       })
     : allSales;
+  const filteredSales =
+    status === "ALL"
+      ? searchedSales
+      : searchedSales.filter((sale) => sale.payment_status === status);
 
   const sales = [...filteredSales].sort((left, right) => {
     if (sort === "name_asc") {
@@ -50,6 +69,12 @@ export default async function SalesPage({
 
     return (right.sales_date ?? "").localeCompare(left.sales_date ?? "");
   });
+  const totalPages = Math.max(Math.ceil(sales.length / perPage), 1);
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+  const paginatedSales = sales.slice(
+    (safeCurrentPage - 1) * perPage,
+    safeCurrentPage * perPage,
+  );
 
   const totalInvoiced = sales.reduce((sum, sale) => sum + Number(sale.grand_total ?? 0), 0);
   const totalPaid = sales
@@ -65,7 +90,7 @@ export default async function SalesPage({
     .filter((sale) => sale.payment_status === "OVERDUE")
     .reduce((sum, sale) => sum + Number(sale.remaining_amount ?? 0), 0);
 
-  const invoices = sales.map((sale, index) => {
+  const invoices = paginatedSales.map((sale, index) => {
     const tone = getAvatarTone(index);
     return {
       id: sale.id,
@@ -144,7 +169,22 @@ export default async function SalesPage({
         </div>
 
         <div className="mb-8">
-          <InvoicesTable invoices={invoices} search={search} sort={sort} />
+          <InvoicesTable
+            invoices={invoices}
+            search={search}
+            sort={sort}
+            status={status}
+            perPage={perPage}
+          />
+          <PaginationControls
+            basePath="/sales"
+            pageParam="page"
+            currentPage={safeCurrentPage}
+            totalPages={totalPages}
+            totalItems={sales.length}
+            pageSize={perPage}
+            searchParams={params}
+          />
         </div>
       </main>
     </div>

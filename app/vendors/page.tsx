@@ -6,10 +6,18 @@ import { Sidebar } from "@/components/dashboard/Sidebar";
 import { SummaryCard } from "@/components/dashboard/SummaryCard";
 import { ActionNotice } from "@/components/shared/ActionNotice";
 import { ConfirmActionForm } from "@/components/shared/ConfirmActionForm";
+import { PaginationControls } from "@/components/shared/PaginationControls";
 import { formatCurrency, formatDate } from "@/lib/presentation";
 import { getSupabaseClient } from "@/lib/supabase/server";
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
+const parsePage = (value: string | string[] | undefined) => {
+  const rawValue = Array.isArray(value) ? value[0] : value;
+  const parsed = Number(rawValue);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 1;
+};
+const VENDOR_PAYABLES_PAGE_SIZE = 8;
+const VENDOR_PROFILES_PAGE_SIZE = 8;
 
 export default async function VendorsPage({
   searchParams,
@@ -19,6 +27,8 @@ export default async function VendorsPage({
   const supabase = getSupabaseClient();
   const params = await searchParams;
   const notice = typeof params.notice === "string" ? params.notice : "";
+  const vendorPayablesPage = parsePage(params.vendorPayablesPage);
+  const vendorProfilesPage = parsePage(params.vendorProfilesPage);
 
   const [vendorsResponse, purchasesResponse] = await Promise.all([
     supabase
@@ -88,6 +98,22 @@ export default async function VendorsPage({
   const totalPayables = vendorPayables.reduce((sum, vendor) => sum + vendor.totalCreditAmount, 0);
   const totalVendorPurchase = vendorPayables.reduce((sum, vendor) => sum + vendor.totalAmount, 0);
   const totalVendorPaid = vendorPayables.reduce((sum, vendor) => sum + vendor.totalPaidAmount, 0);
+  const payablesTotalPages = Math.max(
+    Math.ceil(vendorPayables.length / VENDOR_PAYABLES_PAGE_SIZE),
+    1,
+  );
+  const profilesTotalPages = Math.max(
+    Math.ceil(vendorPayables.length / VENDOR_PROFILES_PAGE_SIZE),
+    1,
+  );
+  const visibleVendorPayables = vendorPayables.slice(
+    (Math.min(vendorPayablesPage, payablesTotalPages) - 1) * VENDOR_PAYABLES_PAGE_SIZE,
+    Math.min(vendorPayablesPage, payablesTotalPages) * VENDOR_PAYABLES_PAGE_SIZE,
+  );
+  const visibleVendorProfiles = vendorPayables.slice(
+    (Math.min(vendorProfilesPage, profilesTotalPages) - 1) * VENDOR_PROFILES_PAGE_SIZE,
+    Math.min(vendorProfilesPage, profilesTotalPages) * VENDOR_PROFILES_PAGE_SIZE,
+  );
 
   return (
     <div className="flex min-h-screen bg-slate-50/50">
@@ -170,7 +196,7 @@ export default async function VendorsPage({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-50">
-                  {vendorPayables.map((vendor) => (
+                  {visibleVendorPayables.map((vendor) => (
                     <tr key={vendor.id} className="transition-colors hover:bg-slate-50/50">
                       <td className="px-6 py-4">
                         <Link
@@ -207,6 +233,15 @@ export default async function VendorsPage({
                 </tbody>
               </table>
             </div>
+            <PaginationControls
+              basePath="/vendors"
+              pageParam="vendorPayablesPage"
+              currentPage={Math.min(vendorPayablesPage, payablesTotalPages)}
+              totalPages={payablesTotalPages}
+              totalItems={vendorPayables.length}
+              pageSize={VENDOR_PAYABLES_PAGE_SIZE}
+              searchParams={params}
+            />
           </section>
 
           <section className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
@@ -227,7 +262,7 @@ export default async function VendorsPage({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-50">
-                  {vendorPayables.map((vendor) => (
+                  {visibleVendorProfiles.map((vendor) => (
                     <tr key={vendor.id} className="transition-colors hover:bg-slate-50/50">
                       <td className="px-6 py-4">
                         <Link
@@ -282,6 +317,15 @@ export default async function VendorsPage({
                 </tbody>
               </table>
             </div>
+            <PaginationControls
+              basePath="/vendors"
+              pageParam="vendorProfilesPage"
+              currentPage={Math.min(vendorProfilesPage, profilesTotalPages)}
+              totalPages={profilesTotalPages}
+              totalItems={vendorPayables.length}
+              pageSize={VENDOR_PROFILES_PAGE_SIZE}
+              searchParams={params}
+            />
           </section>
         </div>
       </main>
