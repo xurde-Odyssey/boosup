@@ -13,6 +13,11 @@ const readNumber = (formData: FormData, key: string) => {
   return Number.isFinite(value) ? value : 0;
 };
 
+const readWholeNumber = (formData: FormData, key: string) => {
+  const value = readNumber(formData, key);
+  return Number.isFinite(value) && value > 0 ? Math.max(Math.trunc(value), 1) : 1;
+};
+
 const generateNextCode = (codes: (string | null | undefined)[], prefix: string) => {
   const maxSequence = codes.reduce((maxValue, code) => {
     const normalized = String(code ?? "").trim().toUpperCase();
@@ -159,7 +164,7 @@ export async function upsertPurchase(formData: FormData) {
   const supabase = await getSupabaseClient();
   const id = readText(formData, "id");
   const actionType = id ? "updated" : "created";
-  const quantity = readNumber(formData, "quantity") || 1;
+  const quantity = readWholeNumber(formData, "quantity");
   const rate = readNumber(formData, "rate");
   const totalAmount = quantity * rate;
   const vendorId = readText(formData, "vendor_id");
@@ -320,7 +325,9 @@ export async function upsertSale(formData: FormData) {
     .map((value) => String(value ?? "").trim() === "true");
   const quantities = formData.getAll("quantity").map((value) => {
     const numericValue = Number(String(value ?? "").trim());
-    return Number.isFinite(numericValue) && numericValue > 0 ? numericValue : 1;
+    return Number.isFinite(numericValue) && numericValue > 0
+      ? Math.max(Math.trunc(numericValue), 1)
+      : 1;
   });
   const rates = formData.getAll("rate").map((value) => {
     const numericValue = Number(String(value ?? "").trim());

@@ -5,6 +5,7 @@ import {
   LockKeyhole,
   Printer,
   Settings2,
+  SlidersHorizontal,
 } from "lucide-react";
 import { Header } from "@/components/dashboard/Header";
 import { Sidebar } from "@/components/dashboard/Sidebar";
@@ -38,6 +39,17 @@ const settingSections = [
       "Preferred report range: week, month, year, or custom",
       "What metrics to show on A4 summary reports",
       "Table row limits for top customers, items, and invoices",
+    ],
+  },
+  {
+    icon: SlidersHorizontal,
+    title: "System Preferences",
+    description: "Technical behavior of the app that affects how users see and operate the system.",
+    items: [
+      "Dark / light theme preference",
+      "Default pagination size for long tables",
+      "Default dashboard date range such as week, month, or year",
+      "Timezone selection for dates, reports, and transaction defaults",
     ],
   },
   {

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { SiteFooter } from "@/components/shared/SiteFooter";
+import { SonnerToaster } from "@/components/shared/SonnerToaster";
 import siteIcon from "./logos/icon.png";
 import "./globals.css";
 
@@ -35,6 +36,7 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <div className="flex min-h-screen flex-col">
+          <SonnerToaster />
           <div className="flex-1">{children}</div>
           <div className="shrink-0">
             <SiteFooter />

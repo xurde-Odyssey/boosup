@@ -1,8 +1,7 @@
-import { ActionNotice } from "@/components/shared/ActionNotice";
 import { Header } from "@/components/dashboard/Header";
 import { Sidebar } from "@/components/dashboard/Sidebar";
 import { PurchaseForm } from "@/components/purchases/PurchaseForm";
-import { ReportToolbar } from "@/components/shared/ReportToolbar";
+import { QueryNoticeToast } from "@/components/shared/QueryNoticeToast";
 import { getSupabaseClient } from "@/lib/supabase/server";
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
@@ -62,8 +61,7 @@ export default async function CreatePurchasePage({
           primaryActionHref="/purchases"
         />
 
-        {notice && <ActionNotice message={notice} />}
-        <ReportToolbar actionPath={editingPurchase ? `/purchases/create?edit=${editingPurchase.id}` : "/purchases/create"} />
+        <QueryNoticeToast message={notice} />
 
         <PurchaseForm
           vendors={vendors}

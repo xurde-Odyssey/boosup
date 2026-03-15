@@ -18,7 +18,12 @@ export async function getSupabaseClient() {
       },
       setAll(cookiesToSet) {
         cookiesToSet.forEach(({ name, value, options }) => {
-          cookieStore.set(name, value, options);
+          try {
+            cookieStore.set(name, value, options);
+          } catch {
+            // Server components can read cookies but cannot always mutate them during render.
+            // Session refresh writes are handled by middleware and server actions instead.
+          }
         });
       },
     },

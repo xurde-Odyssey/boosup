@@ -109,61 +109,86 @@ export default async function StaffPage({
               <input type="hidden" name="id" defaultValue={editingStaff?.id ?? ""} />
               <input type="hidden" name="redirect_to" value="/staff" />
 
-              <input
-                name="staff_code"
-                required
-                defaultValue={editingStaff?.staff_code ?? ""}
-                placeholder="Staff Code"
-                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-blue-500 focus:bg-white"
-              />
-              <input
-                name="name"
-                required
-                defaultValue={editingStaff?.name ?? ""}
-                placeholder="Staff Name"
-                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-blue-500 focus:bg-white"
-              />
-              <textarea
-                name="address"
-                rows={3}
-                defaultValue={editingStaff?.address ?? ""}
-                placeholder="Address"
-                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-blue-500 focus:bg-white"
-              />
-              <input
-                name="phone"
-                defaultValue={editingStaff?.phone ?? ""}
-                placeholder="Phone"
-                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-blue-500 focus:bg-white"
-              />
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div>
+                <label className="mb-2 block text-sm font-semibold text-slate-700">Staff Code</label>
                 <input
-                  name="total_salary"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  defaultValue={editingStaff?.total_salary ?? 0}
-                  placeholder="Total Salary"
-                  className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-blue-500 focus:bg-white"
-                />
-                <input
-                  name="advance_salary"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  defaultValue={editingStaff?.advance_salary ?? 0}
-                  placeholder="Advance Salary"
-                  className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-blue-500 focus:bg-white"
+                  name="staff_code"
+                  required
+                  defaultValue={editingStaff?.staff_code ?? ""}
+                  placeholder="Enter staff code"
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-blue-500 focus:bg-white"
                 />
               </div>
-              <select
-                name="status"
-                defaultValue={editingStaff?.status ?? "ACTIVE"}
-                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-blue-500 focus:bg-white"
-              >
-                <option value="ACTIVE">ACTIVE</option>
-                <option value="INACTIVE">INACTIVE</option>
-              </select>
+              <div>
+                <label className="mb-2 block text-sm font-semibold text-slate-700">Staff Name</label>
+                <input
+                  name="name"
+                  required
+                  defaultValue={editingStaff?.name ?? ""}
+                  placeholder="Enter staff name"
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-blue-500 focus:bg-white"
+                />
+              </div>
+              <div>
+                <label className="mb-2 block text-sm font-semibold text-slate-700">Address</label>
+                <textarea
+                  name="address"
+                  rows={3}
+                  defaultValue={editingStaff?.address ?? ""}
+                  placeholder="Enter address"
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-blue-500 focus:bg-white"
+                />
+              </div>
+              <div>
+                <label className="mb-2 block text-sm font-semibold text-slate-700">Phone</label>
+                <input
+                  name="phone"
+                  defaultValue={editingStaff?.phone ?? ""}
+                  placeholder="Enter phone number"
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-blue-500 focus:bg-white"
+                />
+              </div>
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-slate-700">
+                    Total Salary
+                  </label>
+                  <input
+                    name="total_salary"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    defaultValue={editingStaff?.total_salary ?? 0}
+                    placeholder="Enter total salary"
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-blue-500 focus:bg-white"
+                  />
+                </div>
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-slate-700">
+                    Advance Salary
+                  </label>
+                  <input
+                    name="advance_salary"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    defaultValue={editingStaff?.advance_salary ?? 0}
+                    placeholder="Enter advance salary"
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-blue-500 focus:bg-white"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="mb-2 block text-sm font-semibold text-slate-700">Status</label>
+                <select
+                  name="status"
+                  defaultValue={editingStaff?.status ?? "ACTIVE"}
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-blue-500 focus:bg-white"
+                >
+                  <option value="ACTIVE">ACTIVE</option>
+                  <option value="INACTIVE">INACTIVE</option>
+                </select>
+              </div>
 
               <div className="flex gap-3">
                 <button

@@ -17,11 +17,11 @@ import {
 import { Header } from "@/components/dashboard/Header";
 import { Sidebar } from "@/components/dashboard/Sidebar";
 import { SummaryCard } from "@/components/dashboard/SummaryCard";
-import { ActionNotice } from "@/components/shared/ActionNotice";
 import { ConfirmActionForm } from "@/components/shared/ConfirmActionForm";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { PageActionStrip } from "@/components/shared/PageActionStrip";
 import { PaginationControls } from "@/components/shared/PaginationControls";
+import { QueryNoticeToast } from "@/components/shared/QueryNoticeToast";
 import { ReportToolbar } from "@/components/shared/ReportToolbar";
 import { formatCurrency, formatDate } from "@/lib/presentation";
 import { getSupabaseClient } from "@/lib/supabase/server";
@@ -116,7 +116,7 @@ export default async function PurchasesPage({
           title="Purchases Overview"
           description="Track vendor profiles, purchase totals, and outstanding credit."
         />
-        {notice && <ActionNotice message={notice} />}
+        <QueryNoticeToast message={notice} />
         <ReportToolbar actionPath="/purchases" />
         <PageActionStrip
           actions={[

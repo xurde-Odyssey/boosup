@@ -6,8 +6,11 @@ import { Sidebar } from "@/components/dashboard/Sidebar";
 import { ActionNotice } from "@/components/shared/ActionNotice";
 import { ConfirmActionForm } from "@/components/shared/ConfirmActionForm";
 import { EmptyState } from "@/components/shared/EmptyState";
+import { FieldHint } from "@/components/shared/FieldHint";
 import { PageActionStrip } from "@/components/shared/PageActionStrip";
 import { PaginationControls } from "@/components/shared/PaginationControls";
+import { SectionCard } from "@/components/shared/SectionCard";
+import { StatusBadge } from "@/components/shared/StatusBadge";
 import { getSupabaseClient } from "@/lib/supabase/server";
 import { formatCurrency } from "@/lib/presentation";
 
@@ -148,7 +151,7 @@ export default async function ProductsPage({
         </div>
 
         <div className="grid grid-cols-1 gap-6 xl:grid-cols-[420px_minmax(0,1fr)]">
-          <section id="product-form" className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+          <SectionCard id="product-form">
             <div className="mb-6">
               <h3 className="text-lg font-bold text-slate-900">
                 {editingProduct ? "Update Product" : "Create Product"}
@@ -187,9 +190,9 @@ export default async function ProductsPage({
                   value={editingProduct?.code ?? nextProductCode}
                   className="w-full rounded-xl border border-slate-200 bg-slate-100 px-4 py-3 text-sm font-semibold text-slate-700 outline-none"
                 />
-                <p className="mt-2 text-xs text-slate-500">
+                <FieldHint>
                   Product codes are generated automatically in the DS01 format.
-                </p>
+                </FieldHint>
               </div>
 
               <div>
@@ -267,9 +270,9 @@ export default async function ProductsPage({
                 )}
               </div>
             </form>
-          </section>
+          </SectionCard>
 
-          <section id="product-table" className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
+          <SectionCard id="product-table" className="overflow-hidden" padded={false}>
             <div className="flex items-center justify-between border-b border-slate-50 p-6">
               <div>
                 <h3 className="text-lg font-bold text-slate-900">Product Table</h3>
@@ -388,9 +391,16 @@ export default async function ProductsPage({
                       </td>
                       <td className="px-6 py-4 text-sm text-slate-500">{product.unit}</td>
                       <td className="px-6 py-4">
-                        <span className="inline-flex rounded-full px-3 py-1 text-[10px] font-bold tracking-wider bg-slate-50 text-slate-700">
-                          {product.status}
-                        </span>
+                        <StatusBadge
+                          label={product.status}
+                          tone={
+                            product.status === "ACTIVE"
+                              ? "success"
+                              : product.status === "DRAFT"
+                                ? "warning"
+                                : "neutral"
+                          }
+                        />
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex items-center justify-end gap-2">
@@ -450,7 +460,7 @@ export default async function ProductsPage({
               pageSize={perPage}
               searchParams={params}
             />
-          </section>
+          </SectionCard>
         </div>
       </main>
     </div>

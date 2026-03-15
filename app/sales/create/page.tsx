@@ -3,7 +3,7 @@ import { Header } from "@/components/dashboard/Header";
 import { Sidebar } from "@/components/dashboard/Sidebar";
 import { SalesPrintPreview } from "@/components/sales/SalesPrintPreview";
 import { SalesForm } from "@/components/sales/SalesForm";
-import { ReportToolbar } from "@/components/shared/ReportToolbar";
+import { QueryNoticeToast } from "@/components/shared/QueryNoticeToast";
 import { formatCurrency } from "@/lib/presentation";
 import { getSupabaseClient } from "@/lib/supabase/server";
 
@@ -22,6 +22,7 @@ export default async function CreateSalesPage({
   const supabase = await getSupabaseClient();
   const params = await searchParams;
   const editId = typeof params.edit === "string" ? params.edit : "";
+  const notice = typeof params.notice === "string" ? params.notice : "";
   const todayDate = getTodayDate();
 
   const { data: products = [] } = await supabase
@@ -108,7 +109,7 @@ export default async function CreateSalesPage({
           description="Enter and persist a sales record in Supabase."
           primaryActionLabel={editingSale ? "Update Sales" : "Save Sales"}
         />
-        <ReportToolbar actionPath={editingSale ? `/sales/create?edit=${editingSale.id}` : "/sales/create"} />
+        <QueryNoticeToast message={notice} />
 
         <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
           <section className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
