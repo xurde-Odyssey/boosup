@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { upsertPurchase } from "@/app/actions";
+import { FieldHint } from "@/components/shared/FieldHint";
 import { FormSectionHeader } from "@/components/shared/FormSectionHeader";
 import { FormStickyActions } from "@/components/shared/FormStickyActions";
 import { formatCurrency } from "@/lib/presentation";
@@ -42,6 +43,15 @@ type EditingPurchase = {
 const toNumber = (value: string) => {
   const numericValue = Number(value);
   return Number.isFinite(numericValue) ? numericValue : 0;
+};
+
+const toWholeNumber = (value: string) => {
+  const numericValue = Number(value);
+  if (!Number.isFinite(numericValue) || numericValue <= 0) {
+    return "1";
+  }
+
+  return String(Math.max(Math.trunc(numericValue), 1));
 };
 
 export function PurchaseForm({
@@ -116,6 +126,7 @@ export function PurchaseForm({
                   placeholder="PUR-2026-001"
                   className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-blue-500"
                 />
+                <FieldHint>Keep the bill number aligned with the vendor invoice when possible.</FieldHint>
               </div>
               <div>
                 <label className="mb-2 block text-sm font-semibold text-slate-700">
@@ -147,6 +158,7 @@ export function PurchaseForm({
                     </option>
                   ))}
                 </select>
+                <FieldHint>Choose a saved vendor or type a one-time vendor name below.</FieldHint>
               </div>
               <div>
                 <label className="mb-2 block text-sm font-semibold text-slate-700">
@@ -188,9 +200,9 @@ export function PurchaseForm({
                   name="quantity"
                   type="number"
                   min="1"
-                  step="0.01"
+                  step="1"
                   value={quantity}
-                  onChange={(event) => setQuantity(event.target.value)}
+                  onChange={(event) => setQuantity(toWholeNumber(event.target.value))}
                   placeholder="1"
                   className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-blue-500"
                 />

@@ -4,9 +4,9 @@ import { InvoicesTable } from "@/components/dashboard/InvoicesTable";
 import { SalesReportPrintButton } from "@/components/dashboard/SalesReportPrintButton";
 import { Sidebar } from "@/components/dashboard/Sidebar";
 import { SummaryCard } from "@/components/dashboard/SummaryCard";
-import { ActionNotice } from "@/components/shared/ActionNotice";
 import { PageActionStrip } from "@/components/shared/PageActionStrip";
 import { PaginationControls } from "@/components/shared/PaginationControls";
+import { QueryNoticeToast } from "@/components/shared/QueryNoticeToast";
 import { ReportToolbar } from "@/components/shared/ReportToolbar";
 import { formatCurrency, formatDate, getAvatarTone, getInitials } from "@/lib/presentation";
 import { getSupabaseClient } from "@/lib/supabase/server";
@@ -184,7 +184,7 @@ export default async function SalesPage({
           title="Sales Invoices Overview"
           description="Detailed view of all your sales transactions and invoice statuses."
         />
-        {notice && <ActionNotice message={notice} />}
+        <QueryNoticeToast message={notice} />
         <ReportToolbar
           actionPath="/sales"
           selectedRange={selectedRange}

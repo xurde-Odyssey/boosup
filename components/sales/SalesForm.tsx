@@ -3,6 +3,7 @@
 import { Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { upsertSale } from "@/app/actions";
+import { FieldHint } from "@/components/shared/FieldHint";
 import { FormSectionHeader } from "@/components/shared/FormSectionHeader";
 import { FormStickyActions } from "@/components/shared/FormStickyActions";
 import { formatCurrency } from "@/lib/presentation";
@@ -48,6 +49,15 @@ type SaleItemRow = {
 const toNumber = (value: string) => {
   const numericValue = Number(value);
   return Number.isFinite(numericValue) ? numericValue : 0;
+};
+
+const toWholeNumber = (value: string) => {
+  const numericValue = Number(value);
+  if (!Number.isFinite(numericValue) || numericValue <= 0) {
+    return "1";
+  }
+
+  return String(Math.max(Math.trunc(numericValue), 1));
 };
 
 const createEmptyRow = (): SaleItemRow => ({
@@ -169,6 +179,7 @@ export function SalesForm({
               placeholder="55"
               className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-blue-500"
             />
+            <FieldHint>Use the same bill number format you print or write manually.</FieldHint>
           </div>
           <div>
             <label className="mb-2 block text-sm font-semibold text-slate-700">Sales Date</label>
@@ -191,6 +202,7 @@ export function SalesForm({
               placeholder="Enter customer name"
               className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-blue-500"
             />
+            <FieldHint>Customer name is required before saving the invoice.</FieldHint>
           </div>
           <div>
             <label className="mb-2 block text-sm font-semibold text-slate-700">
@@ -284,6 +296,7 @@ export function SalesForm({
                       </option>
                     ))}
                   </select>
+                  <FieldHint>Select a saved product to auto-fill the item name and rate.</FieldHint>
                 </div>
                 <div>
                   <label className="mb-2 block text-sm font-semibold text-slate-700">
@@ -306,9 +319,11 @@ export function SalesForm({
                     name="quantity"
                     type="number"
                     min="1"
-                    step="0.01"
+                    step="1"
                     value={item.quantity}
-                    onChange={(event) => updateItem(index, { quantity: event.target.value })}
+                    onChange={(event) =>
+                      updateItem(index, { quantity: toWholeNumber(event.target.value) })
+                    }
                     placeholder="Enter quantity"
                     className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500"
                   />

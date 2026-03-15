@@ -10,6 +10,8 @@ import { EmptyState } from "@/components/shared/EmptyState";
 import { PageActionStrip } from "@/components/shared/PageActionStrip";
 import { PaginationControls } from "@/components/shared/PaginationControls";
 import { ReportToolbar } from "@/components/shared/ReportToolbar";
+import { SectionCard } from "@/components/shared/SectionCard";
+import { StatusBadge } from "@/components/shared/StatusBadge";
 import { formatCurrency, formatDate } from "@/lib/presentation";
 import { getSupabaseClient } from "@/lib/supabase/server";
 
@@ -176,7 +178,7 @@ export default async function VendorsPage({
         </div>
 
         <div className="space-y-6">
-          <section className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
+          <SectionCard className="overflow-hidden" padded={false}>
             <div className="border-b border-slate-50 p-6">
               <h3 className="text-lg font-bold text-slate-900">Vendor Payables</h3>
               <p className="mt-1 text-xs text-slate-500">
@@ -254,9 +256,9 @@ export default async function VendorsPage({
               pageSize={VENDOR_PAYABLES_PAGE_SIZE}
               searchParams={params}
             />
-          </section>
+          </SectionCard>
 
-          <section className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
+          <SectionCard className="overflow-hidden" padded={false}>
             <div className="border-b border-slate-50 p-6">
               <h3 className="text-lg font-bold text-slate-900">Vendor Profiles</h3>
               <p className="mt-1 text-xs text-slate-500">All supplier profiles stored in Supabase.</p>
@@ -293,7 +295,12 @@ export default async function VendorsPage({
                       <td className="px-6 py-4 text-sm text-slate-600">{vendor.contactPerson ?? "-"}</td>
                       <td className="px-6 py-4 text-sm text-slate-600">{vendor.phone ?? "-"}</td>
                       <td className="px-6 py-4 text-sm text-slate-600">{vendor.paymentTerms}</td>
-                      <td className="px-6 py-4 text-sm text-slate-600">{vendor.status}</td>
+                      <td className="px-6 py-4 text-sm text-slate-600">
+                        <StatusBadge
+                          label={vendor.status}
+                          tone={vendor.status === "ACTIVE" ? "success" : "neutral"}
+                        />
+                      </td>
                       <td className="px-6 py-4">
                         <div className="flex items-center justify-end gap-2">
                           <Link
@@ -349,7 +356,7 @@ export default async function VendorsPage({
               pageSize={VENDOR_PROFILES_PAGE_SIZE}
               searchParams={params}
             />
-          </section>
+          </SectionCard>
         </div>
       </main>
     </div>

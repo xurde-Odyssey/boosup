@@ -2,16 +2,9 @@ import Link from "next/link";
 import { deleteSale } from "@/app/actions";
 import { ConfirmActionForm } from "@/components/shared/ConfirmActionForm";
 import { EmptyState } from "@/components/shared/EmptyState";
+import { PaymentStatusBadge } from "@/components/shared/StatusBadge";
 import { cn } from "@/lib/utils";
-import {
-  AlertTriangle,
-  CheckCircle2,
-  Clock,
-  FileText,
-  Pencil,
-  RefreshCcw,
-  Trash2,
-} from "lucide-react";
+import { FileText, Pencil, RefreshCcw, Trash2 } from "lucide-react";
 
 type Invoice = {
   id: string;
@@ -26,36 +19,6 @@ type Invoice = {
   initialsBg: string;
   initialsColor: string;
 };
-
-const statusStyles: Record<string, string> = {
-  PAID: "bg-green-50 text-green-700 border-green-100",
-  PENDING: "bg-amber-50 text-amber-700 border-amber-100",
-  PARTIAL: "bg-blue-50 text-blue-700 border-blue-100",
-  OVERDUE: "bg-red-50 text-red-700 border-red-100",
-};
-
-function StatusBadge({ status }: { status: string }) {
-  const icon =
-    status === "PAID" ? (
-      <CheckCircle2 className="h-3 w-3" />
-    ) : status === "OVERDUE" ? (
-      <AlertTriangle className="h-3 w-3" />
-    ) : (
-      <Clock className="h-3 w-3" />
-    );
-
-  return (
-    <span
-      className={cn(
-        "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-bold tracking-wider",
-        statusStyles[status] ?? "bg-slate-50 text-slate-600 border-slate-100",
-      )}
-    >
-      {icon}
-      {status}
-    </span>
-  );
-}
 
 export function InvoicesTable({
   invoices,
@@ -215,7 +178,7 @@ export function InvoicesTable({
                   {invoice.remainingAmount}
                 </td>
                 <td className="px-6 py-3.5">
-                  <StatusBadge status={invoice.status} />
+                  <PaymentStatusBadge status={invoice.status} />
                 </td>
                 <td className="px-6 py-3.5 text-sm text-slate-500">{invoice.date}</td>
                 <td className="px-6 py-3.5">
