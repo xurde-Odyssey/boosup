@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ActionNotice } from "@/components/shared/ActionNotice";
 import { Header } from "@/components/dashboard/Header";
 import { Sidebar } from "@/components/dashboard/Sidebar";
+import { ReportToolbar } from "@/components/shared/ReportToolbar";
 import { upsertVendor } from "@/app/actions";
 import { getSupabaseClient } from "@/lib/supabase/server";
 
@@ -12,7 +13,7 @@ export default async function CreateVendorPage({
 }: {
   searchParams: SearchParams;
 }) {
-  const supabase = getSupabaseClient();
+  const supabase = await getSupabaseClient();
   const params = await searchParams;
   const editId = typeof params.edit === "string" ? params.edit : "";
   const notice = typeof params.notice === "string" ? params.notice : "";
@@ -37,6 +38,7 @@ export default async function CreateVendorPage({
         />
 
         {notice && <ActionNotice message={notice} />}
+        <ReportToolbar actionPath={editingVendor ? `/vendors/create?edit=${editingVendor.id}` : "/vendors/create"} />
 
         <section className="max-w-2xl rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
           <div className="mb-6">

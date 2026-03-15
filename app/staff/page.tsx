@@ -5,6 +5,9 @@ import { Header } from "@/components/dashboard/Header";
 import { Sidebar } from "@/components/dashboard/Sidebar";
 import { SummaryCard } from "@/components/dashboard/SummaryCard";
 import { ActionNotice } from "@/components/shared/ActionNotice";
+import { EmptyState } from "@/components/shared/EmptyState";
+import { PageActionStrip } from "@/components/shared/PageActionStrip";
+import { ReportToolbar } from "@/components/shared/ReportToolbar";
 import { formatCurrency } from "@/lib/presentation";
 import { getSupabaseClient } from "@/lib/supabase/server";
 
@@ -15,7 +18,7 @@ export default async function StaffPage({
 }: {
   searchParams: SearchParams;
 }) {
-  const supabase = getSupabaseClient();
+  const supabase = await getSupabaseClient();
   const params = await searchParams;
   const editId = typeof params.edit === "string" ? params.edit : "";
   const notice = typeof params.notice === "string" ? params.notice : "";
@@ -46,6 +49,13 @@ export default async function StaffPage({
           description="Manage staff records, salary amounts, advance salary, and remaining balance."
         />
         {notice && <ActionNotice message={notice} />}
+        <ReportToolbar actionPath="/staff" />
+        <PageActionStrip
+          actions={[
+            { label: editingStaff ? "Update Staff Profile" : "Create Staff Profile", href: "#staff-form" },
+            { label: "Browse Salary Table", href: "#staff-table", variant: "secondary" },
+          ]}
+        />
 
         <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
           <SummaryCard
@@ -87,7 +97,7 @@ export default async function StaffPage({
         </div>
 
         <div className="grid grid-cols-1 gap-6 xl:grid-cols-[420px_minmax(0,1fr)]">
-          <section className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+          <section id="staff-form" className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
             <div className="mb-6">
               <h3 className="text-lg font-bold text-slate-900">
                 {editingStaff ? "Update Staff Profile" : "Create Staff Profile"}
@@ -174,7 +184,7 @@ export default async function StaffPage({
             </form>
           </section>
 
-          <section className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
+          <section id="staff-table" className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
             <div className="border-b border-slate-50 p-6">
               <h3 className="text-lg font-bold text-slate-900">Staff Salary Table</h3>
               <p className="mt-1 text-xs text-slate-500">Live salary data from Supabase.</p>
@@ -182,19 +192,24 @@ export default async function StaffPage({
             <div className="overflow-x-auto">
               <table className="w-full text-left">
                 <thead>
-                  <tr className="bg-slate-50/50 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                    <th className="px-6 py-4">Name</th>
-                    <th className="px-6 py-4">Address</th>
-                    <th className="px-6 py-4">Phone</th>
-                    <th className="px-6 py-4">Total Salary</th>
-                    <th className="px-6 py-4">Advance Given</th>
-                    <th className="px-6 py-4">Remaining</th>
-                    <th className="px-6 py-4 text-right">Actions</th>
+                  <tr className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                    <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">Name</th>
+                    <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">Address</th>
+                    <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">Phone</th>
+                    <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">Total Salary</th>
+                    <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">Advance Given</th>
+                    <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">Remaining</th>
+                    <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-50">
-                  {staffProfiles.map((staff) => (
-                    <tr key={staff.id} className="transition-colors hover:bg-slate-50/50">
+                  {staffProfiles.map((staff, index) => (
+                    <tr
+                      key={staff.id}
+                      className={`transition-colors hover:bg-blue-50/40 ${
+                        index % 2 === 0 ? "bg-white" : "bg-slate-50/40"
+                      }`}
+                    >
                       <td className="px-6 py-4">
                         <div className="text-sm font-semibold text-slate-900">{staff.name}</div>
                         <div className="text-xs text-slate-500">{staff.staff_code}</div>
@@ -204,10 +219,10 @@ export default async function StaffPage({
                       <td className="px-6 py-4 text-sm font-semibold text-slate-900">
                         {formatCurrency(staff.total_salary)}
                       </td>
-                      <td className="px-6 py-4 text-sm font-semibold text-red-600">
+                      <td className="px-6 py-4 text-sm font-bold text-red-600">
                         {formatCurrency(staff.advance_salary)}
                       </td>
-                      <td className="px-6 py-4 text-sm font-semibold text-green-600">
+                      <td className="px-6 py-4 text-sm font-bold text-green-700">
                         {formatCurrency(staff.remaining_salary)}
                       </td>
                       <td className="px-6 py-4">
@@ -237,8 +252,14 @@ export default async function StaffPage({
                   ))}
                   {staffProfiles.length === 0 && (
                     <tr>
-                      <td colSpan={7} className="px-6 py-10 text-center text-sm text-slate-500">
-                        No staff profiles yet. Add your first staff record manually.
+                      <td colSpan={7} className="px-6 py-10">
+                        <EmptyState
+                          icon={UserRound}
+                          title="No staff profiles yet"
+                          description="Add your team members here so salary, advance, and remaining balances can be tracked."
+                          actionLabel="Create Staff Profile"
+                          actionHref="/staff"
+                        />
                       </td>
                     </tr>
                   )}

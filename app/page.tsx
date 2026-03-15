@@ -13,7 +13,10 @@ import { SalesPurchasesChart } from "@/components/dashboard/SalesPurchasesChart"
 import { Sidebar } from "@/components/dashboard/Sidebar";
 import { SummaryCard } from "@/components/dashboard/SummaryCard";
 import { TopCustomersTable } from "@/components/dashboard/TopCustomersTable";
+import { TopPurchaseItemsTable } from "@/components/dashboard/TopPurchaseItemsTable";
 import { TopSalesItemsTable } from "@/components/dashboard/TopSalesItemsTable";
+import { DashboardReportPrintButton } from "@/components/dashboard/DashboardReportPrintButton";
+import { ReportToolbar } from "@/components/shared/ReportToolbar";
 import {
   formatCurrency,
   formatDate,
@@ -22,17 +25,74 @@ import {
 } from "@/lib/presentation";
 import { getSupabaseClient } from "@/lib/supabase/server";
 
+type SearchParams = Promise<Record<string, string | string[] | undefined>>;
+
 const monthKey = (value: string | null) =>
   value ? new Date(value).toLocaleDateString("en-US", { month: "short" }).toUpperCase() : "";
 
-export default async function Home() {
-  const supabase = getSupabaseClient();
+const getTodayDate = () =>
+  new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Kathmandu",
+  }).format(new Date());
+
+const getDateRange = (range: string, today: string) => {
+  const current = new Date(`${today}T00:00:00`);
+
+  if (range === "week") {
+    const day = current.getDay();
+    const diff = day === 0 ? 6 : day - 1;
+    const start = new Date(current);
+    start.setDate(current.getDate() - diff);
+    return {
+      from: start.toISOString().slice(0, 10),
+      to: today,
+    };
+  }
+
+  if (range === "year") {
+    return {
+      from: `${current.getFullYear()}-01-01`,
+      to: today,
+    };
+  }
+
+  return {
+    from: `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, "0")}-01`,
+    to: today,
+  };
+};
+
+const isWithinRange = (value: string | null | undefined, from: string, to: string) => {
+  if (!value) return false;
+  return value >= from && value <= to;
+};
+
+const formatReportPeriod = (range: string, from: string, to: string) => {
+  if (range === "week") return "This Week";
+  if (range === "month") return "This Month";
+  if (range === "year") return "This Year";
+  return `${formatDate(from)} - ${formatDate(to)}`;
+};
+
+export default async function Home({
+  searchParams,
+}: {
+  searchParams: SearchParams;
+}) {
+  const params = await searchParams;
+  const supabase = await getSupabaseClient();
+  const todayDate = getTodayDate();
+  const selectedRange = typeof params.range === "string" ? params.range : "month";
+  const defaultRange = getDateRange(selectedRange, todayDate);
+  const fromDate = typeof params.from === "string" && params.from ? params.from : defaultRange.from;
+  const toDate = typeof params.to === "string" && params.to ? params.to : defaultRange.to;
   const [
     salesResponse,
     purchasesResponse,
     staffResponse,
     expensesResponse,
     salesItemsResponse,
+    purchaseItemsResponse,
   ] = await Promise.all([
     supabase
       .from("sales")
@@ -43,10 +103,14 @@ export default async function Home() {
       .select("purchase_date, total_amount, credit_amount")
       .order("purchase_date", { ascending: true }),
     supabase.from("staff_profiles").select("total_salary, advance_salary"),
-    supabase.from("purchase_expenses").select("amount"),
+    supabase.from("purchase_expenses").select("expense_date, amount"),
     supabase
       .from("sales_items")
       .select("product_name, quantity, amount, sales(sales_date)")
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("purchase_items")
+      .select("product_name, quantity, amount, purchases(purchase_date)")
       .order("created_at", { ascending: false }),
   ]);
 
@@ -55,27 +119,47 @@ export default async function Home() {
   const staff = staffResponse.data ?? [];
   const purchaseExpenses = expensesResponse.data ?? [];
   const salesItems = salesItemsResponse.data ?? [];
+  const purchaseItems = purchaseItemsResponse.data ?? [];
+  const filteredSales = sales.filter((sale) => isWithinRange(sale.sales_date, fromDate, toDate));
+  const filteredPurchases = purchases.filter((purchase) =>
+    isWithinRange(purchase.purchase_date, fromDate, toDate),
+  );
+  const filteredExpenses = purchaseExpenses.filter((expense) =>
+    isWithinRange(expense.expense_date, fromDate, toDate),
+  );
+  const filteredSalesItems = salesItems.filter((item) => {
+    const soldOn = Array.isArray(item.sales)
+      ? item.sales[0]?.sales_date ?? null
+      : item.sales?.sales_date ?? null;
+    return isWithinRange(soldOn, fromDate, toDate);
+  });
+  const filteredPurchaseItems = purchaseItems.filter((item) => {
+    const boughtOn = Array.isArray(item.purchases)
+      ? item.purchases[0]?.purchase_date ?? null
+      : item.purchases?.purchase_date ?? null;
+    return isWithinRange(boughtOn, fromDate, toDate);
+  });
 
-  const totalSales = sales.reduce((sum, sale) => sum + Number(sale.grand_total ?? 0), 0);
-  const totalPurchases = purchases.reduce(
+  const totalSales = filteredSales.reduce((sum, sale) => sum + Number(sale.grand_total ?? 0), 0);
+  const totalPurchases = filteredPurchases.reduce(
     (sum, purchase) => sum + Number(purchase.total_amount ?? 0),
     0,
   );
-  const payables = purchases.reduce(
+  const payables = filteredPurchases.reduce(
     (sum, purchase) => sum + Number(purchase.credit_amount ?? 0),
     0,
   );
   const netProfit = totalSales - totalPurchases;
 
   const monthlyMap = new Map<string, { sales: number; purchases: number }>();
-  sales.forEach((sale) => {
+  filteredSales.forEach((sale) => {
     const key = monthKey(sale.sales_date);
     if (!key) return;
     const existing = monthlyMap.get(key) ?? { sales: 0, purchases: 0 };
     existing.sales += Number(sale.grand_total ?? 0);
     monthlyMap.set(key, existing);
   });
-  purchases.forEach((purchase) => {
+  filteredPurchases.forEach((purchase) => {
     const key = monthKey(purchase.purchase_date);
     if (!key) return;
     const existing = monthlyMap.get(key) ?? { sales: 0, purchases: 0 };
@@ -91,7 +175,7 @@ export default async function Home() {
 
   const payroll = staff.reduce((sum, item) => sum + Number(item.total_salary ?? 0), 0);
   const advances = staff.reduce((sum, item) => sum + Number(item.advance_salary ?? 0), 0);
-  const miscExpenses = purchaseExpenses.reduce(
+  const miscExpenses = filteredExpenses.reduce(
     (sum, item) => sum + Number(item.amount ?? 0),
     0,
   );
@@ -111,7 +195,7 @@ export default async function Home() {
     string,
     { revenue: number; lastTransaction: string | null; count: number }
   >();
-  sales.forEach((sale) => {
+  filteredSales.forEach((sale) => {
     const existing = customerMap.get(sale.customer_name) ?? {
       revenue: 0,
       lastTransaction: sale.sales_date,
@@ -147,7 +231,7 @@ export default async function Home() {
     string,
     { quantity: number; amount: number; invoiceCount: number; lastSold: string | null }
   >();
-  salesItems.forEach((item) => {
+  filteredSalesItems.forEach((item) => {
     const name = item.product_name?.trim();
     if (!name) return;
 
@@ -181,6 +265,48 @@ export default async function Home() {
       invoiceCount: value.invoiceCount,
       lastSold: formatDate(value.lastSold),
     }));
+  const purchaseItemMap = new Map<
+    string,
+    { quantity: number; amount: number; billCount: number; lastBought: string | null }
+  >();
+  filteredPurchaseItems.forEach((item) => {
+    const name = item.product_name?.trim();
+    if (!name) return;
+
+    const existing = purchaseItemMap.get(name) ?? {
+      quantity: 0,
+      amount: 0,
+      billCount: 0,
+      lastBought: null,
+    };
+
+    existing.quantity += Number(item.quantity ?? 0);
+    existing.amount += Number(item.amount ?? 0);
+    existing.billCount += 1;
+
+    const boughtOn = Array.isArray(item.purchases)
+      ? item.purchases[0]?.purchase_date ?? null
+      : item.purchases?.purchase_date ?? null;
+    existing.lastBought =
+      existing.lastBought && boughtOn && existing.lastBought > boughtOn
+        ? existing.lastBought
+        : boughtOn;
+
+    purchaseItemMap.set(name, existing);
+  });
+
+  const topPurchaseItems = Array.from(purchaseItemMap.entries())
+    .sort((left, right) => right[1].amount - left[1].amount)
+    .slice(0, 5)
+    .map(([name, value]) => ({
+      name,
+      quantityBought: `${value.quantity}`,
+      purchaseAmount: formatCurrency(value.amount),
+      billCount: value.billCount,
+      lastBought: formatDate(value.lastBought),
+    }));
+  const selectedPeriodLabel = formatReportPeriod(selectedRange, fromDate, toDate);
+  const generatedReportDate = formatDate(todayDate);
 
   return (
     <div className="flex min-h-screen bg-slate-50/50">
@@ -189,8 +315,97 @@ export default async function Home() {
       <main className="flex-1 overflow-y-auto p-8">
         <Header />
 
-        <section className="mb-8 overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
-          <div className="border-b border-slate-50 p-6">
+        <ReportToolbar
+          actionPath="/"
+          selectedRange={selectedRange}
+          fromDate={fromDate}
+          toDate={toDate}
+          reportButton={
+            <DashboardReportPrintButton
+              generatedDate={generatedReportDate}
+              selectedPeriod={selectedPeriodLabel}
+              metrics={[
+                { title: "Total Sales", value: formatCurrency(totalSales) },
+                { title: "Total Purchases", value: formatCurrency(totalPurchases) },
+                { title: "Net Profit", value: formatCurrency(netProfit) },
+                { title: "Outstanding Payables", value: formatCurrency(payables) },
+                { title: "Extra Expenses", value: formatCurrency(miscExpenses) },
+              ]}
+              customers={customers.map((customer) => ({
+                name: customer.name,
+                revenue: customer.revenue,
+                lastTransaction: customer.lastTransaction,
+              }))}
+              items={topSalesItems.map((item) => ({
+                name: item.name,
+                quantitySold: item.quantitySold,
+                salesAmount: item.salesAmount,
+              }))}
+            />
+          }
+        />
+
+        <div className="mb-10 grid grid-cols-1 gap-5 xl:grid-cols-12">
+          <SummaryCard
+            title="Total Sales"
+            value={formatCurrency(totalSales)}
+            trend={`${filteredSales.length} sales recorded`}
+            trendType="positive"
+            icon={TrendingUp}
+            iconBgColor="bg-emerald-50"
+            iconColor="text-emerald-600"
+            emphasis="high"
+            className="xl:col-span-3"
+          />
+          <SummaryCard
+            title="Total Purchases"
+            value={formatCurrency(totalPurchases)}
+            trend={`${filteredPurchases.length} purchases recorded`}
+            trendType="neutral"
+            icon={ShoppingCart}
+            iconBgColor="bg-slate-100"
+            iconColor="text-slate-700"
+            emphasis="high"
+            className="xl:col-span-3"
+          />
+          <SummaryCard
+            title="Net Profit"
+            value={formatCurrency(netProfit)}
+            trend="Sales minus purchases"
+            trendType={netProfit >= 0 ? "positive" : "negative"}
+            icon={CircleDollarSign}
+            iconBgColor={netProfit >= 0 ? "bg-emerald-50" : "bg-rose-50"}
+            iconColor={netProfit >= 0 ? "text-emerald-600" : "text-rose-600"}
+            emphasis="high"
+            className="xl:col-span-3"
+          />
+          <SummaryCard
+            title="Outstanding Payables"
+            value={formatCurrency(payables)}
+            trend="Open purchase credit"
+            trendType={payables > 0 ? "negative" : "neutral"}
+            icon={AlertCircle}
+            iconBgColor={payables > 0 ? "bg-rose-50" : "bg-slate-100"}
+            iconColor={payables > 0 ? "text-rose-500" : "text-slate-700"}
+            emphasis="high"
+            className="xl:col-span-3"
+          />
+        </div>
+
+        <div className="mb-10 grid grid-cols-1 gap-6 xl:grid-cols-12">
+          <div className="xl:col-span-8">
+            <SalesPurchasesChart data={chartData} />
+          </div>
+          <div className="xl:col-span-4">
+            <ExpenseBreakdownChart
+              data={expenseData}
+              total={formatCurrency(expenseTotal)}
+            />
+          </div>
+        </div>
+
+        <section className="mb-10 overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
+          <div className="border-b border-slate-50 px-6 py-5">
             <h3 className="text-lg font-bold text-slate-900">Quick Links</h3>
             <p className="mt-1 text-xs text-slate-500">
               Jump straight into the most common bookkeeping entries.
@@ -235,63 +450,16 @@ export default async function Home() {
           </div>
         </section>
 
-        <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
-          <SummaryCard
-            title="Total Sales"
-            value={formatCurrency(totalSales)}
-            trend={`${sales.length} sales recorded`}
-            trendType="positive"
-            icon={TrendingUp}
-            iconBgColor="bg-green-50"
-            iconColor="text-green-600"
-          />
-          <SummaryCard
-            title="Total Purchases"
-            value={formatCurrency(totalPurchases)}
-            trend={`${purchases.length} purchases recorded`}
-            trendType="neutral"
-            icon={ShoppingCart}
-            iconBgColor="bg-blue-50"
-            iconColor="text-blue-600"
-          />
-          <SummaryCard
-            title="Net Profit"
-            value={formatCurrency(netProfit)}
-            trend="Sales minus purchases"
-            trendType={netProfit >= 0 ? "positive" : "negative"}
-            icon={CircleDollarSign}
-            iconBgColor="bg-green-50"
-            iconColor="text-green-600"
-          />
-          <SummaryCard
-            title="Outstanding Payables"
-            value={formatCurrency(payables)}
-            trend="Open purchase credit"
-            trendType={payables > 0 ? "negative" : "neutral"}
-            icon={AlertCircle}
-            iconBgColor="bg-red-50"
-            iconColor="text-red-500"
-          />
-        </div>
-
-        <div className="mb-8 grid grid-cols-1 gap-6 lg:grid-cols-3">
-          <div className="lg:col-span-2">
-            <SalesPurchasesChart data={chartData} />
-          </div>
-          <div>
-            <ExpenseBreakdownChart
-              data={expenseData}
-              total={formatCurrency(expenseTotal)}
-            />
-          </div>
-        </div>
-
-        <div className="mb-8">
+        <div className="mb-10">
           <TopCustomersTable customers={customers} />
         </div>
 
         <div>
           <TopSalesItemsTable items={topSalesItems} />
+        </div>
+
+        <div className="mt-8">
+          <TopPurchaseItemsTable items={topPurchaseItems} />
         </div>
       </main>
     </div>

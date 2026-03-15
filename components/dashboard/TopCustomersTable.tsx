@@ -21,19 +21,24 @@ export function TopCustomersTable({ customers }: { customers: Customer[] }) {
       <div className="overflow-x-auto">
         <table className="w-full text-left">
           <thead>
-            <tr className="bg-slate-50/50 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-              <th className="px-6 py-4">Customer Name</th>
-              <th className="px-6 py-4">Category</th>
-              <th className="px-6 py-4">Total Revenue</th>
-              <th className="px-6 py-4">Last Transaction</th>
-              <th className="px-6 py-4">Status</th>
+            <tr className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">
+              <th className="sticky top-0 z-10 border-b border-slate-200 bg-slate-50/95 px-6 py-3 backdrop-blur">Customer Name</th>
+              <th className="sticky top-0 z-10 border-b border-slate-200 bg-slate-50/95 px-6 py-3 backdrop-blur">Category</th>
+              <th className="sticky top-0 z-10 border-b border-slate-200 bg-slate-50/95 px-6 py-3 backdrop-blur">Total Revenue</th>
+              <th className="sticky top-0 z-10 border-b border-slate-200 bg-slate-50/95 px-6 py-3 backdrop-blur">Last Transaction</th>
+              <th className="sticky top-0 z-10 border-b border-slate-200 bg-slate-50/95 px-6 py-3 backdrop-blur">Status</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-50">
-            {customers.map((customer) => (
-              <tr key={customer.name} className="transition-colors hover:bg-slate-50/50">
-                <td className="px-6 py-4">
-                  <div className="flex items-center gap-3">
+            {customers.map((customer, index) => (
+              <tr
+                key={customer.name}
+                className={`transition-colors hover:bg-blue-50/25 ${
+                  index % 2 === 0 ? "bg-white" : "bg-slate-50/20"
+                }`}
+              >
+                <td className="px-6 py-3.5">
+                  <div className="flex items-center gap-2.5">
                     <div
                       className={cn(
                         "flex h-8 w-8 items-center justify-center rounded-lg text-[10px] font-bold",
@@ -46,10 +51,10 @@ export function TopCustomersTable({ customers }: { customers: Customer[] }) {
                     <span className="text-sm font-semibold text-slate-900">{customer.name}</span>
                   </div>
                 </td>
-                <td className="px-6 py-4 text-sm text-slate-500">{customer.category}</td>
-                <td className="px-6 py-4 text-sm font-bold text-slate-900">{customer.revenue}</td>
-                <td className="px-6 py-4 text-sm text-slate-500">{customer.lastTransaction}</td>
-                <td className="px-6 py-4">
+                <td className="px-6 py-3.5 text-sm text-slate-500">{customer.category}</td>
+                <td className="px-6 py-3.5 text-sm font-bold text-slate-900">{customer.revenue}</td>
+                <td className="px-6 py-3.5 text-sm text-slate-500">{customer.lastTransaction}</td>
+                <td className="px-6 py-3.5">
                   <span
                     className={cn(
                       "inline-flex rounded-md px-2 py-1 text-[10px] font-bold tracking-wider",

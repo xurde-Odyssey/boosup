@@ -40,8 +40,14 @@ const redirectWithNotice = (
   redirect(`${redirectTo}${separator}notice=${entity} ${action}`);
 };
 
+export async function logoutAdmin() {
+  const supabase = await getSupabaseClient();
+  await supabase.auth.signOut();
+  redirect("/login");
+}
+
 export async function upsertProduct(formData: FormData) {
-  const supabase = getSupabaseClient();
+  const supabase = await getSupabaseClient();
   const id = readText(formData, "id");
   const actionType = id ? "updated" : "created";
   let productCode = readText(formData, "code");
@@ -75,7 +81,7 @@ export async function upsertProduct(formData: FormData) {
 }
 
 export async function deleteProduct(formData: FormData) {
-  const supabase = getSupabaseClient();
+  const supabase = await getSupabaseClient();
   const id = readText(formData, "id");
   await supabase.from("products").delete().eq("id", id);
   revalidateAll("/products", "/sales/create", "/purchases");
@@ -83,7 +89,7 @@ export async function deleteProduct(formData: FormData) {
 }
 
 export async function upsertVendor(formData: FormData) {
-  const supabase = getSupabaseClient();
+  const supabase = await getSupabaseClient();
   const id = readText(formData, "id");
   const actionType = id ? "updated" : "created";
 
@@ -109,7 +115,7 @@ export async function upsertVendor(formData: FormData) {
 }
 
 export async function deleteVendor(formData: FormData) {
-  const supabase = getSupabaseClient();
+  const supabase = await getSupabaseClient();
   const id = readText(formData, "id");
   await supabase.from("vendors").delete().eq("id", id);
   revalidateAll("/purchases", "/vendors");
@@ -117,7 +123,7 @@ export async function deleteVendor(formData: FormData) {
 }
 
 export async function upsertStaffProfile(formData: FormData) {
-  const supabase = getSupabaseClient();
+  const supabase = await getSupabaseClient();
   const id = readText(formData, "id");
   const actionType = id ? "updated" : "created";
 
@@ -142,7 +148,7 @@ export async function upsertStaffProfile(formData: FormData) {
 }
 
 export async function deleteStaffProfile(formData: FormData) {
-  const supabase = getSupabaseClient();
+  const supabase = await getSupabaseClient();
   const id = readText(formData, "id");
   await supabase.from("staff_profiles").delete().eq("id", id);
   revalidateAll("/staff");
@@ -150,7 +156,7 @@ export async function deleteStaffProfile(formData: FormData) {
 }
 
 export async function upsertPurchase(formData: FormData) {
-  const supabase = getSupabaseClient();
+  const supabase = await getSupabaseClient();
   const id = readText(formData, "id");
   const actionType = id ? "updated" : "created";
   const quantity = readNumber(formData, "quantity") || 1;
@@ -262,7 +268,7 @@ export async function upsertPurchase(formData: FormData) {
 }
 
 export async function upsertPurchaseExpense(formData: FormData) {
-  const supabase = getSupabaseClient();
+  const supabase = await getSupabaseClient();
   const id = readText(formData, "id");
   const actionType = id ? "updated" : "created";
 
@@ -284,7 +290,7 @@ export async function upsertPurchaseExpense(formData: FormData) {
 }
 
 export async function deletePurchaseExpense(formData: FormData) {
-  const supabase = getSupabaseClient();
+  const supabase = await getSupabaseClient();
   const id = readText(formData, "id");
   await supabase.from("purchase_expenses").delete().eq("id", id);
   revalidateAll("/purchases");
@@ -292,7 +298,7 @@ export async function deletePurchaseExpense(formData: FormData) {
 }
 
 export async function deletePurchase(formData: FormData) {
-  const supabase = getSupabaseClient();
+  const supabase = await getSupabaseClient();
   const id = readText(formData, "id");
   await supabase.from("purchases").delete().eq("id", id);
   revalidateAll("/purchases");
@@ -300,7 +306,7 @@ export async function deletePurchase(formData: FormData) {
 }
 
 export async function upsertSale(formData: FormData) {
-  const supabase = getSupabaseClient();
+  const supabase = await getSupabaseClient();
   const id = readText(formData, "id");
   const actionType = id ? "updated" : "created";
   const invoiceNumber = readText(formData, "invoice_number");
@@ -459,7 +465,7 @@ export async function upsertSale(formData: FormData) {
 }
 
 export async function deleteSale(formData: FormData) {
-  const supabase = getSupabaseClient();
+  const supabase = await getSupabaseClient();
   const id = readText(formData, "id");
   await supabase.from("sales").delete().eq("id", id);
   revalidateAll("/", "/sales");

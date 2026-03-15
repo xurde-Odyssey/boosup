@@ -1,9 +1,10 @@
 "use client";
 
-import Link from "next/link";
 import { Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { upsertSale } from "@/app/actions";
+import { FormSectionHeader } from "@/components/shared/FormSectionHeader";
+import { FormStickyActions } from "@/components/shared/FormStickyActions";
 import { formatCurrency } from "@/lib/presentation";
 
 type ProductOption = {
@@ -148,84 +149,90 @@ export function SalesForm({
       <input type="hidden" name="redirect_to" value="/sales" />
       <input type="hidden" name="tax" value={tax.toFixed(2)} />
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <div>
-          <label className="mb-2 block text-sm font-semibold text-slate-700">
-            Bill Number :
-          </label>
-          <input
-            name="invoice_number"
-            required
-            value={invoiceNumber}
-            onChange={(event) => setInvoiceNumber(event.target.value)}
-            placeholder="55"
-            className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-blue-500 focus:bg-white"
-          />
-        </div>
-        <div>
-          <label className="mb-2 block text-sm font-semibold text-slate-700">Sales Date</label>
-          <input
-            name="sales_date"
-            type="date"
-            required
-            value={salesDate}
-            onChange={(event) => setSalesDate(event.target.value)}
-            className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-blue-500 focus:bg-white"
-          />
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <div>
-          <label className="mb-2 block text-sm font-semibold text-slate-700">Customer Name</label>
-          <input
-            name="customer_name"
-            required
-            value={customerName}
-            onChange={(event) => setCustomerName(event.target.value)}
-            placeholder="Enter customer name"
-            className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-blue-500 focus:bg-white"
-          />
-        </div>
-        <div>
-          <label className="mb-2 block text-sm font-semibold text-slate-700">
-            Payment Status
-          </label>
-          <select
-            name="payment_status"
-            value={paymentStatus}
-            onChange={(event) => setPaymentStatus(event.target.value)}
-            className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-blue-500 focus:bg-white"
-          >
-            <option value="PAID">PAID</option>
-            <option value="PENDING">PENDING</option>
-            <option value="PARTIAL">PARTIAL</option>
-            <option value="OVERDUE">OVERDUE</option>
-          </select>
-        </div>
-      </div>
-
-      <div className="rounded-2xl border border-slate-100 bg-slate-50/70 p-4">
-        <div className="mb-4 flex items-center justify-between gap-3">
+      <div className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
+        <FormSectionHeader
+          eyebrow="Party"
+          title="Invoice and customer details"
+          description="Start with the bill information and the party you are billing."
+        />
+        <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2">
           <div>
-            <h4 className="font-semibold text-slate-900">Sales Items</h4>
-            <p className="text-sm text-slate-500">Add multiple products for the same customer.</p>
+            <label className="mb-2 block text-sm font-semibold text-slate-700">
+              Bill Number :
+            </label>
+            <input
+              name="invoice_number"
+              required
+              autoFocus
+              value={invoiceNumber}
+              onChange={(event) => setInvoiceNumber(event.target.value)}
+              placeholder="55"
+              className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-blue-500"
+            />
           </div>
-          <button
-            type="button"
-            onClick={addItem}
-            className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-700"
-          >
-            <Plus className="h-4 w-4" />
-            Add Item
-          </button>
+          <div>
+            <label className="mb-2 block text-sm font-semibold text-slate-700">Sales Date</label>
+            <input
+              name="sales_date"
+              type="date"
+              required
+              value={salesDate}
+              onChange={(event) => setSalesDate(event.target.value)}
+              className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-blue-500"
+            />
+          </div>
+          <div>
+            <label className="mb-2 block text-sm font-semibold text-slate-700">Customer Name</label>
+            <input
+              name="customer_name"
+              required
+              value={customerName}
+              onChange={(event) => setCustomerName(event.target.value)}
+              placeholder="Enter customer name"
+              className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-blue-500"
+            />
+          </div>
+          <div>
+            <label className="mb-2 block text-sm font-semibold text-slate-700">
+              Payment Status
+            </label>
+            <select
+              name="payment_status"
+              value={paymentStatus}
+              onChange={(event) => setPaymentStatus(event.target.value)}
+              className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-blue-500"
+            >
+              <option value="PAID">PAID</option>
+              <option value="PENDING">PENDING</option>
+              <option value="PARTIAL">PARTIAL</option>
+              <option value="OVERDUE">OVERDUE</option>
+            </select>
+          </div>
         </div>
+      </div>
 
-        <div className="space-y-4">
+      <div className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
+        <FormSectionHeader
+          eyebrow="Items"
+          title="Sales items"
+          description="Add multiple products for the same customer and keep each line clear."
+          action={
+            <button
+              type="button"
+              onClick={addItem}
+              className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-700"
+            >
+              <Plus className="h-4 w-4" />
+              Add Item
+            </button>
+          }
+        />
+
+        <div className="mt-5 space-y-4">
           {items.map((item, index) => (
             <div
               key={`${index}-${item.productId}-${item.productName}`}
-              className="rounded-2xl border border-slate-200 bg-white p-4"
+              className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4"
             >
               <div className="mb-4 flex items-center justify-between gap-3">
                 <h5 className="text-sm font-semibold text-slate-900">Item {index + 1}</h5>
@@ -360,127 +367,180 @@ export function SalesForm({
                   />
                 </div>
               </div>
+
+              <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
+                <div className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm">
+                  <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-slate-400">
+                    Line Amount
+                  </div>
+                  <div className="mt-1 font-semibold text-slate-900">
+                    {formatCurrency(toNumber(item.quantity) * toNumber(item.rate))}
+                  </div>
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm">
+                  <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-slate-400">
+                    VAT On This Line
+                  </div>
+                  <div className="mt-1 font-semibold text-slate-900">
+                    {formatCurrency(
+                      item.taxable
+                        ? Math.max(toNumber(item.quantity) * toNumber(item.rate), 0) * 0.13
+                        : 0,
+                    )}
+                  </div>
+                </div>
+              </div>
             </div>
           ))}
         </div>
       </div>
 
-      <div>
-        <label className="mb-2 block text-sm font-semibold text-slate-700">Discount Amount</label>
-        <input
-          name="discount"
-          type="number"
-          min="0"
-          step="0.01"
-          value={discount}
-          onChange={(event) => setDiscount(event.target.value)}
-          placeholder="Discount amount"
-          className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-blue-500 focus:bg-white"
+      <div className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
+        <FormSectionHeader
+          eyebrow="Payment"
+          title="Amounts and collection"
+          description="Review totals and add the current payment if this invoice is being collected now."
         />
-      </div>
+        <div className="mt-5 space-y-4">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+              <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-slate-400">
+                Current Invoice Total
+              </div>
+              <div className="mt-2 text-lg font-bold text-slate-900">{formatCurrency(grandTotal)}</div>
+            </div>
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+              <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-slate-400">
+                Previously Received
+              </div>
+              <div className="mt-2 text-lg font-bold text-green-700">
+                {formatCurrency(previousAmountReceived)}
+              </div>
+            </div>
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+              <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-slate-400">
+                Remaining Balance
+              </div>
+              <div className="mt-2 text-lg font-bold text-amber-700">
+                {formatCurrency(remainingAmount)}
+              </div>
+            </div>
+          </div>
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <div>
-          <label className="mb-2 block text-sm font-semibold text-slate-700">Total Tax Amount</label>
-          <input
-            type="text"
-            value={formatCurrency(tax)}
-            readOnly
-            className="w-full rounded-xl border border-slate-200 bg-slate-100 px-4 py-3 text-sm outline-none"
-          />
-        </div>
-        <div>
-          <label className="mb-2 block text-sm font-semibold text-slate-700">Total Amount</label>
-          <input
-            type="text"
-            value={formatCurrency(grandTotal)}
-            readOnly
-            className="w-full rounded-xl border border-slate-200 bg-slate-100 px-4 py-3 text-sm outline-none"
-          />
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <div>
-          <label className="mb-2 block text-sm font-semibold text-slate-700">
-            Previously Received Amount
-          </label>
-          <input
-            type="text"
-            value={formatCurrency(previousAmountReceived)}
-            readOnly
-            className="w-full rounded-xl border border-slate-200 bg-slate-100 px-4 py-3 text-sm outline-none"
-          />
-        </div>
-        <div>
-          <label className="mb-2 block text-sm font-semibold text-slate-700">
-            Remaining Amount
-          </label>
-          <input
-            type="text"
-            value={formatCurrency(remainingAmount)}
-            readOnly
-            className="w-full rounded-xl border border-slate-200 bg-slate-100 px-4 py-3 text-sm outline-none"
-          />
-        </div>
-      </div>
-
-      {(paymentStatus === "PARTIAL" || paymentStatus === "PAID") && (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <div>
-            <label className="mb-2 block text-sm font-semibold text-slate-700">
-              Amount Received Now
-            </label>
+            <label className="mb-2 block text-sm font-semibold text-slate-700">Discount Amount</label>
             <input
-              name="payment_increment"
+              name="discount"
               type="number"
               min="0"
               step="0.01"
-              value={paymentIncrement}
-              onChange={(event) => setPaymentIncrement(event.target.value)}
-              placeholder={
-                paymentStatus === "PAID" ? "Leave blank to collect full remaining" : "Enter received amount"
-              }
-              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-blue-500 focus:bg-white"
+              value={discount}
+              onChange={(event) => setDiscount(event.target.value)}
+              placeholder="Discount amount"
+              className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-blue-500"
             />
           </div>
-          <div>
-            <label className="mb-2 block text-sm font-semibold text-slate-700">Payment Date</label>
-            <input
-              name="payment_date"
-              type="date"
-              defaultValue={salesDate || defaultDate}
-              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-blue-500 focus:bg-white"
-            />
+
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <div>
+              <label className="mb-2 block text-sm font-semibold text-slate-700">Total Tax Amount</label>
+              <input
+                type="text"
+                value={formatCurrency(tax)}
+                readOnly
+                className="w-full rounded-xl border border-slate-200 bg-slate-100 px-4 py-3 text-sm outline-none"
+              />
+            </div>
+            <div>
+              <label className="mb-2 block text-sm font-semibold text-slate-700">Total Amount</label>
+              <input
+                type="text"
+                value={formatCurrency(grandTotal)}
+                readOnly
+                className="w-full rounded-xl border border-slate-200 bg-slate-100 px-4 py-3 text-sm outline-none"
+              />
+            </div>
+            <div>
+              <label className="mb-2 block text-sm font-semibold text-slate-700">
+                Previously Received Amount
+              </label>
+              <input
+                type="text"
+                value={formatCurrency(previousAmountReceived)}
+                readOnly
+                className="w-full rounded-xl border border-slate-200 bg-slate-100 px-4 py-3 text-sm outline-none"
+              />
+            </div>
+            <div>
+              <label className="mb-2 block text-sm font-semibold text-slate-700">
+                Remaining Amount
+              </label>
+              <input
+                type="text"
+                value={formatCurrency(remainingAmount)}
+                readOnly
+                className="w-full rounded-xl border border-slate-200 bg-slate-100 px-4 py-3 text-sm outline-none"
+              />
+            </div>
           </div>
+
+          {(paymentStatus === "PARTIAL" || paymentStatus === "PAID") && (
+            <div className="grid grid-cols-1 gap-4 rounded-2xl border border-dashed border-slate-200 bg-slate-50/80 p-4 md:grid-cols-2">
+              <div>
+                <label className="mb-2 block text-sm font-semibold text-slate-700">
+                  Amount Received Now
+                </label>
+                <input
+                  name="payment_increment"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={paymentIncrement}
+                  onChange={(event) => setPaymentIncrement(event.target.value)}
+                  placeholder={
+                    paymentStatus === "PAID"
+                      ? "Leave blank to collect full remaining"
+                      : "Enter received amount"
+                  }
+                  className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-blue-500"
+                />
+              </div>
+              <div>
+                <label className="mb-2 block text-sm font-semibold text-slate-700">Payment Date</label>
+                <input
+                  name="payment_date"
+                  type="date"
+                  defaultValue={salesDate || defaultDate}
+                  className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-blue-500"
+                />
+              </div>
+            </div>
+          )}
         </div>
-      )}
+      </div>
 
-      <div>
-        <label className="mb-2 block text-sm font-semibold text-slate-700">Notes</label>
-        <textarea
-          name="notes"
-          rows={4}
-          defaultValue={editingSale?.notes ?? ""}
-          placeholder="Optional sales note"
-          className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-blue-500 focus:bg-white"
+      <div className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
+        <FormSectionHeader
+          eyebrow="Notes"
+          title="Reference notes"
+          description="Optional notes for delivery, collection, or internal follow-up."
         />
+        <div className="mt-5">
+          <textarea
+            name="notes"
+            rows={4}
+            defaultValue={editingSale?.notes ?? ""}
+            placeholder="Optional sales note"
+            className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-blue-500"
+          />
+        </div>
       </div>
 
-      <div className="flex gap-3">
-        <button
-          type="submit"
-          className="inline-flex flex-1 items-center justify-center rounded-xl bg-blue-600 px-5 py-3 font-semibold text-white transition-colors hover:bg-blue-700"
-        >
-          {editingSale ? "Update Sales" : "Save Sales"}
-        </button>
-        <Link
-          href="/sales"
-          className="inline-flex items-center justify-center rounded-xl border border-slate-200 px-5 py-3 font-semibold text-slate-700 transition-colors hover:bg-slate-50"
-        >
-          Cancel
-        </Link>
-      </div>
+      <FormStickyActions
+        submitLabel={editingSale ? "Update Sales" : "Save Sales"}
+        cancelHref="/sales"
+        helperText="Review the live totals and keep this bar in view while finishing the entry."
+      />
     </form>
   );
 }

@@ -5,6 +5,8 @@ import { Header } from "@/components/dashboard/Header";
 import { Sidebar } from "@/components/dashboard/Sidebar";
 import { ActionNotice } from "@/components/shared/ActionNotice";
 import { ConfirmActionForm } from "@/components/shared/ConfirmActionForm";
+import { EmptyState } from "@/components/shared/EmptyState";
+import { PageActionStrip } from "@/components/shared/PageActionStrip";
 import { PaginationControls } from "@/components/shared/PaginationControls";
 import { getSupabaseClient } from "@/lib/supabase/server";
 import { formatCurrency } from "@/lib/presentation";
@@ -34,7 +36,7 @@ export default async function ProductsPage({
 }: {
   searchParams: SearchParams;
 }) {
-  const supabase = getSupabaseClient();
+  const supabase = await getSupabaseClient();
   const params = await searchParams;
   const editId = typeof params.edit === "string" ? params.edit : "";
   const notice = typeof params.notice === "string" ? params.notice : "";
@@ -103,6 +105,12 @@ export default async function ProductsPage({
           description="Create and manage products stored in Supabase for sales and purchases."
         />
         {notice && <ActionNotice message={notice} />}
+        <PageActionStrip
+          actions={[
+            { label: editingProduct ? "Update Product" : "Create Product", href: "#product-form" },
+            { label: "Browse Product Table", href: "#product-table", variant: "secondary" },
+          ]}
+        />
 
         <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
           <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
@@ -140,7 +148,7 @@ export default async function ProductsPage({
         </div>
 
         <div className="grid grid-cols-1 gap-6 xl:grid-cols-[420px_minmax(0,1fr)]">
-          <section className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+          <section id="product-form" className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
             <div className="mb-6">
               <h3 className="text-lg font-bold text-slate-900">
                 {editingProduct ? "Update Product" : "Create Product"}
@@ -261,7 +269,7 @@ export default async function ProductsPage({
             </form>
           </section>
 
-          <section className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
+          <section id="product-table" className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
             <div className="flex items-center justify-between border-b border-slate-50 p-6">
               <div>
                 <h3 className="text-lg font-bold text-slate-900">Product Table</h3>
@@ -354,23 +362,28 @@ export default async function ProductsPage({
             <div className="overflow-x-auto">
               <table className="w-full text-left">
                 <thead>
-                  <tr className="bg-slate-50/50 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                    <th className="px-6 py-4">Code</th>
-                    <th className="px-6 py-4">Product</th>
-                    <th className="px-6 py-4">Category</th>
-                    <th className="px-6 py-4">Sales Rate</th>
-                    <th className="px-6 py-4">Unit</th>
-                    <th className="px-6 py-4">Status</th>
-                    <th className="px-6 py-4 text-right">Actions</th>
+                  <tr className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                    <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">Code</th>
+                    <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">Product</th>
+                    <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">Category</th>
+                    <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">Sales Rate</th>
+                    <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">Unit</th>
+                    <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">Status</th>
+                    <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-50">
-                  {visibleProducts.map((product) => (
-                    <tr key={product.id} className="transition-colors hover:bg-slate-50/50">
+                  {visibleProducts.map((product, index) => (
+                    <tr
+                      key={product.id}
+                      className={`transition-colors hover:bg-blue-50/40 ${
+                        index % 2 === 0 ? "bg-white" : "bg-slate-50/40"
+                      }`}
+                    >
                       <td className="px-6 py-4 text-sm font-bold text-slate-900">{product.code}</td>
                       <td className="px-6 py-4 text-sm font-semibold text-slate-900">{product.name}</td>
                       <td className="px-6 py-4 text-sm text-slate-500">{product.category}</td>
-                      <td className="px-6 py-4 text-sm font-semibold text-slate-900">
+                      <td className="px-6 py-4 text-sm font-bold text-slate-900">
                         {formatCurrency(product.sales_rate)}
                       </td>
                       <td className="px-6 py-4 text-sm text-slate-500">{product.unit}</td>
@@ -414,8 +427,14 @@ export default async function ProductsPage({
                   ))}
                   {visibleProducts.length === 0 && (
                     <tr>
-                      <td colSpan={7} className="px-6 py-10 text-center text-sm text-slate-500">
-                        No products added yet. Use the form to create your first product.
+                      <td colSpan={7} className="px-6 py-10">
+                        <EmptyState
+                          icon={PackagePlus}
+                          title="No products added yet"
+                          description="Create your finished goods here so sales entry can reuse them without manual typing."
+                          actionLabel="Create Product"
+                          actionHref="#product-form"
+                        />
                       </td>
                     </tr>
                   )}

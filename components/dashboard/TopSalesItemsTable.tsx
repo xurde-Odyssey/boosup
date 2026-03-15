@@ -16,22 +16,27 @@ export function TopSalesItemsTable({ items }: { items: SalesItem[] }) {
       <div className="overflow-x-auto">
         <table className="w-full text-left">
           <thead>
-            <tr className="bg-slate-50/50 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-              <th className="px-6 py-4">Item Name</th>
-              <th className="px-6 py-4">Quantity Sold</th>
-              <th className="px-6 py-4">Sales Amount</th>
-              <th className="px-6 py-4">Invoices</th>
-              <th className="px-6 py-4">Last Sold</th>
+            <tr className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">
+              <th className="sticky top-0 z-10 border-b border-slate-200 bg-slate-50/95 px-6 py-3 backdrop-blur">Item Name</th>
+              <th className="sticky top-0 z-10 border-b border-slate-200 bg-slate-50/95 px-6 py-3 backdrop-blur">Quantity Sold</th>
+              <th className="sticky top-0 z-10 border-b border-slate-200 bg-slate-50/95 px-6 py-3 backdrop-blur">Sales Amount</th>
+              <th className="sticky top-0 z-10 border-b border-slate-200 bg-slate-50/95 px-6 py-3 backdrop-blur">Invoices</th>
+              <th className="sticky top-0 z-10 border-b border-slate-200 bg-slate-50/95 px-6 py-3 backdrop-blur">Last Sold</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-50">
-            {items.map((item) => (
-              <tr key={item.name} className="transition-colors hover:bg-slate-50/50">
-                <td className="px-6 py-4 text-sm font-semibold text-slate-900">{item.name}</td>
-                <td className="px-6 py-4 text-sm text-slate-600">{item.quantitySold}</td>
-                <td className="px-6 py-4 text-sm font-bold text-slate-900">{item.salesAmount}</td>
-                <td className="px-6 py-4 text-sm text-slate-600">{item.invoiceCount}</td>
-                <td className="px-6 py-4 text-sm text-slate-500">{item.lastSold}</td>
+            {items.map((item, index) => (
+              <tr
+                key={item.name}
+                className={`transition-colors hover:bg-blue-50/25 ${
+                  index % 2 === 0 ? "bg-white" : "bg-slate-50/20"
+                }`}
+              >
+                <td className="px-6 py-3.5 text-sm font-semibold text-slate-900">{item.name}</td>
+                <td className="px-6 py-3.5 text-sm text-slate-600">{item.quantitySold}</td>
+                <td className="px-6 py-3.5 text-sm font-bold text-slate-900">{item.salesAmount}</td>
+                <td className="px-6 py-3.5 text-sm text-slate-600">{item.invoiceCount}</td>
+                <td className="px-6 py-3.5 text-sm text-slate-500">{item.lastSold}</td>
               </tr>
             ))}
             {items.length === 0 && (

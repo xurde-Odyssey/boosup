@@ -1,10 +1,13 @@
 import { AlertCircle, CircleDollarSign, Clock, HandCoins, TrendingUp } from "lucide-react";
 import { Header } from "@/components/dashboard/Header";
 import { InvoicesTable } from "@/components/dashboard/InvoicesTable";
+import { SalesReportPrintButton } from "@/components/dashboard/SalesReportPrintButton";
 import { Sidebar } from "@/components/dashboard/Sidebar";
 import { SummaryCard } from "@/components/dashboard/SummaryCard";
 import { ActionNotice } from "@/components/shared/ActionNotice";
+import { PageActionStrip } from "@/components/shared/PageActionStrip";
 import { PaginationControls } from "@/components/shared/PaginationControls";
+import { ReportToolbar } from "@/components/shared/ReportToolbar";
 import { formatCurrency, formatDate, getAvatarTone, getInitials } from "@/lib/presentation";
 import { getSupabaseClient } from "@/lib/supabase/server";
 
@@ -15,6 +18,56 @@ const parsePage = (value: string | string[] | undefined) => {
 };
 
 const PAGE_SIZE = 10;
+const getTodayDate = () =>
+  new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Kathmandu",
+  }).format(new Date());
+
+const getDateRange = (range: string, today: string) => {
+  const current = new Date(`${today}T00:00:00`);
+
+  if (range === "week") {
+    const day = current.getDay();
+    const diff = day === 0 ? 6 : day - 1;
+    const start = new Date(current);
+    start.setDate(current.getDate() - diff);
+    return {
+      from: start.toISOString().slice(0, 10),
+      to: today,
+    };
+  }
+
+  if (range === "year") {
+    return {
+      from: `${current.getFullYear()}-01-01`,
+      to: today,
+    };
+  }
+
+  if (range === "custom") {
+    return {
+      from: today,
+      to: today,
+    };
+  }
+
+  return {
+    from: `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, "0")}-01`,
+    to: today,
+  };
+};
+
+const isWithinRange = (value: string | null | undefined, from: string, to: string) => {
+  if (!value) return false;
+  return value >= from && value <= to;
+};
+
+const formatReportPeriod = (range: string, from: string, to: string) => {
+  if (range === "week") return "This Week";
+  if (range === "month") return "This Month";
+  if (range === "year") return "This Year";
+  return `${formatDate(from)} - ${formatDate(to)}`;
+};
 
 export default async function SalesPage({
   searchParams,
@@ -26,12 +79,17 @@ export default async function SalesPage({
   const search = typeof params.q === "string" ? params.q.trim() : "";
   const sort = typeof params.sort === "string" ? params.sort : "date_desc";
   const status = typeof params.status === "string" ? params.status : "ALL";
+  const selectedRange = typeof params.range === "string" ? params.range : "month";
+  const todayDate = getTodayDate();
+  const defaultRange = getDateRange(selectedRange, todayDate);
+  const fromDate = typeof params.from === "string" && params.from ? params.from : defaultRange.from;
+  const toDate = typeof params.to === "string" && params.to ? params.to : defaultRange.to;
   const currentPage = parsePage(params.page);
   const perPage = (() => {
     const rawValue = typeof params.perPage === "string" ? Number(params.perPage) : PAGE_SIZE;
     return [10, 25, 50].includes(rawValue) ? rawValue : PAGE_SIZE;
   })();
-  const supabase = getSupabaseClient();
+  const supabase = await getSupabaseClient();
   const { data: allSales = [] } = await supabase
     .from("sales")
     .select(
@@ -39,12 +97,13 @@ export default async function SalesPage({
     )
     .order("created_at", { ascending: false });
 
+  const rangedSales = allSales.filter((sale) => isWithinRange(sale.sales_date, fromDate, toDate));
   const searchedSales = search
-    ? allSales.filter((sale) => {
+    ? rangedSales.filter((sale) => {
         const haystack = `${sale.invoice_number} ${sale.customer_name}`.toLowerCase();
         return haystack.includes(search.toLowerCase());
       })
-    : allSales;
+    : rangedSales;
   const filteredSales =
     status === "ALL"
       ? searchedSales
@@ -106,6 +165,15 @@ export default async function SalesPage({
       initialsColor: tone.text,
     };
   });
+  const reportInvoices = sales.slice(0, 10).map((sale) => ({
+    invoiceNumber: sale.invoice_number,
+    customer: sale.customer_name,
+    totalAmount: formatCurrency(sale.grand_total),
+    paidAmount: formatCurrency(sale.amount_received ?? 0),
+    remainingAmount: formatCurrency(sale.remaining_amount ?? 0),
+    status: sale.payment_status,
+    date: formatDate(sale.sales_date),
+  }));
 
   return (
     <div className="flex min-h-screen bg-slate-50/50">
@@ -115,10 +183,34 @@ export default async function SalesPage({
         <Header
           title="Sales Invoices Overview"
           description="Detailed view of all your sales transactions and invoice statuses."
-          primaryActionLabel="Create Sales"
-          primaryActionHref="/sales/create"
         />
         {notice && <ActionNotice message={notice} />}
+        <ReportToolbar
+          actionPath="/sales"
+          selectedRange={selectedRange}
+          fromDate={fromDate}
+          toDate={toDate}
+          reportButton={
+            <SalesReportPrintButton
+              generatedDate={formatDate(todayDate)}
+              selectedPeriod={formatReportPeriod(selectedRange, fromDate, toDate)}
+              metrics={[
+                { title: "Total Invoiced", value: formatCurrency(totalInvoiced) },
+                { title: "Paid Invoices", value: formatCurrency(totalPaid) },
+                { title: "Partial Amount Received", value: formatCurrency(totalPartialReceived) },
+                { title: "Pending Payment", value: formatCurrency(totalPending) },
+                { title: "Overdue Payment", value: formatCurrency(totalOverdue) },
+              ]}
+              invoices={reportInvoices}
+            />
+          }
+        />
+        <PageActionStrip
+          actions={[
+            { label: "Create Sales", href: "/sales/create" },
+            { label: "View Recent Invoices", href: "/sales", variant: "secondary" },
+          ]}
+        />
 
         <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-5">
           <SummaryCard

@@ -10,6 +10,7 @@ import {
 import { Header } from "@/components/dashboard/Header";
 import { Sidebar } from "@/components/dashboard/Sidebar";
 import { SummaryCard } from "@/components/dashboard/SummaryCard";
+import { ReportToolbar } from "@/components/shared/ReportToolbar";
 import { formatCurrency, formatDate } from "@/lib/presentation";
 import { getSupabaseClient } from "@/lib/supabase/server";
 
@@ -21,7 +22,7 @@ export default async function VendorLedgerPage({
   params: Params;
 }) {
   const { id } = await params;
-  const supabase = getSupabaseClient();
+  const supabase = await getSupabaseClient();
 
   const [vendorResponse, purchasesResponse, paymentsResponse] = await Promise.all([
     supabase
@@ -88,6 +89,7 @@ export default async function VendorLedgerPage({
           primaryActionLabel="Back To Vendors"
           primaryActionHref="/vendors"
         />
+        <ReportToolbar actionPath={`/vendors/${id}`} />
 
         <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
           <SummaryCard
