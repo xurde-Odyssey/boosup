@@ -186,293 +186,333 @@ alter table public.purchase_expenses enable row level security;
 alter table public.purchase_payments enable row level security;
 
 drop policy if exists "anon can read products" on public.products;
-create policy "anon can read products"
+drop policy if exists "authenticated can read products" on public.products;
+create policy "authenticated can read products"
 on public.products
 for select
-to anon
+to authenticated
 using (true);
 
 drop policy if exists "anon can insert products" on public.products;
-create policy "anon can insert products"
+drop policy if exists "authenticated can insert products" on public.products;
+create policy "authenticated can insert products"
 on public.products
 for insert
-to anon
+to authenticated
 with check (true);
 
 drop policy if exists "anon can update products" on public.products;
-create policy "anon can update products"
+drop policy if exists "authenticated can update products" on public.products;
+create policy "authenticated can update products"
 on public.products
 for update
-to anon
+to authenticated
 using (true)
 with check (true);
 
 drop policy if exists "anon can delete products" on public.products;
-create policy "anon can delete products"
+drop policy if exists "authenticated can delete products" on public.products;
+create policy "authenticated can delete products"
 on public.products
 for delete
-to anon
+to authenticated
 using (true);
 
 drop policy if exists "anon can read vendors" on public.vendors;
-create policy "anon can read vendors"
+drop policy if exists "authenticated can read vendors" on public.vendors;
+create policy "authenticated can read vendors"
 on public.vendors
 for select
-to anon
+to authenticated
 using (true);
 
 drop policy if exists "anon can insert vendors" on public.vendors;
-create policy "anon can insert vendors"
+drop policy if exists "authenticated can insert vendors" on public.vendors;
+create policy "authenticated can insert vendors"
 on public.vendors
 for insert
-to anon
+to authenticated
 with check (true);
 
 drop policy if exists "anon can update vendors" on public.vendors;
-create policy "anon can update vendors"
+drop policy if exists "authenticated can update vendors" on public.vendors;
+create policy "authenticated can update vendors"
 on public.vendors
 for update
-to anon
+to authenticated
 using (true)
 with check (true);
 
 drop policy if exists "anon can delete vendors" on public.vendors;
-create policy "anon can delete vendors"
+drop policy if exists "authenticated can delete vendors" on public.vendors;
+create policy "authenticated can delete vendors"
 on public.vendors
 for delete
-to anon
+to authenticated
 using (true);
 
 drop policy if exists "anon can read staff profiles" on public.staff_profiles;
-create policy "anon can read staff profiles"
+drop policy if exists "authenticated can read staff profiles" on public.staff_profiles;
+create policy "authenticated can read staff profiles"
 on public.staff_profiles
 for select
-to anon
+to authenticated
 using (true);
 
 drop policy if exists "anon can insert staff profiles" on public.staff_profiles;
-create policy "anon can insert staff profiles"
+drop policy if exists "authenticated can insert staff profiles" on public.staff_profiles;
+create policy "authenticated can insert staff profiles"
 on public.staff_profiles
 for insert
-to anon
+to authenticated
 with check (true);
 
 drop policy if exists "anon can update staff profiles" on public.staff_profiles;
-create policy "anon can update staff profiles"
+drop policy if exists "authenticated can update staff profiles" on public.staff_profiles;
+create policy "authenticated can update staff profiles"
 on public.staff_profiles
 for update
-to anon
+to authenticated
 using (true)
 with check (true);
 
 drop policy if exists "anon can delete staff profiles" on public.staff_profiles;
-create policy "anon can delete staff profiles"
+drop policy if exists "authenticated can delete staff profiles" on public.staff_profiles;
+create policy "authenticated can delete staff profiles"
 on public.staff_profiles
 for delete
-to anon
+to authenticated
 using (true);
 
 drop policy if exists "anon can read sales" on public.sales;
-create policy "anon can read sales"
+drop policy if exists "authenticated can read sales" on public.sales;
+create policy "authenticated can read sales"
 on public.sales
 for select
-to anon
+to authenticated
 using (true);
 
 drop policy if exists "anon can insert sales" on public.sales;
-create policy "anon can insert sales"
+drop policy if exists "authenticated can insert sales" on public.sales;
+create policy "authenticated can insert sales"
 on public.sales
 for insert
-to anon
+to authenticated
 with check (true);
 
 drop policy if exists "anon can update sales" on public.sales;
-create policy "anon can update sales"
+drop policy if exists "authenticated can update sales" on public.sales;
+create policy "authenticated can update sales"
 on public.sales
 for update
-to anon
+to authenticated
 using (true)
 with check (true);
 
 drop policy if exists "anon can delete sales" on public.sales;
-create policy "anon can delete sales"
+drop policy if exists "authenticated can delete sales" on public.sales;
+create policy "authenticated can delete sales"
 on public.sales
 for delete
-to anon
+to authenticated
 using (true);
 
 drop policy if exists "anon can read sales items" on public.sales_items;
-create policy "anon can read sales items"
+drop policy if exists "authenticated can read sales items" on public.sales_items;
+create policy "authenticated can read sales items"
 on public.sales_items
 for select
-to anon
+to authenticated
 using (true);
 
 drop policy if exists "anon can insert sales items" on public.sales_items;
-create policy "anon can insert sales items"
+drop policy if exists "authenticated can insert sales items" on public.sales_items;
+create policy "authenticated can insert sales items"
 on public.sales_items
 for insert
-to anon
+to authenticated
 with check (true);
 
 drop policy if exists "anon can update sales items" on public.sales_items;
-create policy "anon can update sales items"
+drop policy if exists "authenticated can update sales items" on public.sales_items;
+create policy "authenticated can update sales items"
 on public.sales_items
 for update
-to anon
+to authenticated
 using (true)
 with check (true);
 
 drop policy if exists "anon can delete sales items" on public.sales_items;
-create policy "anon can delete sales items"
+drop policy if exists "authenticated can delete sales items" on public.sales_items;
+create policy "authenticated can delete sales items"
 on public.sales_items
 for delete
-to anon
+to authenticated
 using (true);
 
 drop policy if exists "anon can read sales payments" on public.sales_payments;
-create policy "anon can read sales payments"
+drop policy if exists "authenticated can read sales payments" on public.sales_payments;
+create policy "authenticated can read sales payments"
 on public.sales_payments
 for select
-to anon
+to authenticated
 using (true);
 
 drop policy if exists "anon can insert sales payments" on public.sales_payments;
-create policy "anon can insert sales payments"
+drop policy if exists "authenticated can insert sales payments" on public.sales_payments;
+create policy "authenticated can insert sales payments"
 on public.sales_payments
 for insert
-to anon
+to authenticated
 with check (true);
 
 drop policy if exists "anon can update sales payments" on public.sales_payments;
-create policy "anon can update sales payments"
+drop policy if exists "authenticated can update sales payments" on public.sales_payments;
+create policy "authenticated can update sales payments"
 on public.sales_payments
 for update
-to anon
+to authenticated
 using (true)
 with check (true);
 
 drop policy if exists "anon can delete sales payments" on public.sales_payments;
-create policy "anon can delete sales payments"
+drop policy if exists "authenticated can delete sales payments" on public.sales_payments;
+create policy "authenticated can delete sales payments"
 on public.sales_payments
 for delete
-to anon
+to authenticated
 using (true);
 
 drop policy if exists "anon can read purchases" on public.purchases;
-create policy "anon can read purchases"
+drop policy if exists "authenticated can read purchases" on public.purchases;
+create policy "authenticated can read purchases"
 on public.purchases
 for select
-to anon
+to authenticated
 using (true);
 
 drop policy if exists "anon can insert purchases" on public.purchases;
-create policy "anon can insert purchases"
+drop policy if exists "authenticated can insert purchases" on public.purchases;
+create policy "authenticated can insert purchases"
 on public.purchases
 for insert
-to anon
+to authenticated
 with check (true);
 
 drop policy if exists "anon can update purchases" on public.purchases;
-create policy "anon can update purchases"
+drop policy if exists "authenticated can update purchases" on public.purchases;
+create policy "authenticated can update purchases"
 on public.purchases
 for update
-to anon
+to authenticated
 using (true)
 with check (true);
 
 drop policy if exists "anon can delete purchases" on public.purchases;
-create policy "anon can delete purchases"
+drop policy if exists "authenticated can delete purchases" on public.purchases;
+create policy "authenticated can delete purchases"
 on public.purchases
 for delete
-to anon
+to authenticated
 using (true);
 
 drop policy if exists "anon can read purchase items" on public.purchase_items;
-create policy "anon can read purchase items"
+drop policy if exists "authenticated can read purchase items" on public.purchase_items;
+create policy "authenticated can read purchase items"
 on public.purchase_items
 for select
-to anon
+to authenticated
 using (true);
 
 drop policy if exists "anon can insert purchase items" on public.purchase_items;
-create policy "anon can insert purchase items"
+drop policy if exists "authenticated can insert purchase items" on public.purchase_items;
+create policy "authenticated can insert purchase items"
 on public.purchase_items
 for insert
-to anon
+to authenticated
 with check (true);
 
 drop policy if exists "anon can update purchase items" on public.purchase_items;
-create policy "anon can update purchase items"
+drop policy if exists "authenticated can update purchase items" on public.purchase_items;
+create policy "authenticated can update purchase items"
 on public.purchase_items
 for update
-to anon
+to authenticated
 using (true)
 with check (true);
 
 drop policy if exists "anon can delete purchase items" on public.purchase_items;
-create policy "anon can delete purchase items"
+drop policy if exists "authenticated can delete purchase items" on public.purchase_items;
+create policy "authenticated can delete purchase items"
 on public.purchase_items
 for delete
-to anon
+to authenticated
 using (true);
 
 drop policy if exists "anon can read purchase payments" on public.purchase_payments;
-create policy "anon can read purchase payments"
+drop policy if exists "authenticated can read purchase payments" on public.purchase_payments;
+create policy "authenticated can read purchase payments"
 on public.purchase_payments
 for select
-to anon
+to authenticated
 using (true);
 
 drop policy if exists "anon can insert purchase payments" on public.purchase_payments;
-create policy "anon can insert purchase payments"
+drop policy if exists "authenticated can insert purchase payments" on public.purchase_payments;
+create policy "authenticated can insert purchase payments"
 on public.purchase_payments
 for insert
-to anon
+to authenticated
 with check (true);
 
 drop policy if exists "anon can update purchase payments" on public.purchase_payments;
-create policy "anon can update purchase payments"
+drop policy if exists "authenticated can update purchase payments" on public.purchase_payments;
+create policy "authenticated can update purchase payments"
 on public.purchase_payments
 for update
-to anon
+to authenticated
 using (true)
 with check (true);
 
 drop policy if exists "anon can delete purchase payments" on public.purchase_payments;
-create policy "anon can delete purchase payments"
+drop policy if exists "authenticated can delete purchase payments" on public.purchase_payments;
+create policy "authenticated can delete purchase payments"
 on public.purchase_payments
 for delete
-to anon
+to authenticated
 using (true);
 
 drop policy if exists "anon can read purchase expenses" on public.purchase_expenses;
-create policy "anon can read purchase expenses"
+drop policy if exists "authenticated can read purchase expenses" on public.purchase_expenses;
+create policy "authenticated can read purchase expenses"
 on public.purchase_expenses
 for select
-to anon
+to authenticated
 using (true);
 
 drop policy if exists "anon can insert purchase expenses" on public.purchase_expenses;
-create policy "anon can insert purchase expenses"
+drop policy if exists "authenticated can insert purchase expenses" on public.purchase_expenses;
+create policy "authenticated can insert purchase expenses"
 on public.purchase_expenses
 for insert
-to anon
+to authenticated
 with check (true);
 
 drop policy if exists "anon can update purchase expenses" on public.purchase_expenses;
-create policy "anon can update purchase expenses"
+drop policy if exists "authenticated can update purchase expenses" on public.purchase_expenses;
+create policy "authenticated can update purchase expenses"
 on public.purchase_expenses
 for update
-to anon
+to authenticated
 using (true)
 with check (true);
 
 drop policy if exists "anon can delete purchase expenses" on public.purchase_expenses;
-create policy "anon can delete purchase expenses"
+drop policy if exists "authenticated can delete purchase expenses" on public.purchase_expenses;
+create policy "authenticated can delete purchase expenses"
 on public.purchase_expenses
 for delete
-to anon
+to authenticated
 using (true);
 
 create or replace view public.sales_summary as

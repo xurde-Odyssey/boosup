@@ -1,11 +1,13 @@
 import Link from "next/link";
 import { deleteSale } from "@/app/actions";
 import { ConfirmActionForm } from "@/components/shared/ConfirmActionForm";
+import { EmptyState } from "@/components/shared/EmptyState";
 import { cn } from "@/lib/utils";
 import {
   AlertTriangle,
   CheckCircle2,
   Clock,
+  FileText,
   Pencil,
   RefreshCcw,
   Trash2,
@@ -45,7 +47,7 @@ function StatusBadge({ status }: { status: string }) {
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[10px] font-bold tracking-wider",
+        "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-bold tracking-wider",
         statusStyles[status] ?? "bg-slate-50 text-slate-600 border-slate-100",
       )}
     >
@@ -162,25 +164,30 @@ export function InvoicesTable({
       <div className="overflow-x-auto">
         <table className="w-full text-left">
           <thead>
-            <tr className="bg-slate-50/50 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-              <th className="px-6 py-4">Invoice ID</th>
-              <th className="px-6 py-4">Customer</th>
-              <th className="px-6 py-4">Total Amount</th>
-              <th className="px-6 py-4">Paid Amount</th>
-              <th className="px-6 py-4">Remaining Amount</th>
-              <th className="px-6 py-4">Status</th>
-              <th className="px-6 py-4">Date</th>
-              <th className="px-6 py-4 text-right">Actions</th>
+            <tr className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">
+              <th className="sticky top-0 z-10 border-b border-slate-200 bg-slate-50/95 px-6 py-3 backdrop-blur">Invoice ID</th>
+              <th className="sticky top-0 z-10 border-b border-slate-200 bg-slate-50/95 px-6 py-3 backdrop-blur">Customer</th>
+              <th className="sticky top-0 z-10 border-b border-slate-200 bg-slate-50/95 px-6 py-3 backdrop-blur">Total Amount</th>
+              <th className="sticky top-0 z-10 border-b border-slate-200 bg-slate-50/95 px-6 py-3 backdrop-blur">Paid Amount</th>
+              <th className="sticky top-0 z-10 border-b border-slate-200 bg-slate-50/95 px-6 py-3 backdrop-blur">Remaining Amount</th>
+              <th className="sticky top-0 z-10 border-b border-slate-200 bg-slate-50/95 px-6 py-3 backdrop-blur">Status</th>
+              <th className="sticky top-0 z-10 border-b border-slate-200 bg-slate-50/95 px-6 py-3 backdrop-blur">Date</th>
+              <th className="sticky top-0 z-10 border-b border-slate-200 bg-slate-50/95 px-6 py-3 text-right backdrop-blur">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-50">
-            {invoices.map((invoice) => (
-              <tr key={invoice.id} className="group transition-colors hover:bg-slate-50/50">
-                <td className="px-6 py-4 text-sm font-bold text-slate-900">
+            {invoices.map((invoice, index) => (
+              <tr
+                key={invoice.id}
+                className={`group transition-colors hover:bg-blue-50/30 ${
+                  index % 2 === 0 ? "bg-white" : "bg-slate-50/20"
+                }`}
+              >
+                <td className="px-6 py-3.5 text-sm font-bold text-slate-900">
                   {invoice.invoiceNumber}
                 </td>
-                <td className="px-6 py-4">
-                  <div className="flex items-center gap-3">
+                <td className="px-6 py-3.5">
+                  <div className="flex items-center gap-2.5">
                     <div
                       className={cn(
                         "flex h-8 w-8 items-center justify-center rounded-lg text-[10px] font-bold",
@@ -192,37 +199,37 @@ export function InvoicesTable({
                     </div>
                     <Link
                       href={`/sales/create?edit=${invoice.id}`}
-                      className="text-sm font-semibold text-slate-900 group-hover:text-blue-600"
+                      className="text-sm font-semibold text-slate-900 transition-colors group-hover:text-blue-600"
                     >
                       {invoice.customer}
                     </Link>
                   </div>
                 </td>
-                <td className="px-6 py-4 text-sm font-bold text-slate-900">
+                <td className="px-6 py-3.5 text-sm font-bold text-slate-900">
                   {invoice.totalAmount}
                 </td>
-                <td className="px-6 py-4 text-sm font-semibold text-green-700">
+                <td className="px-6 py-3.5 text-sm font-bold text-green-700">
                   {invoice.paidAmount}
                 </td>
-                <td className="px-6 py-4 text-sm font-semibold text-amber-700">
+                <td className="px-6 py-3.5 text-sm font-bold text-amber-700">
                   {invoice.remainingAmount}
                 </td>
-                <td className="px-6 py-4">
+                <td className="px-6 py-3.5">
                   <StatusBadge status={invoice.status} />
                 </td>
-                <td className="px-6 py-4 text-sm text-slate-500">{invoice.date}</td>
-                <td className="px-6 py-4">
-                  <div className="flex items-center justify-end gap-2">
+                <td className="px-6 py-3.5 text-sm text-slate-500">{invoice.date}</td>
+                <td className="px-6 py-3.5">
+                  <div className="flex items-center justify-end gap-1">
                     <Link
                       href={`/sales/create?edit=${invoice.id}`}
-                      className="rounded-lg p-2 text-slate-400 transition-all hover:bg-blue-50 hover:text-blue-600"
+                      className="rounded-lg p-1.5 text-slate-300 transition-all hover:bg-blue-50 hover:text-blue-600"
                       title="Edit"
                     >
                       <Pencil className="h-4 w-4" />
                     </Link>
                     <Link
                       href={`/sales/create?edit=${invoice.id}`}
-                      className="rounded-lg p-2 text-slate-400 transition-all hover:bg-amber-50 hover:text-amber-600"
+                      className="rounded-lg p-1.5 text-slate-300 transition-all hover:bg-amber-50 hover:text-amber-600"
                       title="Update"
                     >
                       <RefreshCcw className="h-4 w-4" />
@@ -237,7 +244,7 @@ export function InvoicesTable({
                     >
                       <button
                         type="submit"
-                        className="rounded-lg p-2 text-slate-400 transition-all hover:bg-red-50 hover:text-red-600"
+                        className="rounded-lg p-1.5 text-slate-300 transition-all hover:bg-red-50 hover:text-red-600"
                         title="Delete"
                       >
                         <Trash2 className="h-4 w-4" />
@@ -249,8 +256,14 @@ export function InvoicesTable({
             ))}
             {invoices.length === 0 && (
               <tr>
-                <td colSpan={8} className="px-6 py-10 text-center text-sm text-slate-500">
-                  No sales invoices yet. Create your first sales record manually.
+                <td colSpan={8} className="px-6 py-10">
+                  <EmptyState
+                    icon={FileText}
+                    title="No sales invoices yet"
+                    description="Your invoice list will start filling as soon as the first sale is saved."
+                    actionLabel="Create Sales"
+                    actionHref="/sales/create"
+                  />
                 </td>
               </tr>
             )}

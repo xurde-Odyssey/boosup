@@ -3,6 +3,7 @@ import { Header } from "@/components/dashboard/Header";
 import { Sidebar } from "@/components/dashboard/Sidebar";
 import { SalesPrintPreview } from "@/components/sales/SalesPrintPreview";
 import { SalesForm } from "@/components/sales/SalesForm";
+import { ReportToolbar } from "@/components/shared/ReportToolbar";
 import { formatCurrency } from "@/lib/presentation";
 import { getSupabaseClient } from "@/lib/supabase/server";
 
@@ -18,7 +19,7 @@ export default async function CreateSalesPage({
 }: {
   searchParams: SearchParams;
 }) {
-  const supabase = getSupabaseClient();
+  const supabase = await getSupabaseClient();
   const params = await searchParams;
   const editId = typeof params.edit === "string" ? params.edit : "";
   const todayDate = getTodayDate();
@@ -107,6 +108,7 @@ export default async function CreateSalesPage({
           description="Enter and persist a sales record in Supabase."
           primaryActionLabel={editingSale ? "Update Sales" : "Save Sales"}
         />
+        <ReportToolbar actionPath={editingSale ? `/sales/create?edit=${editingSale.id}` : "/sales/create"} />
 
         <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
           <section className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
@@ -142,35 +144,49 @@ export default async function CreateSalesPage({
                 </div>
               </div>
               <div className="space-y-3 text-sm">
-                <div className="flex items-center justify-between">
-                  <span className="text-slate-500">Subtotal</span>
-                  <span className="font-semibold text-slate-900">{formatCurrency(subtotal)}</span>
+                <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
+                  <div className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                    Invoice Snapshot
+                  </div>
+                  <div className="mt-3 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-500">Subtotal</span>
+                      <span className="font-semibold text-slate-900">{formatCurrency(subtotal)}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-500">Discount</span>
+                      <span className="font-semibold text-slate-900">{formatCurrency(discount)}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-500">Tax</span>
+                      <span className="font-semibold text-slate-900">{formatCurrency(tax)}</span>
+                    </div>
+                  </div>
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-slate-500">Discount</span>
-                  <span className="font-semibold text-slate-900">{formatCurrency(discount)}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-slate-500">Tax</span>
-                  <span className="font-semibold text-slate-900">{formatCurrency(tax)}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-slate-500">Previously Received Amount</span>
-                  <span className="font-semibold text-slate-900">
-                    {formatCurrency(totalReceived)}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-slate-500">Remaining Amount</span>
-                  <span className="font-semibold text-amber-700">
-                    {formatCurrency(remainingAmount)}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between border-t border-slate-100 pt-3">
-                  <span className="font-semibold text-slate-900">Grand Total</span>
-                  <span className="text-lg font-bold text-blue-600">
-                    {formatCurrency(grandTotal)}
-                  </span>
+                <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
+                  <div className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                    Collection Snapshot
+                  </div>
+                  <div className="mt-3 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-500">Previously Received Amount</span>
+                      <span className="font-semibold text-green-700">
+                        {formatCurrency(totalReceived)}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-500">Remaining Amount</span>
+                      <span className="font-semibold text-amber-700">
+                        {formatCurrency(remainingAmount)}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between border-t border-slate-200 pt-3">
+                      <span className="font-semibold text-slate-900">Grand Total</span>
+                      <span className="text-lg font-bold text-blue-600">
+                        {formatCurrency(grandTotal)}
+                      </span>
+                    </div>
+                  </div>
                 </div>
               </div>
               <div className="mt-4 border-t border-slate-100 pt-4">

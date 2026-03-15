@@ -2,10 +2,13 @@ import Link from "next/link";
 import {
   BadgeDollarSign,
   CreditCard,
+  FileText,
+  FolderClock,
   Pencil,
   RefreshCcw,
   ShoppingCart,
   Trash2,
+  WalletCards,
 } from "lucide-react";
 import {
   deletePurchaseExpense,
@@ -16,7 +19,10 @@ import { Sidebar } from "@/components/dashboard/Sidebar";
 import { SummaryCard } from "@/components/dashboard/SummaryCard";
 import { ActionNotice } from "@/components/shared/ActionNotice";
 import { ConfirmActionForm } from "@/components/shared/ConfirmActionForm";
+import { EmptyState } from "@/components/shared/EmptyState";
+import { PageActionStrip } from "@/components/shared/PageActionStrip";
 import { PaginationControls } from "@/components/shared/PaginationControls";
+import { ReportToolbar } from "@/components/shared/ReportToolbar";
 import { formatCurrency, formatDate } from "@/lib/presentation";
 import { getSupabaseClient } from "@/lib/supabase/server";
 
@@ -35,7 +41,7 @@ export default async function PurchasesPage({
 }: {
   searchParams: SearchParams;
 }) {
-  const supabase = getSupabaseClient();
+  const supabase = await getSupabaseClient();
   const params = await searchParams;
   const notice = typeof params.notice === "string" ? params.notice : "";
   const purchasesPage = parsePage(params.purchasesPage);
@@ -111,20 +117,13 @@ export default async function PurchasesPage({
           description="Track vendor profiles, purchase totals, and outstanding credit."
         />
         {notice && <ActionNotice message={notice} />}
-        <div className="mb-6 flex justify-end gap-3">
-          <Link
-            href="/purchases/create"
-            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50"
-          >
-            Create Purchase
-          </Link>
-          <Link
-            href="/purchases/expense/create"
-            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50"
-          >
-            Add Expense
-          </Link>
-        </div>
+        <ReportToolbar actionPath="/purchases" />
+        <PageActionStrip
+          actions={[
+            { label: "Create Purchase", href: "/purchases/create" },
+            { label: "Add Expense", href: "/purchases/expense/create", variant: "secondary" },
+          ]}
+        />
 
         <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
           <SummaryCard
@@ -174,19 +173,24 @@ export default async function PurchasesPage({
               <div className="overflow-x-auto">
                 <table className="w-full text-left">
                   <thead>
-                    <tr className="bg-slate-50/50 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                      <th className="px-6 py-4">Purchase ID</th>
-                      <th className="px-6 py-4">Vendor</th>
-                      <th className="px-6 py-4">Product</th>
-                      <th className="px-6 py-4">Amount</th>
-                      <th className="px-6 py-4">Credit</th>
-                      <th className="px-6 py-4">Date</th>
-                      <th className="px-6 py-4 text-right">Actions</th>
+                    <tr className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                      <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">Purchase ID</th>
+                      <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">Vendor</th>
+                      <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">Product</th>
+                      <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">Amount</th>
+                      <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">Credit</th>
+                      <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">Date</th>
+                      <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4 text-right">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-50">
-                    {visiblePurchases.map((purchase) => (
-                      <tr key={purchase.id} className="transition-colors hover:bg-slate-50/50">
+                    {visiblePurchases.map((purchase, index) => (
+                      <tr
+                        key={purchase.id}
+                        className={`transition-colors hover:bg-blue-50/40 ${
+                          index % 2 === 0 ? "bg-white" : "bg-slate-50/40"
+                        }`}
+                      >
                         <td className="px-6 py-4 text-sm font-semibold text-slate-900">
                           {purchase.purchase_number}
                         </td>
@@ -210,7 +214,7 @@ export default async function PurchasesPage({
                         <td className="px-6 py-4 text-sm font-semibold text-slate-900">
                           {formatCurrency(purchase.total_amount)}
                         </td>
-                        <td className="px-6 py-4 text-sm font-semibold text-red-600">
+                        <td className="px-6 py-4 text-sm font-bold text-amber-700">
                           {formatCurrency(purchase.credit_amount)}
                         </td>
                         <td className="px-6 py-4 text-sm text-slate-600">
@@ -248,8 +252,14 @@ export default async function PurchasesPage({
                     ))}
                     {purchases.length === 0 && (
                       <tr>
-                        <td colSpan={7} className="px-6 py-10 text-center text-sm text-slate-500">
-                          No purchase records yet. Create them after adding vendors and products.
+                        <td colSpan={7} className="px-6 py-10">
+                          <EmptyState
+                            icon={FileText}
+                            title="No purchase records yet"
+                            description="Vendor bills will begin appearing here once the first purchase is entered."
+                            actionLabel="Create Purchase"
+                            actionHref="/purchases/create"
+                          />
                         </td>
                       </tr>
                     )}
@@ -275,24 +285,29 @@ export default async function PurchasesPage({
               <div className="overflow-x-auto">
                 <table className="w-full text-left">
                   <thead>
-                    <tr className="bg-slate-50/50 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                      <th className="px-6 py-4">Date</th>
-                      <th className="px-6 py-4">Expense</th>
-                      <th className="px-6 py-4">Amount</th>
-                      <th className="px-6 py-4">Notes</th>
-                      <th className="px-6 py-4 text-right">Actions</th>
+                    <tr className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                      <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">Date</th>
+                      <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">Expense</th>
+                      <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">Amount</th>
+                      <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">Notes</th>
+                      <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4 text-right">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-50">
-                    {visibleExpenses.map((expense) => (
-                      <tr key={expense.id} className="transition-colors hover:bg-slate-50/50">
+                    {visibleExpenses.map((expense, index) => (
+                      <tr
+                        key={expense.id}
+                        className={`transition-colors hover:bg-blue-50/40 ${
+                          index % 2 === 0 ? "bg-white" : "bg-slate-50/40"
+                        }`}
+                      >
                         <td className="px-6 py-4 text-sm text-slate-600">
                           {formatDate(expense.expense_date)}
                         </td>
                         <td className="px-6 py-4 text-sm font-semibold text-slate-900">
                           {expense.expense_title}
                         </td>
-                        <td className="px-6 py-4 text-sm font-semibold text-slate-900">
+                        <td className="px-6 py-4 text-sm font-bold text-slate-900">
                           {formatCurrency(expense.amount)}
                         </td>
                         <td className="px-6 py-4 text-sm text-slate-600">{expense.notes ?? "-"}</td>
@@ -328,8 +343,14 @@ export default async function PurchasesPage({
                     ))}
                     {expenses.length === 0 && (
                       <tr>
-                        <td colSpan={5} className="px-6 py-10 text-center text-sm text-slate-500">
-                          No expenses recorded yet. Add courier or misc expenses separately.
+                        <td colSpan={5} className="px-6 py-10">
+                          <EmptyState
+                            icon={FolderClock}
+                            title="No extra expenses recorded"
+                            description="Courier, transport, loading, and misc costs can be added separately here."
+                            actionLabel="Add Expense"
+                            actionHref="/purchases/expense/create"
+                          />
                         </td>
                       </tr>
                     )}
@@ -355,17 +376,22 @@ export default async function PurchasesPage({
               <div className="overflow-x-auto">
                 <table className="w-full text-left">
                   <thead>
-                    <tr className="bg-slate-50/50 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                      <th className="px-6 py-4">Date</th>
-                      <th className="px-6 py-4">Vendor</th>
-                      <th className="px-6 py-4">Bill</th>
-                      <th className="px-6 py-4">Method</th>
-                      <th className="px-6 py-4">Amount</th>
+                    <tr className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                      <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">Date</th>
+                      <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">Vendor</th>
+                      <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">Bill</th>
+                      <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">Method</th>
+                      <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">Amount</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-50">
-                    {visiblePayments.map((payment) => (
-                      <tr key={payment.id} className="transition-colors hover:bg-slate-50/50">
+                    {visiblePayments.map((payment, index) => (
+                      <tr
+                        key={payment.id}
+                        className={`transition-colors hover:bg-blue-50/40 ${
+                          index % 2 === 0 ? "bg-white" : "bg-slate-50/40"
+                        }`}
+                      >
                         <td className="px-6 py-4 text-sm text-slate-600">
                           {formatDate(payment.payment_date)}
                         </td>
@@ -391,15 +417,21 @@ export default async function PurchasesPage({
                         <td className="px-6 py-4 text-sm text-slate-600">
                           {payment.payment_method}
                         </td>
-                        <td className="px-6 py-4 text-sm font-semibold text-green-600">
+                        <td className="px-6 py-4 text-sm font-bold text-green-700">
                           {formatCurrency(payment.amount)}
                         </td>
                       </tr>
                     ))}
                     {purchasePayments.length === 0 && (
                       <tr>
-                        <td colSpan={5} className="px-6 py-10 text-center text-sm text-slate-500">
-                          No purchase payments recorded yet.
+                        <td colSpan={5} className="px-6 py-10">
+                          <EmptyState
+                            icon={WalletCards}
+                            title="No purchase payments recorded"
+                            description="Partial and full vendor payments will build a payment trail here after bills are updated."
+                            actionLabel="Open Purchase Bills"
+                            actionHref="/purchases"
+                          />
                         </td>
                       </tr>
                     )}

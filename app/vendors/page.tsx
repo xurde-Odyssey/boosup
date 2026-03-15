@@ -1,12 +1,15 @@
 import Link from "next/link";
-import { BadgeDollarSign, CreditCard, Pencil, RefreshCcw, Trash2, Truck } from "lucide-react";
+import { BadgeDollarSign, CreditCard, Pencil, RefreshCcw, Trash2, Truck, Wallet } from "lucide-react";
 import { deleteVendor } from "@/app/actions";
 import { Header } from "@/components/dashboard/Header";
 import { Sidebar } from "@/components/dashboard/Sidebar";
 import { SummaryCard } from "@/components/dashboard/SummaryCard";
 import { ActionNotice } from "@/components/shared/ActionNotice";
 import { ConfirmActionForm } from "@/components/shared/ConfirmActionForm";
+import { EmptyState } from "@/components/shared/EmptyState";
+import { PageActionStrip } from "@/components/shared/PageActionStrip";
 import { PaginationControls } from "@/components/shared/PaginationControls";
+import { ReportToolbar } from "@/components/shared/ReportToolbar";
 import { formatCurrency, formatDate } from "@/lib/presentation";
 import { getSupabaseClient } from "@/lib/supabase/server";
 
@@ -24,7 +27,7 @@ export default async function VendorsPage({
 }: {
   searchParams: SearchParams;
 }) {
-  const supabase = getSupabaseClient();
+  const supabase = await getSupabaseClient();
   const params = await searchParams;
   const notice = typeof params.notice === "string" ? params.notice : "";
   const vendorPayablesPage = parsePage(params.vendorPayablesPage);
@@ -125,15 +128,13 @@ export default async function VendorsPage({
           description="Manage vendor profiles, payables, and supplier-wise purchase balances."
         />
         {notice && <ActionNotice message={notice} />}
-
-        <div className="mb-6 flex justify-end">
-          <Link
-            href="/vendors/create"
-            className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-blue-700"
-          >
-            Create Vendor Profile
-          </Link>
-        </div>
+        <ReportToolbar actionPath="/vendors" />
+        <PageActionStrip
+          actions={[
+            { label: "Create Vendor Profile", href: "/vendors/create" },
+            { label: "View Vendor Payables", href: "/vendors", variant: "secondary" },
+          ]}
+        />
 
         <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
           <SummaryCard
@@ -185,19 +186,24 @@ export default async function VendorsPage({
             <div className="overflow-x-auto">
               <table className="w-full text-left">
                 <thead>
-                  <tr className="bg-slate-50/50 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                    <th className="px-6 py-4">Vendor</th>
-                    <th className="px-6 py-4">Total Purchase</th>
-                    <th className="px-6 py-4">Paid</th>
-                    <th className="px-6 py-4">Payable</th>
-                    <th className="px-6 py-4">Bills</th>
-                    <th className="px-6 py-4">Items Bought</th>
-                    <th className="px-6 py-4">Last Purchase</th>
+                  <tr className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                    <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">Vendor</th>
+                    <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">Total Purchase</th>
+                    <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">Paid</th>
+                    <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">Payable</th>
+                    <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">Bills</th>
+                    <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">Items Bought</th>
+                    <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">Last Purchase</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-50">
-                  {visibleVendorPayables.map((vendor) => (
-                    <tr key={vendor.id} className="transition-colors hover:bg-slate-50/50">
+                  {visibleVendorPayables.map((vendor, index) => (
+                    <tr
+                      key={vendor.id}
+                      className={`transition-colors hover:bg-blue-50/40 ${
+                        index % 2 === 0 ? "bg-white" : "bg-slate-50/40"
+                      }`}
+                    >
                       <td className="px-6 py-4">
                         <Link
                           href={`/vendors/${vendor.id}`}
@@ -210,10 +216,10 @@ export default async function VendorsPage({
                       <td className="px-6 py-4 text-sm font-semibold text-slate-900">
                         {formatCurrency(vendor.totalAmount)}
                       </td>
-                      <td className="px-6 py-4 text-sm font-semibold text-green-600">
+                      <td className="px-6 py-4 text-sm font-bold text-green-700">
                         {formatCurrency(vendor.totalPaidAmount)}
                       </td>
-                      <td className="px-6 py-4 text-sm font-semibold text-red-600">
+                      <td className="px-6 py-4 text-sm font-bold text-amber-700">
                         {formatCurrency(vendor.totalCreditAmount)}
                       </td>
                       <td className="px-6 py-4 text-sm text-slate-600">{vendor.billCount}</td>
@@ -225,8 +231,14 @@ export default async function VendorsPage({
                   ))}
                   {vendorPayables.length === 0 && (
                     <tr>
-                      <td colSpan={7} className="px-6 py-10 text-center text-sm text-slate-500">
-                        No vendor payable records yet. Add vendors and purchases to see balances.
+                      <td colSpan={7} className="px-6 py-10">
+                        <EmptyState
+                          icon={Wallet}
+                          title="No vendor payables yet"
+                          description="Supplier balances will show here after vendors and purchase bills start accumulating."
+                          actionLabel="Create Vendor"
+                          actionHref="/vendors/create"
+                        />
                       </td>
                     </tr>
                   )}
@@ -252,18 +264,23 @@ export default async function VendorsPage({
             <div className="overflow-x-auto">
               <table className="w-full text-left">
                 <thead>
-                  <tr className="bg-slate-50/50 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                    <th className="px-6 py-4">Vendor</th>
-                    <th className="px-6 py-4">Contact</th>
-                    <th className="px-6 py-4">Phone</th>
-                    <th className="px-6 py-4">Terms</th>
-                    <th className="px-6 py-4">Status</th>
-                    <th className="px-6 py-4 text-right">Actions</th>
+                  <tr className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                    <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">Vendor</th>
+                    <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">Contact</th>
+                    <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">Phone</th>
+                    <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">Terms</th>
+                    <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">Status</th>
+                    <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-50">
-                  {visibleVendorProfiles.map((vendor) => (
-                    <tr key={vendor.id} className="transition-colors hover:bg-slate-50/50">
+                  {visibleVendorProfiles.map((vendor, index) => (
+                    <tr
+                      key={vendor.id}
+                      className={`transition-colors hover:bg-blue-50/40 ${
+                        index % 2 === 0 ? "bg-white" : "bg-slate-50/40"
+                      }`}
+                    >
                       <td className="px-6 py-4">
                         <Link
                           href={`/vendors/${vendor.id}`}
@@ -307,10 +324,16 @@ export default async function VendorsPage({
                       </td>
                     </tr>
                   ))}
-                  {vendorPayables.length === 0 && (
+                  {vendors.length === 0 && (
                     <tr>
-                      <td colSpan={6} className="px-6 py-10 text-center text-sm text-slate-500">
-                        No vendor profiles yet. Create your first vendor manually.
+                      <td colSpan={6} className="px-6 py-10">
+                        <EmptyState
+                          icon={Truck}
+                          title="No vendor profiles yet"
+                          description="Create supplier profiles first so purchases and payable ledgers stay organized."
+                          actionLabel="Create Vendor Profile"
+                          actionHref="/vendors/create"
+                        />
                       </td>
                     </tr>
                   )}

@@ -1,6 +1,6 @@
 "use client";
 
-import React from 'react';
+import Image from 'next/image';
 import {
   LayoutDashboard,
   ShoppingBag,
@@ -14,6 +14,8 @@ import {
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import appIcon from '@/app/logos/icon.png';
+import { logoutAdmin } from '@/app/actions';
 
 const navItems = [
   { icon: LayoutDashboard, label: 'Dashboard', href: '/' },
@@ -28,20 +30,27 @@ export function Sidebar() {
   const pathname = usePathname();
 
   return (
-    <div className="flex flex-col h-screen w-64 bg-white border-r border-zinc-100 p-6">
-      <div className="flex items-center gap-3 mb-10">
+    <aside className="sticky top-0 flex h-screen w-64 shrink-0 flex-col border-r border-slate-200 bg-white px-4 py-5">
+      <div className="mb-8 flex items-center gap-3 px-2">
         <Link href="/" className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white font-bold text-xl">
-            B
+          <div className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
+            <Image
+              src={appIcon}
+              alt="BookKeep Pro icon"
+              width={40}
+              height={40}
+              className="h-full w-full object-cover"
+              priority
+            />
           </div>
           <div>
-            <h1 className="font-bold text-slate-900 leading-tight">BookKeep <span className="text-blue-600">Pro</span></h1>
-            <p className="text-[10px] text-slate-500 font-medium uppercase tracking-wider">Management System</p>
+            <h1 className="leading-tight font-bold text-slate-900">BookKeep <span className="text-blue-600">Pro</span></h1>
+            <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-slate-400">Management System</p>
           </div>
         </Link>
       </div>
 
-      <nav className="flex-1 space-y-2">
+      <nav className="min-h-0 flex-1 space-y-1.5 overflow-y-auto pr-1">
         {navItems.map((item) => {
           const isActive = pathname === item.href;
           return (
@@ -49,45 +58,63 @@ export function Sidebar() {
               key={item.label}
               href={item.href}
               className={cn(
-                "flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group",
+                "group flex items-center gap-3 rounded-2xl px-3 py-2.5 transition-all duration-200",
                 isActive
-                  ? "bg-blue-50 text-blue-600"
-                  : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
+                  ? "border border-blue-100 bg-gradient-to-r from-blue-50 to-cyan-50 text-slate-950 shadow-sm"
+                  : "border border-transparent text-slate-500 hover:bg-slate-50 hover:text-slate-900"
               )}
             >
               <item.icon className={cn(
-                "w-5 h-5",
+                "h-4.5 w-4.5 shrink-0",
                 isActive ? "text-blue-600" : "text-slate-400 group-hover:text-slate-900"
               )} />
-              <span className="font-medium">{item.label}</span>
+              <span className={cn("text-sm font-medium", isActive ? "text-slate-950" : "")}>{item.label}</span>
               {isActive && (
-                <div className="ml-auto w-1.5 h-6 bg-blue-600 rounded-full" />
+                <div className="ml-auto flex items-center gap-2">
+                  <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-blue-600">
+                    Open
+                  </span>
+                  <div className="h-7 w-1.5 rounded-full bg-blue-600" />
+                </div>
               )}
             </Link>
           );
         })}
       </nav>
 
-      <div className="mt-auto pt-6 border-t border-slate-100">
-        <div className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 mb-4">
-          <div className="w-10 h-10 rounded-full bg-orange-200 flex items-center justify-center text-orange-700 font-bold overflow-hidden">
-            <div className="w-full h-full bg-gradient-to-br from-orange-200 to-orange-300 flex items-center justify-center">
+      <div className="mt-auto shrink-0 border-t border-slate-100 pt-5">
+        <div className="mb-3 rounded-2xl border border-slate-200 bg-slate-50/70 p-3">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-br from-orange-100 to-orange-200 text-sm font-bold text-orange-700">
               AS
             </div>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-semibold text-slate-900">Alex Sterling</p>
+              <p className="truncate text-xs text-slate-500">Admin Account</p>
+            </div>
           </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-slate-900 truncate">Alex Sterling</p>
-            <p className="text-xs text-slate-500 truncate">Admin Account</p>
-          </div>
-          <button className="text-slate-400 hover:text-slate-600">
-            <Settings className="w-4 h-4" />
-          </button>
         </div>
-        <button className="flex items-center gap-3 w-full px-4 py-3 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all">
-          <LogOut className="w-5 h-5" />
-          <span className="font-medium">Logout</span>
-        </button>
+        <div className="space-y-1.5">
+          <Link
+            href="/settings"
+            className={cn(
+              "flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-sm font-medium transition-all",
+              pathname === "/settings"
+                ? "border border-blue-100 bg-gradient-to-r from-blue-50 to-cyan-50 text-slate-950 shadow-sm"
+                : "text-slate-500 hover:bg-slate-50 hover:text-slate-900",
+            )}
+          >
+            <Settings className="h-4.5 w-4.5" />
+            <span>Settings</span>
+          </Link>
+          <form action={logoutAdmin}>
+            <button className="flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-sm font-medium text-slate-500 transition-all hover:bg-red-50 hover:text-red-600">
+              <LogOut className="h-4.5 w-4.5" />
+              <span>Logout</span>
+            </button>
+          </form>
+        </div>
       </div>
-    </div>
+    </aside>
   );
 }

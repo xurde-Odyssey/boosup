@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ActionNotice } from "@/components/shared/ActionNotice";
 import { Header } from "@/components/dashboard/Header";
 import { Sidebar } from "@/components/dashboard/Sidebar";
+import { ReportToolbar } from "@/components/shared/ReportToolbar";
 import { upsertPurchaseExpense } from "@/app/actions";
 import { getSupabaseClient } from "@/lib/supabase/server";
 
@@ -17,7 +18,7 @@ export default async function CreatePurchaseExpensePage({
 }: {
   searchParams: SearchParams;
 }) {
-  const supabase = getSupabaseClient();
+  const supabase = await getSupabaseClient();
   const params = await searchParams;
   const editId = typeof params.edit === "string" ? params.edit : "";
   const notice = typeof params.notice === "string" ? params.notice : "";
@@ -46,6 +47,7 @@ export default async function CreatePurchaseExpensePage({
         />
 
         {notice && <ActionNotice message={notice} />}
+        <ReportToolbar actionPath={editingExpense ? `/purchases/expense/create?edit=${editingExpense.id}` : "/purchases/expense/create"} />
 
         <section className="max-w-3xl rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
           <div className="mb-6">

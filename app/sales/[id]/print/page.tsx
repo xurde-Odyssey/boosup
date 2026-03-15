@@ -14,7 +14,7 @@ export default async function SalesPrintPage({
   params: Params;
 }) {
   const { id } = await params;
-  const supabase = getSupabaseClient();
+  const supabase = await getSupabaseClient();
 
   const [{ data: sale }, itemsResponse, paymentsResponse] = await Promise.all([
     supabase
