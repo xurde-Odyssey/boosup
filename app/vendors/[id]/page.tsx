@@ -11,7 +11,8 @@ import { Header } from "@/components/dashboard/Header";
 import { Sidebar } from "@/components/dashboard/Sidebar";
 import { SummaryCard } from "@/components/dashboard/SummaryCard";
 import { ReportToolbar } from "@/components/shared/ReportToolbar";
-import { formatCurrency, formatDate } from "@/lib/presentation";
+import { formatBsDisplayDate } from "@/lib/nepali-date";
+import { formatCurrency } from "@/lib/presentation";
 import { getSupabaseClient } from "@/lib/supabase/server";
 
 type Params = Promise<{ id: string }>;
@@ -216,7 +217,7 @@ export default async function VendorLedgerPage({
                             {purchase.purchase_number}
                           </td>
                           <td className="px-6 py-4 text-sm text-slate-600">
-                            {formatDate(purchase.purchase_date)}
+                            {formatBsDisplayDate(purchase.purchase_date)}
                           </td>
                           <td className="px-6 py-4 text-sm text-slate-600">
                             <div className="space-y-1">
@@ -265,7 +266,7 @@ export default async function VendorLedgerPage({
                                       className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-slate-50 px-3 py-2 text-sm"
                                     >
                                       <div className="text-slate-600">
-                                        {formatDate(payment.payment_date)}
+                                        {formatBsDisplayDate(payment.payment_date)}
                                       </div>
                                       <div className="text-slate-600">{payment.payment_method}</div>
                                       <div className="font-semibold text-green-600">
@@ -313,7 +314,7 @@ export default async function VendorLedgerPage({
                 {payments.map((payment) => (
                   <tr key={payment.id} className="transition-colors hover:bg-slate-50/50">
                     <td className="px-6 py-4 text-sm text-slate-600">
-                      {formatDate(payment.payment_date)}
+                      {formatBsDisplayDate(payment.payment_date)}
                     </td>
                     <td className="px-6 py-4 text-sm font-semibold text-slate-900">
                       {payment.purchases?.purchase_number ?? "-"}

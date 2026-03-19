@@ -1,9 +1,7 @@
-import Link from "next/link";
 import {
   AlertCircle,
-  ArrowRight,
+  CalendarClock,
   CircleDollarSign,
-  ReceiptText,
   ShoppingCart,
   TrendingUp,
 } from "lucide-react";
@@ -17,13 +15,15 @@ import { TopPurchaseItemsTable } from "@/components/dashboard/TopPurchaseItemsTa
 import { TopSalesItemsTable } from "@/components/dashboard/TopSalesItemsTable";
 import { DashboardReportPrintButton } from "@/components/dashboard/DashboardReportPrintButton";
 import { ReportToolbar } from "@/components/shared/ReportToolbar";
+import { ThemeToggle } from "@/components/shared/ThemeToggle";
+import { formatBsDisplayDate } from "@/lib/nepali-date";
 import {
   formatCurrency,
-  formatDate,
   getAvatarTone,
   getInitials,
 } from "@/lib/presentation";
 import { getSupabaseClient } from "@/lib/supabase/server";
+import { ADtoBS } from "nepali-date-library";
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
@@ -34,6 +34,37 @@ const getTodayDate = () =>
   new Intl.DateTimeFormat("en-CA", {
     timeZone: "Asia/Kathmandu",
   }).format(new Date());
+
+const getNepaliDateTimeParts = () => {
+  const now = new Date();
+  const adToday = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Kathmandu",
+  }).format(now);
+
+  try {
+    return {
+      date: ADtoBS(adToday).replace(/-/g, "/"),
+      time: new Intl.DateTimeFormat("en-US", {
+        timeZone: "Asia/Kathmandu",
+        hour: "numeric",
+        minute: "2-digit",
+        hour12: true,
+      }).format(now),
+      timezone: "GMT+5:45",
+    };
+  } catch {
+    return {
+      date: adToday,
+      time: new Intl.DateTimeFormat("en-US", {
+        timeZone: "Asia/Kathmandu",
+        hour: "numeric",
+        minute: "2-digit",
+        hour12: true,
+      }).format(now),
+      timezone: "GMT+5:45",
+    };
+  }
+};
 
 const getDateRange = (range: string, today: string) => {
   const current = new Date(`${today}T00:00:00`);
@@ -71,7 +102,7 @@ const formatReportPeriod = (range: string, from: string, to: string) => {
   if (range === "week") return "This Week";
   if (range === "month") return "This Month";
   if (range === "year") return "This Year";
-  return `${formatDate(from)} - ${formatDate(to)}`;
+  return `${formatBsDisplayDate(from)} - ${formatBsDisplayDate(to)}`;
 };
 
 export default async function Home({
@@ -219,7 +250,7 @@ export default async function Home({
         name,
         category: value.count > 5 ? "Regular" : "Customer",
         revenue: formatCurrency(value.revenue),
-        lastTransaction: formatDate(value.lastTransaction),
+        lastTransaction: formatBsDisplayDate(value.lastTransaction),
         status: "ACTIVE",
         initials: getInitials(name),
         initialsBg: tone.bg,
@@ -263,7 +294,7 @@ export default async function Home({
       quantitySold: `${value.quantity}`,
       salesAmount: formatCurrency(value.amount),
       invoiceCount: value.invoiceCount,
-      lastSold: formatDate(value.lastSold),
+      lastSold: formatBsDisplayDate(value.lastSold),
     }));
   const purchaseItemMap = new Map<
     string,
@@ -303,17 +334,39 @@ export default async function Home({
       quantityBought: `${value.quantity}`,
       purchaseAmount: formatCurrency(value.amount),
       billCount: value.billCount,
-      lastBought: formatDate(value.lastBought),
+      lastBought: formatBsDisplayDate(value.lastBought),
     }));
   const selectedPeriodLabel = formatReportPeriod(selectedRange, fromDate, toDate);
-  const generatedReportDate = formatDate(todayDate);
+  const generatedReportDate = formatBsDisplayDate(todayDate);
+  const nepaliNow = getNepaliDateTimeParts();
 
   return (
     <div className="flex min-h-screen bg-slate-50/50">
       <Sidebar />
 
       <main className="flex-1 overflow-y-auto p-8">
-        <Header />
+        <Header
+          actions={<ThemeToggle />}
+          meta={
+            <section className="inline-flex max-w-full items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
+              <div className="rounded-xl bg-blue-50 p-2.5 text-blue-600">
+                <CalendarClock className="h-4 w-4" />
+              </div>
+              <div className="min-w-0">
+                <div className="text-[10px] font-bold uppercase tracking-[0.22em] text-slate-400">
+                  Nepal Date & Time
+                </div>
+                <div className="mt-1 text-sm font-bold text-slate-900">{nepaliNow.date}</div>
+                <div className="text-xs font-medium text-slate-500">
+                  {nepaliNow.time}
+                  <span className="ml-2 font-semibold uppercase tracking-[0.16em] text-slate-400">
+                    {nepaliNow.timezone}
+                  </span>
+                </div>
+              </div>
+            </section>
+          }
+        />
 
         <ReportToolbar
           actionPath="/"
@@ -403,52 +456,6 @@ export default async function Home({
             />
           </div>
         </div>
-
-        <section className="mb-10 overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
-          <div className="border-b border-slate-50 px-6 py-5">
-            <h3 className="text-lg font-bold text-slate-900">Quick Links</h3>
-            <p className="mt-1 text-xs text-slate-500">
-              Jump straight into the most common bookkeeping entries.
-            </p>
-          </div>
-          <div className="grid grid-cols-1 gap-4 p-6 md:grid-cols-2">
-            <Link
-              href="/sales/create"
-              className="group rounded-2xl border border-blue-100 bg-blue-50/70 p-5 transition-all hover:border-blue-200 hover:bg-blue-50"
-            >
-              <div className="mb-4 inline-flex rounded-xl bg-white p-3 text-blue-600 shadow-sm">
-                <TrendingUp className="h-5 w-5" />
-              </div>
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <h4 className="text-base font-bold text-slate-900">Add Sales</h4>
-                  <p className="mt-1 text-sm text-slate-500">
-                    Create a new sales invoice and record customer payment.
-                  </p>
-                </div>
-                <ArrowRight className="mt-1 h-5 w-5 text-slate-400 transition-transform group-hover:translate-x-1 group-hover:text-blue-600" />
-              </div>
-            </Link>
-
-            <Link
-              href="/purchases/create"
-              className="group rounded-2xl border border-amber-100 bg-amber-50/70 p-5 transition-all hover:border-amber-200 hover:bg-amber-50"
-            >
-              <div className="mb-4 inline-flex rounded-xl bg-white p-3 text-amber-600 shadow-sm">
-                <ReceiptText className="h-5 w-5" />
-              </div>
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <h4 className="text-base font-bold text-slate-900">Add Purchase</h4>
-                  <p className="mt-1 text-sm text-slate-500">
-                    Create a purchase bill and record vendor payment updates.
-                  </p>
-                </div>
-                <ArrowRight className="mt-1 h-5 w-5 text-slate-400 transition-transform group-hover:translate-x-1 group-hover:text-amber-600" />
-              </div>
-            </Link>
-          </div>
-        </section>
 
         <div className="mb-10">
           <TopCustomersTable customers={customers} />

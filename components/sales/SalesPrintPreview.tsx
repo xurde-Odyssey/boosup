@@ -1,7 +1,7 @@
 "use client";
 
 import { createPortal } from "react-dom";
-import { useMemo } from "react";
+import { useMemo, useSyncExternalStore } from "react";
 import { Printer } from "lucide-react";
 import {
   PrintDocument,
@@ -11,7 +11,8 @@ import {
   PRINT_TABLE_HEAD_ROW_CLASS,
   PRINT_TABLE_WRAP_CLASS,
 } from "@/components/shared/PrintDocument";
-import { formatCurrency, formatDate } from "@/lib/presentation";
+import { formatBsDisplayDate } from "@/lib/nepali-date";
+import { formatCurrency } from "@/lib/presentation";
 
 type SalesItem = {
   product_name: string;
@@ -45,7 +46,12 @@ type PrintableSale = {
 };
 
 export function SalesPrintPreview({ sale }: { sale: PrintableSale }) {
-  const canUseDOM = typeof window !== "undefined" && typeof document !== "undefined";
+  const isMounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
+
   const paymentHistory = useMemo(
     () =>
       [...(sale.sales_payments ?? [])].sort((left, right) =>
@@ -118,14 +124,14 @@ export function SalesPrintPreview({ sale }: { sale: PrintableSale }) {
         Print Invoice
       </button>
 
-      {canUseDOM &&
+      {isMounted &&
         createPortal(
           <PrintDocument root="sales-invoice">
             <PrintHeader
               title="Sales Invoice"
               metaRows={[
                 { label: "Invoice", value: sale.invoice_number },
-                { label: "Date", value: formatDate(sale.sales_date) },
+                { label: "Date", value: formatBsDisplayDate(sale.sales_date) },
                 { label: "Status", value: sale.payment_status },
               ]}
             />
@@ -144,7 +150,7 @@ export function SalesPrintPreview({ sale }: { sale: PrintableSale }) {
                       Sales Date
                     </td>
                     <td className="w-36 px-3 py-2 font-semibold text-slate-900">
-                      {formatDate(sale.sales_date)}
+                      {formatBsDisplayDate(sale.sales_date)}
                     </td>
                     <td className="w-24 px-3 py-2 text-[11px] font-bold uppercase tracking-wider text-slate-500">
                       Status
@@ -239,7 +245,7 @@ export function SalesPrintPreview({ sale }: { sale: PrintableSale }) {
                       {paymentHistory.map((payment) => (
                         <tr key={payment.id}>
                           <td className="px-3 py-2.5 text-slate-700">
-                            {formatDate(payment.payment_date)}
+                            {formatBsDisplayDate(payment.payment_date)}
                           </td>
                           <td className="px-3 py-2.5 text-right font-semibold text-green-600">
                             {formatCurrency(payment.amount)}
