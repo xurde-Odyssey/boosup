@@ -12,7 +12,8 @@ import { PaginationControls } from "@/components/shared/PaginationControls";
 import { ReportToolbar } from "@/components/shared/ReportToolbar";
 import { SectionCard } from "@/components/shared/SectionCard";
 import { StatusBadge } from "@/components/shared/StatusBadge";
-import { formatCurrency, formatDate } from "@/lib/presentation";
+import { formatBsDisplayDate } from "@/lib/nepali-date";
+import { formatCurrency } from "@/lib/presentation";
 import { getSupabaseClient } from "@/lib/supabase/server";
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
@@ -227,7 +228,7 @@ export default async function VendorsPage({
                       <td className="px-6 py-4 text-sm text-slate-600">{vendor.billCount}</td>
                       <td className="px-6 py-4 text-sm text-slate-600">{vendor.totalItemsBought}</td>
                       <td className="px-6 py-4 text-sm text-slate-600">
-                        {formatDate(vendor.lastPurchaseDate)}
+                        {formatBsDisplayDate(vendor.lastPurchaseDate)}
                       </td>
                     </tr>
                   ))}

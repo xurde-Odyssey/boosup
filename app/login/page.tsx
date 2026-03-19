@@ -8,7 +8,9 @@ export default async function LoginPage({
 }: {
   searchParams: SearchParams;
 }) {
-  await searchParams;
+  const params = await searchParams;
+  const nextPath = typeof params.next === "string" ? params.next : "/";
+  const initialError = typeof params.error === "string" ? params.error : "";
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.18),_transparent_35%),linear-gradient(180deg,_#f8fbff_0%,_#eef4ff_100%)] px-6 py-12">
@@ -47,7 +49,7 @@ export default async function LoginPage({
             </p>
           </div>
 
-          <LoginForm />
+          <LoginForm nextPath={nextPath} initialError={initialError} />
         </section>
       </div>
     </main>

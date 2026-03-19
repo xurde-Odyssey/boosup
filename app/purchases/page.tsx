@@ -23,7 +23,8 @@ import { PageActionStrip } from "@/components/shared/PageActionStrip";
 import { PaginationControls } from "@/components/shared/PaginationControls";
 import { QueryNoticeToast } from "@/components/shared/QueryNoticeToast";
 import { ReportToolbar } from "@/components/shared/ReportToolbar";
-import { formatCurrency, formatDate } from "@/lib/presentation";
+import { formatBsDisplayDate } from "@/lib/nepali-date";
+import { formatCurrency } from "@/lib/presentation";
 import { getSupabaseClient } from "@/lib/supabase/server";
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
@@ -218,7 +219,7 @@ export default async function PurchasesPage({
                           {formatCurrency(purchase.credit_amount)}
                         </td>
                         <td className="px-6 py-4 text-sm text-slate-600">
-                          {formatDate(purchase.purchase_date)}
+                          {formatBsDisplayDate(purchase.purchase_date)}
                         </td>
                         <td className="px-6 py-4">
                           <div className="flex items-center justify-end gap-2">
@@ -302,7 +303,7 @@ export default async function PurchasesPage({
                         }`}
                       >
                         <td className="px-6 py-4 text-sm text-slate-600">
-                          {formatDate(expense.expense_date)}
+                          {formatBsDisplayDate(expense.expense_date)}
                         </td>
                         <td className="px-6 py-4 text-sm font-semibold text-slate-900">
                           {expense.expense_title}
@@ -393,7 +394,7 @@ export default async function PurchasesPage({
                         }`}
                       >
                         <td className="px-6 py-4 text-sm text-slate-600">
-                          {formatDate(payment.payment_date)}
+                          {formatBsDisplayDate(payment.payment_date)}
                         </td>
                         <td className="px-6 py-4 text-sm text-slate-600">
                           {payment.purchases?.vendors?.name ? (

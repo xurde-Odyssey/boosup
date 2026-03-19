@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import "nepali-datepicker-reactjs/dist/index.css";
 import { SiteFooter } from "@/components/shared/SiteFooter";
 import { SonnerToaster } from "@/components/shared/SonnerToaster";
 import siteIcon from "./logos/icon.png";
@@ -31,7 +32,23 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function () {
+                try {
+                  var storedTheme = localStorage.getItem('bookkeep-theme');
+                  var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                  var shouldUseDark = storedTheme ? storedTheme === 'dark' : prefersDark;
+                  document.documentElement.classList.toggle('dark', shouldUseDark);
+                } catch (error) {}
+              })();
+            `,
+          }}
+        />
+      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >

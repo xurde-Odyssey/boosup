@@ -1,14 +1,17 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 
-export function LoginForm() {
+export function LoginForm({
+  nextPath,
+  initialError,
+}: {
+  nextPath: string;
+  initialError: string;
+}) {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const nextPath = searchParams.get("next") || "/";
-  const initialError = searchParams.get("error") || "";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState(initialError);

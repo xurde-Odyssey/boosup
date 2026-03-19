@@ -4,6 +4,7 @@ import { Sidebar } from "@/components/dashboard/Sidebar";
 import { SalesPrintPreview } from "@/components/sales/SalesPrintPreview";
 import { SalesForm } from "@/components/sales/SalesForm";
 import { QueryNoticeToast } from "@/components/shared/QueryNoticeToast";
+import { formatBsDisplayDate } from "@/lib/nepali-date";
 import { formatCurrency } from "@/lib/presentation";
 import { getSupabaseClient } from "@/lib/supabase/server";
 
@@ -224,7 +225,7 @@ export default async function CreateSalesPage({
                       >
                         <div>
                           <div className="font-semibold text-slate-900">
-                            {payment.payment_date}
+                            {formatBsDisplayDate(payment.payment_date)}
                           </div>
                           <div className="text-xs text-slate-500">Payment received</div>
                         </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import { Printer } from "lucide-react";
+import { useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import {
   PrintDocument,
@@ -37,7 +38,11 @@ export function SalesReportPrintButton({
   metrics: SummaryMetric[];
   invoices: SalesInvoiceRow[];
 }) {
-  const canUseDOM = typeof window !== "undefined" && typeof document !== "undefined";
+  const isMounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
 
   const handlePrint = () => {
     document.body.classList.add("invoice-print-active");
@@ -67,7 +72,7 @@ export function SalesReportPrintButton({
         </span>
       </button>
 
-      {canUseDOM &&
+      {isMounted &&
         createPortal(
           <PrintDocument root="sales-report">
             <PrintHeader

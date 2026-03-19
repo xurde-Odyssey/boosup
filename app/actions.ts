@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { bsToAd } from "@/lib/nepali-date";
 import { getSupabaseClient } from "@/lib/supabase/server";
 
 const readText = (formData: FormData, key: string) =>
@@ -43,6 +44,15 @@ const redirectWithNotice = (
   const redirectTo = readText(formData, "redirect_to") || fallbackPath;
   const separator = redirectTo.includes("?") ? "&" : "?";
   redirect(`${redirectTo}${separator}notice=${entity} ${action}`);
+};
+
+const resolveGregorianDate = (formData: FormData, adKey: string, bsKey: string) => {
+  const adDate = readText(formData, adKey);
+  if (adDate) {
+    return adDate;
+  }
+
+  return bsToAd(readText(formData, bsKey));
 };
 
 export async function logoutAdmin() {
@@ -164,6 +174,7 @@ export async function upsertPurchase(formData: FormData) {
   const supabase = await getSupabaseClient();
   const id = readText(formData, "id");
   const actionType = id ? "updated" : "created";
+  const purchaseFormPath = id ? `/purchases/create?edit=${id}` : "/purchases/create";
   const quantity = readWholeNumber(formData, "quantity");
   const rate = readNumber(formData, "rate");
   const totalAmount = quantity * rate;
@@ -172,7 +183,14 @@ export async function upsertPurchase(formData: FormData) {
   const requestedPaymentStatus = readText(formData, "payment_status") || "PENDING";
   const paymentMethod = readText(formData, "payment_method") || "Cash";
   const paymentNow = readNumber(formData, "payment_now");
-  const paymentDate = readText(formData, "payment_date");
+  const purchaseDate = resolveGregorianDate(formData, "purchase_date", "purchase_date_bs");
+  const paymentDate = resolveGregorianDate(formData, "payment_date", "payment_date_bs");
+
+  if (!purchaseDate) {
+    redirect(
+      `${purchaseFormPath}${purchaseFormPath.includes("?") ? "&" : "?"}notice=Valid%20purchase%20date%20is%20required`,
+    );
+  }
 
   let previousPaidAmount = 0;
   if (id) {
@@ -205,7 +223,7 @@ export async function upsertPurchase(formData: FormData) {
     purchase_number: readText(formData, "purchase_number"),
     vendor_id: vendorId || null,
     vendor_name: vendorId ? null : vendorName || null,
-    purchase_date: readText(formData, "purchase_date"),
+    purchase_date: purchaseDate,
     payment_status: paymentStatus,
     payment_type: remainingAmount <= 0 ? "Cash" : "Credit",
     payment_method: paymentMethod,
@@ -235,7 +253,7 @@ export async function upsertPurchase(formData: FormData) {
     if (normalizedPaymentNow > 0) {
       await supabase.from("purchase_payments").insert({
         purchase_id: id,
-        payment_date: paymentDate || readText(formData, "purchase_date"),
+        payment_date: paymentDate || purchaseDate,
         amount: normalizedPaymentNow,
         payment_method: paymentMethod,
         notes: readText(formData, "notes") || null,
@@ -256,7 +274,7 @@ export async function upsertPurchase(formData: FormData) {
       if (normalizedPaymentNow > 0) {
         await supabase.from("purchase_payments").insert({
           purchase_id: data.id,
-          payment_date: paymentDate || readText(formData, "purchase_date"),
+          payment_date: paymentDate || purchaseDate,
           amount: normalizedPaymentNow,
           payment_method: paymentMethod,
           notes: readText(formData, "notes") || null,
@@ -276,9 +294,19 @@ export async function upsertPurchaseExpense(formData: FormData) {
   const supabase = await getSupabaseClient();
   const id = readText(formData, "id");
   const actionType = id ? "updated" : "created";
+  const expenseDate = resolveGregorianDate(formData, "expense_date", "expense_date_bs");
+
+  if (!expenseDate) {
+    const expenseFormPath = id
+      ? `/purchases/expense/create?edit=${id}`
+      : "/purchases/expense/create";
+    redirect(
+      `${expenseFormPath}${expenseFormPath.includes("?") ? "&" : "?"}notice=Valid%20expense%20date%20is%20required`,
+    );
+  }
 
   const payload = {
-    expense_date: readText(formData, "expense_date"),
+    expense_date: expenseDate,
     expense_title: readText(formData, "expense_title"),
     amount: readNumber(formData, "amount"),
     notes: readText(formData, "notes") || null,
@@ -316,6 +344,8 @@ export async function upsertSale(formData: FormData) {
   const actionType = id ? "updated" : "created";
   const invoiceNumber = readText(formData, "invoice_number");
   const customerName = readText(formData, "customer_name");
+  const salesDate = resolveGregorianDate(formData, "sales_date", "sales_date_bs");
+  const paymentDate = resolveGregorianDate(formData, "payment_date", "payment_date_bs");
   const productIds = formData.getAll("product_id").map((value) => String(value ?? "").trim());
   const productNames = formData
     .getAll("product_name")
@@ -342,6 +372,10 @@ export async function upsertSale(formData: FormData) {
 
   if (!customerName) {
     redirect(`${salesFormPath}${salesFormPath.includes("?") ? "&" : "?"}notice=Customer%20name%20is%20required`);
+  }
+
+  if (!salesDate) {
+    redirect(`${salesFormPath}${salesFormPath.includes("?") ? "&" : "?"}notice=Valid%20sales%20date%20is%20required`);
   }
 
   if (!productIds.length || productIds.some((productId) => !productId)) {
@@ -416,7 +450,7 @@ export async function upsertSale(formData: FormData) {
   const salesPayload = {
     invoice_number: invoiceNumber,
     customer_name: customerName,
-    sales_date: readText(formData, "sales_date"),
+    sales_date: salesDate,
     payment_status: paymentStatus,
     subtotal,
     discount,
@@ -439,7 +473,7 @@ export async function upsertSale(formData: FormData) {
     if (paymentIncrement > 0) {
       await supabase.from("sales_payments").insert({
         sale_id: id,
-        payment_date: readText(formData, "payment_date") || readText(formData, "sales_date"),
+        payment_date: paymentDate || salesDate,
         amount: paymentIncrement,
       });
     }
@@ -461,7 +495,7 @@ export async function upsertSale(formData: FormData) {
     if (data?.id && paymentIncrement > 0) {
       await supabase.from("sales_payments").insert({
         sale_id: data.id,
-        payment_date: readText(formData, "payment_date") || readText(formData, "sales_date"),
+        payment_date: paymentDate || salesDate,
         amount: paymentIncrement,
       });
     }

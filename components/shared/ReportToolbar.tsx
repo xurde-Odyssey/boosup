@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { CalendarRange, Check } from "lucide-react";
 import { ReactNode, useRef, useState } from "react";
+import { NepaliDateInput } from "@/components/shared/NepaliDateInput";
+import { adToBs, bsToAd } from "@/lib/nepali-date";
 import { cn } from "@/lib/utils";
 
 const getTodayDate = () =>
@@ -61,6 +63,8 @@ export function ReportToolbar({
   const formRef = useRef<HTMLFormElement>(null);
   const [range, setRange] = useState(selectedRange);
   const defaults = getDefaultRange(range, today);
+  const [fromBs, setFromBs] = useState(adToBs(fromDate ?? defaults.from));
+  const [toBs, setToBs] = useState(adToBs(toDate ?? defaults.to));
   const showCustomDates = range === "custom";
   const rangeOptions = [
     { value: "week", label: "Week" },
@@ -71,6 +75,15 @@ export function ReportToolbar({
 
   const handleRangeChange = (nextRange: string) => {
     setRange(nextRange);
+    const nextDefaults = getDefaultRange(nextRange, today);
+
+    if (nextRange === "custom") {
+      setFromBs(adToBs(fromDate ?? nextDefaults.from));
+      setToBs(adToBs(toDate ?? nextDefaults.to));
+    } else {
+      setFromBs(adToBs(nextDefaults.from));
+      setToBs(adToBs(nextDefaults.to));
+    }
 
     if (nextRange !== "custom") {
       requestAnimationFrame(() => formRef.current?.requestSubmit());
@@ -81,6 +94,8 @@ export function ReportToolbar({
     <section className="mb-6 rounded-2xl border border-slate-200 bg-white/95 px-4 py-3 shadow-sm">
       <form ref={formRef} action={actionPath} className="space-y-3">
         <input type="hidden" name="range" value={range} />
+        <input type="hidden" name="from" value={bsToAd(fromBs)} />
+        <input type="hidden" name="to" value={bsToAd(toBs)} />
 
         <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
           <div className="flex flex-col gap-3 xl:flex-row xl:items-center">
@@ -147,28 +162,33 @@ export function ReportToolbar({
         </div>
 
         {showCustomDates && (
-          <div className="grid grid-cols-1 gap-3 border-t border-slate-100 pt-3 md:grid-cols-[minmax(0,190px)_minmax(0,190px)]">
-            <div>
+          <div className="border-t border-slate-100 pt-4">
+            <div className="grid grid-cols-1 gap-4 xl:max-w-[860px] xl:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] xl:items-end">
+              <div>
               <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-500">
                 Date From
               </label>
-              <input
-                name="from"
-                type="date"
-                defaultValue={fromDate ?? defaults.from}
-                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition focus:border-blue-500 focus:bg-white"
-              />
-            </div>
-            <div>
-              <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-500">
-                Date To
-              </label>
-              <input
-                name="to"
-                type="date"
-                defaultValue={toDate ?? defaults.to}
-                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition focus:border-blue-500 focus:bg-white"
-              />
+                <NepaliDateInput
+                  value={fromBs}
+                  onChange={setFromBs}
+                  className="w-full"
+                  inputClassName="min-h-[50px] bg-slate-50 px-4 py-3.5 focus:bg-white"
+                />
+              </div>
+              <div className="hidden xl:flex xl:h-[50px] xl:items-center xl:justify-center xl:px-2">
+                <div className="text-sm font-semibold text-slate-400">to</div>
+              </div>
+              <div>
+                <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-500">
+                  Date To
+                </label>
+                <NepaliDateInput
+                  value={toBs}
+                  onChange={setToBs}
+                  className="w-full"
+                  inputClassName="min-h-[50px] bg-slate-50 px-4 py-3.5 focus:bg-white"
+                />
+              </div>
             </div>
           </div>
         )}

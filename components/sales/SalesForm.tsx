@@ -5,7 +5,9 @@ import { useState } from "react";
 import { upsertSale } from "@/app/actions";
 import { FieldHint } from "@/components/shared/FieldHint";
 import { FormSectionHeader } from "@/components/shared/FormSectionHeader";
+import { NepaliDateInput } from "@/components/shared/NepaliDateInput";
 import { FormStickyActions } from "@/components/shared/FormStickyActions";
+import { adToBs, bsToAd } from "@/lib/nepali-date";
 import { formatCurrency } from "@/lib/presentation";
 
 type ProductOption = {
@@ -78,7 +80,7 @@ export function SalesForm({
   defaultDate: string;
 }) {
   const [invoiceNumber, setInvoiceNumber] = useState(editingSale?.invoice_number ?? "");
-  const [salesDate, setSalesDate] = useState(editingSale?.sales_date ?? defaultDate);
+  const [salesDateBs, setSalesDateBs] = useState(adToBs(editingSale?.sales_date ?? defaultDate));
   const [customerName, setCustomerName] = useState(editingSale?.customer_name ?? "");
   const [paymentStatus, setPaymentStatus] = useState(
     editingSale?.payment_status ?? "PENDING",
@@ -106,6 +108,9 @@ export function SalesForm({
   );
   const [discount, setDiscount] = useState(String(editingSale?.discount ?? 0));
   const [paymentIncrement, setPaymentIncrement] = useState("");
+  const [paymentDateBs, setPaymentDateBs] = useState(adToBs(defaultDate));
+  const salesDate = bsToAd(salesDateBs);
+  const paymentDate = bsToAd(paymentDateBs);
 
   const subtotal = items.reduce((sum, item) => {
     return sum + Math.max(toNumber(item.quantity) * toNumber(item.rate), 0);
@@ -154,10 +159,11 @@ export function SalesForm({
   };
 
   return (
-    <form action={upsertSale} className="space-y-6">
+    <form action={upsertSale} autoComplete="off" className="space-y-6">
       <input type="hidden" name="id" defaultValue={editingSale?.id ?? ""} />
       <input type="hidden" name="redirect_to" value="/sales" />
       <input type="hidden" name="tax" value={tax.toFixed(2)} />
+      <input type="hidden" name="sales_date" value={salesDate} />
 
       <div className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
         <FormSectionHeader
@@ -171,6 +177,7 @@ export function SalesForm({
               Bill Number :
             </label>
             <input
+              suppressHydrationWarning
               name="invoice_number"
               required
               autoFocus
@@ -182,19 +189,17 @@ export function SalesForm({
             <FieldHint>Use the same bill number format you print or write manually.</FieldHint>
           </div>
           <div>
-            <label className="mb-2 block text-sm font-semibold text-slate-700">Sales Date</label>
-            <input
-              name="sales_date"
-              type="date"
-              required
-              value={salesDate}
-              onChange={(event) => setSalesDate(event.target.value)}
-              className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-blue-500"
-            />
+            <label className="mb-2 block text-sm font-semibold text-slate-700">
+              Sales Date (BS)
+            </label>
+            <NepaliDateInput value={salesDateBs} onChange={setSalesDateBs} />
+            <input type="hidden" name="sales_date_bs" value={salesDateBs} />
+            <FieldHint>Enter Bikram Sambat date. The app saves Gregorian date internally.</FieldHint>
           </div>
           <div>
             <label className="mb-2 block text-sm font-semibold text-slate-700">Customer Name</label>
             <input
+              suppressHydrationWarning
               name="customer_name"
               required
               value={customerName}
@@ -209,6 +214,7 @@ export function SalesForm({
               Payment Status
             </label>
             <select
+              suppressHydrationWarning
               name="payment_status"
               value={paymentStatus}
               onChange={(event) => setPaymentStatus(event.target.value)}
@@ -273,6 +279,7 @@ export function SalesForm({
                     Product Item
                   </label>
                   <select
+                    suppressHydrationWarning
                     name="product_id"
                     required
                     value={item.productId}
@@ -303,6 +310,7 @@ export function SalesForm({
                     Item Name
                   </label>
                   <input
+                    suppressHydrationWarning
                     name="product_name"
                     required
                     value={item.productName}
@@ -316,6 +324,7 @@ export function SalesForm({
                     Quantity
                   </label>
                   <input
+                    suppressHydrationWarning
                     name="quantity"
                     type="number"
                     min="1"
@@ -331,6 +340,7 @@ export function SalesForm({
                 <div>
                   <label className="mb-2 block text-sm font-semibold text-slate-700">Rate</label>
                   <input
+                    suppressHydrationWarning
                     name="rate"
                     type="number"
                     min="0"
@@ -347,6 +357,7 @@ export function SalesForm({
                   </label>
                   <label className="flex h-[42px] items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700">
                     <input
+                      suppressHydrationWarning
                       type="checkbox"
                       checked={item.taxable}
                       onChange={(event) => updateItem(index, { taxable: event.target.checked })}
@@ -360,6 +371,7 @@ export function SalesForm({
                     Item Amount
                   </label>
                   <input
+                    suppressHydrationWarning
                     type="text"
                     value={formatCurrency(toNumber(item.quantity) * toNumber(item.rate))}
                     readOnly
@@ -371,6 +383,7 @@ export function SalesForm({
                     Item Tax
                   </label>
                   <input
+                    suppressHydrationWarning
                     type="text"
                     value={formatCurrency(
                       item.taxable
@@ -445,6 +458,7 @@ export function SalesForm({
           <div>
             <label className="mb-2 block text-sm font-semibold text-slate-700">Discount Amount</label>
             <input
+              suppressHydrationWarning
               name="discount"
               type="number"
               min="0"
@@ -460,6 +474,7 @@ export function SalesForm({
             <div>
               <label className="mb-2 block text-sm font-semibold text-slate-700">Total Tax Amount</label>
               <input
+                suppressHydrationWarning
                 type="text"
                 value={formatCurrency(tax)}
                 readOnly
@@ -469,6 +484,7 @@ export function SalesForm({
             <div>
               <label className="mb-2 block text-sm font-semibold text-slate-700">Total Amount</label>
               <input
+                suppressHydrationWarning
                 type="text"
                 value={formatCurrency(grandTotal)}
                 readOnly
@@ -480,6 +496,7 @@ export function SalesForm({
                 Previously Received Amount
               </label>
               <input
+                suppressHydrationWarning
                 type="text"
                 value={formatCurrency(previousAmountReceived)}
                 readOnly
@@ -491,6 +508,7 @@ export function SalesForm({
                 Remaining Amount
               </label>
               <input
+                suppressHydrationWarning
                 type="text"
                 value={formatCurrency(remainingAmount)}
                 readOnly
@@ -506,6 +524,7 @@ export function SalesForm({
                   Amount Received Now
                 </label>
                 <input
+                  suppressHydrationWarning
                   name="payment_increment"
                   type="number"
                   min="0"
@@ -522,12 +541,9 @@ export function SalesForm({
               </div>
               <div>
                 <label className="mb-2 block text-sm font-semibold text-slate-700">Payment Date</label>
-                <input
-                  name="payment_date"
-                  type="date"
-                  defaultValue={salesDate || defaultDate}
-                  className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-blue-500"
-                />
+                <NepaliDateInput value={paymentDateBs} onChange={setPaymentDateBs} />
+                <input type="hidden" name="payment_date_bs" value={paymentDateBs} />
+                <input type="hidden" name="payment_date" value={paymentDate} />
               </div>
             </div>
           )}
@@ -542,6 +558,7 @@ export function SalesForm({
         />
         <div className="mt-5">
           <textarea
+            suppressHydrationWarning
             name="notes"
             rows={4}
             defaultValue={editingSale?.notes ?? ""}

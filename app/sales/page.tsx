@@ -8,7 +8,8 @@ import { PageActionStrip } from "@/components/shared/PageActionStrip";
 import { PaginationControls } from "@/components/shared/PaginationControls";
 import { QueryNoticeToast } from "@/components/shared/QueryNoticeToast";
 import { ReportToolbar } from "@/components/shared/ReportToolbar";
-import { formatCurrency, formatDate, getAvatarTone, getInitials } from "@/lib/presentation";
+import { formatBsDisplayDate } from "@/lib/nepali-date";
+import { formatCurrency, getAvatarTone, getInitials } from "@/lib/presentation";
 import { getSupabaseClient } from "@/lib/supabase/server";
 
 const parsePage = (value: string | string[] | undefined) => {
@@ -66,7 +67,7 @@ const formatReportPeriod = (range: string, from: string, to: string) => {
   if (range === "week") return "This Week";
   if (range === "month") return "This Month";
   if (range === "year") return "This Year";
-  return `${formatDate(from)} - ${formatDate(to)}`;
+  return `${formatBsDisplayDate(from)} - ${formatBsDisplayDate(to)}`;
 };
 
 export default async function SalesPage({
@@ -158,7 +159,7 @@ export default async function SalesPage({
       totalAmount: formatCurrency(sale.grand_total),
       paidAmount: formatCurrency(sale.amount_received ?? 0),
       remainingAmount: formatCurrency(sale.remaining_amount ?? 0),
-      date: formatDate(sale.sales_date),
+      date: formatBsDisplayDate(sale.sales_date),
       status: sale.payment_status,
       initials: getInitials(sale.customer_name),
       initialsBg: tone.bg,
@@ -172,7 +173,7 @@ export default async function SalesPage({
     paidAmount: formatCurrency(sale.amount_received ?? 0),
     remainingAmount: formatCurrency(sale.remaining_amount ?? 0),
     status: sale.payment_status,
-    date: formatDate(sale.sales_date),
+    date: formatBsDisplayDate(sale.sales_date),
   }));
 
   return (
@@ -192,7 +193,7 @@ export default async function SalesPage({
           toDate={toDate}
           reportButton={
             <SalesReportPrintButton
-              generatedDate={formatDate(todayDate)}
+              generatedDate={formatBsDisplayDate(todayDate)}
               selectedPeriod={formatReportPeriod(selectedRange, fromDate, toDate)}
               metrics={[
                 { title: "Total Invoiced", value: formatCurrency(totalInvoiced) },

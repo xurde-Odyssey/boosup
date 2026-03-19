@@ -4,7 +4,9 @@ import { useState } from "react";
 import { upsertPurchase } from "@/app/actions";
 import { FieldHint } from "@/components/shared/FieldHint";
 import { FormSectionHeader } from "@/components/shared/FormSectionHeader";
+import { NepaliDateInput } from "@/components/shared/NepaliDateInput";
 import { FormStickyActions } from "@/components/shared/FormStickyActions";
+import { adToBs, bsToAd } from "@/lib/nepali-date";
 import { formatCurrency } from "@/lib/presentation";
 
 type VendorOption = {
@@ -67,7 +69,9 @@ export function PurchaseForm({
 }) {
   const purchaseItem = editingPurchase?.purchase_items?.[0] ?? null;
   const [purchaseNumber, setPurchaseNumber] = useState(editingPurchase?.purchase_number ?? "");
-  const [purchaseDate, setPurchaseDate] = useState(editingPurchase?.purchase_date ?? defaultDate);
+  const [purchaseDateBs, setPurchaseDateBs] = useState(
+    adToBs(editingPurchase?.purchase_date ?? defaultDate),
+  );
   const [vendorId, setVendorId] = useState(editingPurchase?.vendor_id ?? "");
   const [vendorName, setVendorName] = useState(editingPurchase?.vendor_name ?? "");
   const [productName, setProductName] = useState(purchaseItem?.product_name ?? "");
@@ -76,8 +80,10 @@ export function PurchaseForm({
   const [paymentStatus, setPaymentStatus] = useState(editingPurchase?.payment_status ?? "PENDING");
   const [paymentMethod, setPaymentMethod] = useState(editingPurchase?.payment_method ?? "Cash");
   const [paymentNow, setPaymentNow] = useState("0");
-  const [paymentDate, setPaymentDate] = useState(defaultDate);
+  const [paymentDateBs, setPaymentDateBs] = useState(adToBs(defaultDate));
   const [notes, setNotes] = useState(editingPurchase?.notes ?? "");
+  const purchaseDate = bsToAd(purchaseDateBs);
+  const paymentDate = bsToAd(paymentDateBs);
 
   const previousPaidAmount = Number(editingPurchase?.paid_amount ?? 0);
   const itemAmount = Math.max(toNumber(quantity) * toNumber(rate), 0);
@@ -102,9 +108,10 @@ export function PurchaseForm({
           </p>
         </div>
 
-        <form action={upsertPurchase} className="space-y-5">
+        <form action={upsertPurchase} autoComplete="off" className="space-y-5">
           <input type="hidden" name="id" defaultValue={editingPurchase?.id ?? ""} />
           <input type="hidden" name="redirect_to" value="/purchases" />
+          <input type="hidden" name="purchase_date" value={purchaseDate} />
 
           <div className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
             <FormSectionHeader
@@ -130,16 +137,11 @@ export function PurchaseForm({
               </div>
               <div>
                 <label className="mb-2 block text-sm font-semibold text-slate-700">
-                  Purchase Date
+                  Purchase Date (BS)
                 </label>
-                <input
-                  name="purchase_date"
-                  type="date"
-                  required
-                  value={purchaseDate}
-                  onChange={(event) => setPurchaseDate(event.target.value)}
-                  className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-blue-500"
-                />
+                <NepaliDateInput value={purchaseDateBs} onChange={setPurchaseDateBs} />
+                <input type="hidden" name="purchase_date_bs" value={purchaseDateBs} />
+                <FieldHint>Enter Bikram Sambat date. The app saves Gregorian date internally.</FieldHint>
               </div>
               <div>
                 <label className="mb-2 block text-sm font-semibold text-slate-700">
@@ -317,13 +319,9 @@ export function PurchaseForm({
                 <label className="mb-2 block text-sm font-semibold text-slate-700">
                   Payment Date
                 </label>
-                <input
-                  name="payment_date"
-                  type="date"
-                  value={paymentDate}
-                  onChange={(event) => setPaymentDate(event.target.value)}
-                  className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-blue-500"
-                />
+                <NepaliDateInput value={paymentDateBs} onChange={setPaymentDateBs} />
+                <input type="hidden" name="payment_date_bs" value={paymentDateBs} />
+                <input type="hidden" name="payment_date" value={paymentDate} />
               </div>
               <div>
                 <label className="mb-2 block text-sm font-semibold text-slate-700">
