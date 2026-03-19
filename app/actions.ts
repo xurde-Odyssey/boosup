@@ -19,7 +19,11 @@ const readWholeNumber = (formData: FormData, key: string) => {
   return Number.isFinite(value) && value > 0 ? Math.max(Math.trunc(value), 1) : 1;
 };
 
-const generateNextCode = (codes: (string | null | undefined)[], prefix: string) => {
+const generateNextCode = (
+  codes: (string | null | undefined)[],
+  prefix: string,
+  width = 2,
+) => {
   const maxSequence = codes.reduce((maxValue, code) => {
     const normalized = String(code ?? "").trim().toUpperCase();
     if (!normalized.startsWith(prefix)) return maxValue;
@@ -28,7 +32,7 @@ const generateNextCode = (codes: (string | null | undefined)[], prefix: string) 
     return Number.isFinite(numericPart) ? Math.max(maxValue, numericPart) : maxValue;
   }, 0);
 
-  return `${prefix}${String(maxSequence + 1).padStart(2, "0")}`;
+  return `${prefix}${String(maxSequence + 1).padStart(width, "0")}`;
 };
 
 const revalidateAll = (...paths: string[]) => {
@@ -43,7 +47,12 @@ const redirectWithNotice = (
 ) => {
   const redirectTo = readText(formData, "redirect_to") || fallbackPath;
   const separator = redirectTo.includes("?") ? "&" : "?";
-  redirect(`${redirectTo}${separator}notice=${entity} ${action}`);
+  redirect(`${redirectTo}${separator}notice=${encodeURIComponent(`${entity} ${action}`)}`);
+};
+
+const redirectWithMessage = (path: string, message: string) => {
+  const separator = path.includes("?") ? "&" : "?";
+  redirect(`${path}${separator}notice=${encodeURIComponent(message)}`);
 };
 
 const resolveGregorianDate = (formData: FormData, adKey: string, bsKey: string) => {
@@ -141,14 +150,24 @@ export async function upsertStaffProfile(formData: FormData) {
   const supabase = await getSupabaseClient();
   const id = readText(formData, "id");
   const actionType = id ? "updated" : "created";
+  let staffCode = readText(formData, "staff_code");
+
+  if (!staffCode) {
+    const { data: existingStaff = [] } = await supabase.from("staff_profiles").select("staff_code");
+    staffCode = generateNextCode(
+      existingStaff.map((staff) => staff.staff_code),
+      "DS-S",
+      2,
+    );
+  }
 
   const payload = {
-    staff_code: readText(formData, "staff_code"),
+    staff_code: staffCode,
     name: readText(formData, "name"),
     address: readText(formData, "address") || null,
     phone: readText(formData, "phone") || null,
     total_salary: readNumber(formData, "total_salary"),
-    advance_salary: readNumber(formData, "advance_salary"),
+    advance_salary: 0,
     status: readText(formData, "status") || "ACTIVE",
   };
 
@@ -168,6 +187,66 @@ export async function deleteStaffProfile(formData: FormData) {
   await supabase.from("staff_profiles").delete().eq("id", id);
   revalidateAll("/staff");
   redirectWithNotice("/staff", formData, "Staff profile", "deleted");
+}
+
+export async function upsertStaffSalaryPayment(formData: FormData) {
+  const supabase = await getSupabaseClient();
+  const id = readText(formData, "id");
+  const actionType = id ? "updated" : "created";
+  const staffId = readText(formData, "staff_id");
+  const salaryMonthBs = readText(formData, "salary_month_bs").replace(/[.-]/g, "/");
+  const paymentDate = resolveGregorianDate(formData, "payment_date", "payment_date_bs");
+  const workingDays = readWholeNumber(formData, "working_days");
+  const leaveDays = Math.max(Math.trunc(readNumber(formData, "leave_days")), 0);
+  const monthlySalary = readNumber(formData, "monthly_salary");
+  const advancePayment = readNumber(formData, "advance_payment");
+  const staffFormPath = id
+    ? `/staff/payment/create?edit=${id}`
+    : `/staff/payment/create${staffId ? `?staff=${staffId}` : ""}`;
+
+  if (!staffId) {
+    redirect(`${staffFormPath}${staffFormPath.includes("?") ? "&" : "?"}notice=Select%20staff%20member`);
+  }
+
+  if (!salaryMonthBs) {
+    redirect(
+      `${staffFormPath}${staffFormPath.includes("?") ? "&" : "?"}notice=Salary%20month%20is%20required`,
+    );
+  }
+
+  if (!paymentDate) {
+    redirect(
+      `${staffFormPath}${staffFormPath.includes("?") ? "&" : "?"}notice=Valid%20payment%20date%20is%20required`,
+    );
+  }
+
+  const payload = {
+    staff_id: staffId,
+    salary_month_bs: salaryMonthBs,
+    payment_date: paymentDate,
+    working_days: workingDays,
+    leave_days: Math.min(leaveDays, workingDays),
+    monthly_salary: monthlySalary,
+    advance_payment: advancePayment,
+    notes: readText(formData, "notes") || null,
+  };
+
+  if (id) {
+    await supabase.from("staff_salary_payments").update(payload).eq("id", id);
+  } else {
+    await supabase.from("staff_salary_payments").insert(payload);
+  }
+
+  revalidateAll("/staff");
+  redirectWithNotice("/staff", formData, "Staff salary payment", actionType);
+}
+
+export async function deleteStaffSalaryPayment(formData: FormData) {
+  const supabase = await getSupabaseClient();
+  const id = readText(formData, "id");
+  await supabase.from("staff_salary_payments").delete().eq("id", id);
+  revalidateAll("/staff");
+  redirectWithNotice("/staff", formData, "Staff salary payment", "deleted");
 }
 
 export async function upsertPurchase(formData: FormData) {
@@ -408,6 +487,9 @@ export async function upsertSale(formData: FormData) {
   const normalizedSaleItems = saleItems.filter(
     (item) => item.product_id || item.product_name.trim(),
   );
+  if (!normalizedSaleItems.length) {
+    redirectWithMessage(salesFormPath, "Add at least one sales item");
+  }
   const subtotal = normalizedSaleItems.reduce(
     (sum, item) => sum + item.quantity * item.rate,
     0,
@@ -460,44 +542,70 @@ export async function upsertSale(formData: FormData) {
   };
 
   if (id) {
-    await supabase.from("sales").update(salesPayload).eq("id", id);
-    await supabase.from("sales_items").delete().eq("sale_id", id);
+    const { error: saleUpdateError } = await supabase.from("sales").update(salesPayload).eq("id", id);
+    if (saleUpdateError) {
+      redirectWithMessage(salesFormPath, saleUpdateError.message || "Failed to update sale");
+    }
+
+    const { error: deleteItemsError } = await supabase.from("sales_items").delete().eq("sale_id", id);
+    if (deleteItemsError) {
+      redirectWithMessage(salesFormPath, deleteItemsError.message || "Failed to refresh sales items");
+    }
+
     if (normalizedSaleItems.length) {
-      await supabase.from("sales_items").insert(
+      const { error: insertItemsError } = await supabase.from("sales_items").insert(
         normalizedSaleItems.map((item) => ({
           ...item,
           sale_id: id,
         })),
       );
+      if (insertItemsError) {
+        redirectWithMessage(salesFormPath, insertItemsError.message || "Failed to save sales items");
+      }
     }
     if (paymentIncrement > 0) {
-      await supabase.from("sales_payments").insert({
+      const { error: insertPaymentError } = await supabase.from("sales_payments").insert({
         sale_id: id,
         payment_date: paymentDate || salesDate,
         amount: paymentIncrement,
       });
+      if (insertPaymentError) {
+        redirectWithMessage(salesFormPath, insertPaymentError.message || "Failed to save sales payment");
+      }
     }
   } else {
-    const { data } = await supabase
+    const { data, error: saleInsertError } = await supabase
       .from("sales")
       .insert(salesPayload)
       .select("id")
       .single();
+    if (saleInsertError || !data?.id) {
+      redirectWithMessage(
+        salesFormPath,
+        saleInsertError?.message || "Failed to create sale",
+      );
+    }
 
     if (data?.id && normalizedSaleItems.length) {
-      await supabase.from("sales_items").insert(
+      const { error: insertItemsError } = await supabase.from("sales_items").insert(
         normalizedSaleItems.map((item) => ({
           ...item,
           sale_id: data.id,
         })),
       );
+      if (insertItemsError) {
+        redirectWithMessage(salesFormPath, insertItemsError.message || "Failed to save sales items");
+      }
     }
     if (data?.id && paymentIncrement > 0) {
-      await supabase.from("sales_payments").insert({
+      const { error: insertPaymentError } = await supabase.from("sales_payments").insert({
         sale_id: data.id,
         payment_date: paymentDate || salesDate,
         amount: paymentIncrement,
       });
+      if (insertPaymentError) {
+        redirectWithMessage(salesFormPath, insertPaymentError.message || "Failed to save sales payment");
+      }
     }
   }
 

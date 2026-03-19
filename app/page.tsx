@@ -1,9 +1,13 @@
 import {
   AlertCircle,
+  BellRing,
   CalendarClock,
   CircleDollarSign,
+  CreditCard,
+  ReceiptText,
   ShoppingCart,
   TrendingUp,
+  Wallet,
 } from "lucide-react";
 import { ExpenseBreakdownChart } from "@/components/dashboard/ExpenseBreakdownChart";
 import { Header } from "@/components/dashboard/Header";
@@ -124,17 +128,18 @@ export default async function Home({
     expensesResponse,
     salesItemsResponse,
     purchaseItemsResponse,
+    staffSalaryPaymentsResponse,
   ] = await Promise.all([
     supabase
       .from("sales")
-      .select("customer_name, sales_date, grand_total, payment_status")
+      .select("invoice_number, customer_name, sales_date, grand_total, payment_status, created_at")
       .order("sales_date", { ascending: true }),
     supabase
       .from("purchases")
-      .select("purchase_date, total_amount, credit_amount")
+      .select("purchase_number, purchase_date, total_amount, credit_amount, created_at")
       .order("purchase_date", { ascending: true }),
     supabase.from("staff_profiles").select("total_salary, advance_salary"),
-    supabase.from("purchase_expenses").select("expense_date, amount"),
+    supabase.from("purchase_expenses").select("expense_date, expense_title, amount, created_at"),
     supabase
       .from("sales_items")
       .select("product_name, quantity, amount, sales(sales_date)")
@@ -142,6 +147,10 @@ export default async function Home({
     supabase
       .from("purchase_items")
       .select("product_name, quantity, amount, purchases(purchase_date)")
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("staff_salary_payments")
+      .select("salary_month_bs, payment_date, advance_payment, remaining_payment, created_at, staff_profiles(name)")
       .order("created_at", { ascending: false }),
   ]);
 
@@ -151,6 +160,7 @@ export default async function Home({
   const purchaseExpenses = expensesResponse.data ?? [];
   const salesItems = salesItemsResponse.data ?? [];
   const purchaseItems = purchaseItemsResponse.data ?? [];
+  const staffSalaryPayments = staffSalaryPaymentsResponse.data ?? [];
   const filteredSales = sales.filter((sale) => isWithinRange(sale.sales_date, fromDate, toDate));
   const filteredPurchases = purchases.filter((purchase) =>
     isWithinRange(purchase.purchase_date, fromDate, toDate),
@@ -336,6 +346,82 @@ export default async function Home({
       billCount: value.billCount,
       lastBought: formatBsDisplayDate(value.lastBought),
     }));
+  const overdueSalesCount = filteredSales.filter((sale) => sale.payment_status === "OVERDUE").length;
+  const overduePurchasesCount = filteredPurchases.filter(
+    (purchase) => Number(purchase.credit_amount ?? 0) > 0,
+  ).length;
+  const unpaidSalaryCount = staffSalaryPayments.filter(
+    (payment) => Number(payment.remaining_payment ?? 0) > 0,
+  ).length;
+  const alerts = [
+    overdueSalesCount > 0
+      ? {
+          title: `${overdueSalesCount} overdue sales invoice${overdueSalesCount > 1 ? "s" : ""}`,
+          description: "Customer collections need follow-up.",
+          tone: "red",
+        }
+      : null,
+    overduePurchasesCount > 0
+      ? {
+          title: `${overduePurchasesCount} purchase bill${overduePurchasesCount > 1 ? "s" : ""} still payable`,
+          description: "Vendor credit remains unsettled.",
+          tone: "amber",
+        }
+      : null,
+    unpaidSalaryCount > 0
+      ? {
+          title: `${unpaidSalaryCount} salary entr${unpaidSalaryCount > 1 ? "ies" : "y"} with remaining payment`,
+          description: "Staff payments need attention.",
+          tone: "blue",
+        }
+      : null,
+  ].filter(Boolean) as { title: string; description: string; tone: string }[];
+  const recentActivity = [
+    ...filteredSales.slice(-5).map((sale) => ({
+      id: `sale-${sale.invoice_number}-${sale.created_at ?? sale.sales_date}`,
+      title: `Sale invoice ${sale.invoice_number}`,
+      description: sale.customer_name,
+      amount: formatCurrency(sale.grand_total),
+      date: formatBsDisplayDate(sale.sales_date),
+      sortKey: sale.created_at ?? sale.sales_date ?? "",
+      tone: "green",
+      icon: ReceiptText,
+    })),
+    ...filteredPurchases.slice(-5).map((purchase) => ({
+      id: `purchase-${purchase.purchase_number}-${purchase.created_at ?? purchase.purchase_date}`,
+      title: `Purchase ${purchase.purchase_number}`,
+      description: "Purchase entry recorded",
+      amount: formatCurrency(purchase.total_amount),
+      date: formatBsDisplayDate(purchase.purchase_date),
+      sortKey: purchase.created_at ?? purchase.purchase_date ?? "",
+      tone: "blue",
+      icon: ShoppingCart,
+    })),
+    ...filteredExpenses.slice(-5).map((expense) => ({
+      id: `expense-${expense.expense_title}-${expense.created_at ?? expense.expense_date}`,
+      title: expense.expense_title || "Purchase expense",
+      description: "Expense recorded",
+      amount: formatCurrency(expense.amount),
+      date: formatBsDisplayDate(expense.expense_date),
+      sortKey: expense.created_at ?? expense.expense_date ?? "",
+      tone: "amber",
+      icon: CreditCard,
+    })),
+    ...staffSalaryPayments.slice(0, 5).map((payment) => ({
+      id: `salary-${payment.created_at ?? payment.payment_date}-${payment.salary_month_bs}`,
+      title: `Salary payment ${payment.salary_month_bs}`,
+      description: Array.isArray(payment.staff_profiles)
+        ? payment.staff_profiles[0]?.name ?? "Staff"
+        : payment.staff_profiles?.name ?? "Staff",
+      amount: formatCurrency(payment.advance_payment),
+      date: formatBsDisplayDate(payment.payment_date),
+      sortKey: payment.created_at ?? payment.payment_date ?? "",
+      tone: "slate",
+      icon: Wallet,
+    })),
+  ]
+    .sort((left, right) => right.sortKey.localeCompare(left.sortKey))
+    .slice(0, 8);
   const selectedPeriodLabel = formatReportPeriod(selectedRange, fromDate, toDate);
   const generatedReportDate = formatBsDisplayDate(todayDate);
   const nepaliNow = getNepaliDateTimeParts();
@@ -455,6 +541,89 @@ export default async function Home({
               total={formatCurrency(expenseTotal)}
             />
           </div>
+        </div>
+
+        <div className="mb-10 grid grid-cols-1 gap-6 xl:grid-cols-[360px_minmax(0,1fr)]">
+          <section className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
+            <div className="border-b border-slate-50 p-6">
+              <div className="flex items-center gap-3">
+                <div className="rounded-xl bg-rose-50 p-3 text-rose-500">
+                  <BellRing className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-slate-900">Operational Alerts</h3>
+                  <p className="mt-1 text-xs text-slate-500">
+                    Follow-up items needing action across sales, purchases, and payroll.
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div className="divide-y divide-slate-50">
+              {alerts.length > 0 ? (
+                alerts.map((alert, index) => (
+                  <div
+                    key={`${alert.title}-${index}`}
+                    className={`px-6 py-4 ${
+                      index % 2 === 0 ? "bg-white" : "bg-slate-50/20"
+                    }`}
+                  >
+                    <div className="text-sm font-semibold text-slate-900">{alert.title}</div>
+                    <div className="mt-1 text-xs text-slate-500">{alert.description}</div>
+                  </div>
+                ))
+              ) : (
+                <div className="px-6 py-10 text-center text-sm text-slate-500">
+                  No active alerts in the selected period.
+                </div>
+              )}
+            </div>
+          </section>
+
+          <section className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
+            <div className="border-b border-slate-50 p-6">
+              <h3 className="text-lg font-bold text-slate-900">Recent Activity</h3>
+              <p className="mt-1 text-xs text-slate-500">
+                Latest entries flowing through the system.
+              </p>
+            </div>
+            <div className="divide-y divide-slate-50">
+              {recentActivity.length > 0 ? (
+                recentActivity.map((activity, index) => {
+                  const Icon = activity.icon;
+                  return (
+                    <div
+                      key={activity.id}
+                      className={`flex items-center justify-between gap-4 px-6 py-4 ${
+                        index % 2 === 0 ? "bg-white" : "bg-slate-50/20"
+                      }`}
+                    >
+                      <div className="flex min-w-0 items-center gap-3">
+                        <div className="rounded-xl bg-slate-100 p-2.5 text-slate-600">
+                          <Icon className="h-4 w-4" />
+                        </div>
+                        <div className="min-w-0">
+                          <div className="truncate text-sm font-semibold text-slate-900">
+                            {activity.title}
+                          </div>
+                          <div className="truncate text-xs text-slate-500">
+                            {activity.description}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="shrink-0 text-right">
+                        <div className="text-sm font-bold text-slate-900">{activity.amount}</div>
+                        <div className="text-xs text-slate-500">{activity.date}</div>
+                      </div>
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="px-6 py-10 text-center text-sm text-slate-500">
+                  No recent activity recorded yet.
+                </div>
+              )}
+            </div>
+          </section>
         </div>
 
         <div className="mb-10">
