@@ -1,4 +1,8 @@
+"use client";
+
 import Link from "next/link";
+import { useCallback, useEffect, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { deleteSale } from "@/app/actions";
 import { ConfirmActionForm } from "@/components/shared/ConfirmActionForm";
 import { EmptyState } from "@/components/shared/EmptyState";
@@ -33,6 +37,80 @@ export function InvoicesTable({
   status: string;
   perPage: number;
 }) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const [searchValue, setSearchValue] = useState(search);
+  const [statusValue, setStatusValue] = useState(status);
+  const [sortValue, setSortValue] = useState(sort);
+  const [perPageValue, setPerPageValue] = useState(String(perPage));
+
+  useEffect(() => {
+    setSearchValue(search);
+  }, [search]);
+
+  useEffect(() => {
+    setStatusValue(status);
+  }, [status]);
+
+  useEffect(() => {
+    setSortValue(sort);
+  }, [sort]);
+
+  useEffect(() => {
+    setPerPageValue(String(perPage));
+  }, [perPage]);
+
+  const updateParams = useCallback(
+    (next: {
+      q?: string;
+      status?: string;
+      sort?: string;
+      perPage?: string;
+      resetPage?: boolean;
+    }) => {
+      const params = new URLSearchParams(searchParams.toString());
+
+      const setOrDelete = (key: string, value: string | undefined, fallback?: string) => {
+        if (!value || (fallback && value === fallback)) {
+          params.delete(key);
+        } else {
+          params.set(key, value);
+        }
+      };
+
+      if ("q" in next) {
+        setOrDelete("q", next.q);
+      }
+      if ("status" in next) {
+        setOrDelete("status", next.status, "ALL");
+      }
+      if ("sort" in next) {
+        setOrDelete("sort", next.sort, "date_desc");
+      }
+      if ("perPage" in next) {
+        setOrDelete("perPage", next.perPage, "10");
+      }
+      if (next.resetPage) {
+        params.delete("page");
+      }
+
+      const query = params.toString();
+      router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+    },
+    [pathname, router, searchParams],
+  );
+
+  useEffect(() => {
+    const timeout = window.setTimeout(() => {
+      if (searchValue !== search) {
+        updateParams({ q: searchValue.trim(), resetPage: true });
+      }
+    }, 300);
+
+    return () => window.clearTimeout(timeout);
+  }, [search, searchValue, updateParams]);
+
   return (
     <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
       <div className="flex items-center justify-between border-b border-slate-50 p-6">
@@ -46,7 +124,7 @@ export function InvoicesTable({
       </div>
 
       <div className="border-b border-slate-50 p-6">
-        <form action="/sales" className="rounded-2xl border border-slate-200 bg-slate-50/70 p-3">
+        <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-3">
           <div className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1.7fr)_220px_220px_220px]">
             <div>
               <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-600">
@@ -54,8 +132,8 @@ export function InvoicesTable({
               </label>
               <input
                 type="text"
-                name="q"
-                defaultValue={search}
+                value={searchValue}
+                onChange={(event) => setSearchValue(event.target.value)}
                 placeholder="Invoice no or customer name"
                 className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-blue-500"
               />
@@ -65,8 +143,12 @@ export function InvoicesTable({
                 Status
               </label>
               <select
-                name="status"
-                defaultValue={status}
+                value={statusValue}
+                onChange={(event) => {
+                  const value = event.target.value;
+                  setStatusValue(value);
+                  updateParams({ status: value, resetPage: true });
+                }}
                 className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-blue-500"
               >
                 <option value="ALL">All</option>
@@ -81,8 +163,12 @@ export function InvoicesTable({
                 Sort
               </label>
               <select
-                name="sort"
-                defaultValue={sort}
+                value={sortValue}
+                onChange={(event) => {
+                  const value = event.target.value;
+                  setSortValue(value);
+                  updateParams({ sort: value, resetPage: true });
+                }}
                 className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-blue-500"
               >
                 <option value="date_desc">Latest</option>
@@ -97,8 +183,12 @@ export function InvoicesTable({
                 Per Page
               </label>
               <select
-                name="perPage"
-                defaultValue={String(perPage)}
+                value={perPageValue}
+                onChange={(event) => {
+                  const value = event.target.value;
+                  setPerPageValue(value);
+                  updateParams({ perPage: value, resetPage: true });
+                }}
                 className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-blue-500"
               >
                 <option value="10">10</option>
@@ -108,20 +198,14 @@ export function InvoicesTable({
             </div>
           </div>
           <div className="mt-3 flex items-center gap-3">
-            <button
-              type="submit"
-              className="rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white"
-            >
-              Apply
-            </button>
             <Link
-              href="/sales"
+              href={pathname}
               className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-700"
             >
               Reset
             </Link>
           </div>
-        </form>
+        </div>
       </div>
 
       <div className="overflow-x-auto">
@@ -147,7 +231,13 @@ export function InvoicesTable({
                 }`}
               >
                 <td className="px-6 py-3.5 text-sm font-bold text-slate-900">
-                  {invoice.invoiceNumber}
+                  <Link
+                    href={`/sales/create?edit=${invoice.id}`}
+                    className="transition-colors hover:text-blue-600"
+                    title={`Open sales invoice ${invoice.invoiceNumber}`}
+                  >
+                    {invoice.invoiceNumber}
+                  </Link>
                 </td>
                 <td className="px-6 py-3.5">
                   <div className="flex items-center gap-2.5">
@@ -161,8 +251,9 @@ export function InvoicesTable({
                       {invoice.initials}
                     </div>
                     <Link
-                      href={`/sales/create?edit=${invoice.id}`}
+                      href={`/sales/customer/${encodeURIComponent(invoice.customer)}`}
                       className="text-sm font-semibold text-slate-900 transition-colors group-hover:text-blue-600"
+                      title={`Open customer ledger for ${invoice.customer}`}
                     >
                       {invoice.customer}
                     </Link>
@@ -186,14 +277,14 @@ export function InvoicesTable({
                     <Link
                       href={`/sales/create?edit=${invoice.id}`}
                       className="rounded-lg p-1.5 text-slate-300 transition-all hover:bg-blue-50 hover:text-blue-600"
-                      title="Edit"
+                      title={`Edit sales invoice ${invoice.invoiceNumber}`}
                     >
                       <Pencil className="h-4 w-4" />
                     </Link>
                     <Link
                       href={`/sales/create?edit=${invoice.id}`}
                       className="rounded-lg p-1.5 text-slate-300 transition-all hover:bg-amber-50 hover:text-amber-600"
-                      title="Update"
+                      title={`Open update view for sales invoice ${invoice.invoiceNumber}`}
                     >
                       <RefreshCcw className="h-4 w-4" />
                     </Link>
@@ -208,7 +299,7 @@ export function InvoicesTable({
                       <button
                         type="submit"
                         className="rounded-lg p-1.5 text-slate-300 transition-all hover:bg-red-50 hover:text-red-600"
-                        title="Delete"
+                        title={`Delete sales invoice ${invoice.invoiceNumber}`}
                       >
                         <Trash2 className="h-4 w-4" />
                       </button>

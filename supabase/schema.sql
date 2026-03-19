@@ -52,9 +52,44 @@ create table if not exists public.staff_profiles (
   updated_at timestamptz not null default timezone('utc', now())
 );
 
+create table if not exists public.staff_salary_payments (
+  id uuid primary key default gen_random_uuid(),
+  staff_id uuid not null references public.staff_profiles(id) on delete cascade,
+  salary_month_bs text not null,
+  payment_date date not null default current_date,
+  working_days integer not null default 30 check (working_days > 0),
+  leave_days integer not null default 0 check (leave_days >= 0),
+  monthly_salary numeric(12, 2) not null default 0 check (monthly_salary >= 0),
+  advance_payment numeric(12, 2) not null default 0 check (advance_payment >= 0),
+  monthly_payment numeric(12, 2) generated always as (
+    case
+      when working_days > 0 then round(
+        (monthly_salary * greatest(working_days - leave_days, 0)::numeric) / working_days::numeric,
+        2
+      )
+      else monthly_salary
+    end
+  ) stored,
+  remaining_payment numeric(12, 2) generated always as (
+    greatest(
+      case
+        when working_days > 0 then round(
+          (monthly_salary * greatest(working_days - leave_days, 0)::numeric) / working_days::numeric,
+          2
+        )
+        else monthly_salary
+      end - advance_payment,
+      0
+    )
+  ) stored,
+  notes text,
+  created_at timestamptz not null default timezone('utc', now()),
+  updated_at timestamptz not null default timezone('utc', now())
+);
+
 create table if not exists public.sales (
   id uuid primary key default gen_random_uuid(),
-  invoice_number text not null unique,
+  invoice_number text not null,
   customer_name text not null,
   sales_date date not null default current_date,
   payment_status text not null default 'PENDING' check (payment_status in ('PAID', 'PENDING', 'PARTIAL', 'OVERDUE')),
@@ -68,6 +103,9 @@ create table if not exists public.sales (
   created_at timestamptz not null default timezone('utc', now()),
   updated_at timestamptz not null default timezone('utc', now())
 );
+
+alter table public.sales
+drop constraint if exists sales_invoice_number_key;
 
 alter table public.sales
 add column if not exists amount_received numeric(12, 2) not null default 0 check (amount_received >= 0);
@@ -177,6 +215,7 @@ create table if not exists public.purchase_payments (
 alter table public.products enable row level security;
 alter table public.vendors enable row level security;
 alter table public.staff_profiles enable row level security;
+alter table public.staff_salary_payments enable row level security;
 alter table public.sales enable row level security;
 alter table public.sales_items enable row level security;
 alter table public.sales_payments enable row level security;
@@ -280,6 +319,39 @@ drop policy if exists "anon can delete staff profiles" on public.staff_profiles;
 drop policy if exists "authenticated can delete staff profiles" on public.staff_profiles;
 create policy "authenticated can delete staff profiles"
 on public.staff_profiles
+for delete
+to authenticated
+using (true);
+
+drop policy if exists "anon can read staff salary payments" on public.staff_salary_payments;
+drop policy if exists "authenticated can read staff salary payments" on public.staff_salary_payments;
+create policy "authenticated can read staff salary payments"
+on public.staff_salary_payments
+for select
+to authenticated
+using (true);
+
+drop policy if exists "anon can insert staff salary payments" on public.staff_salary_payments;
+drop policy if exists "authenticated can insert staff salary payments" on public.staff_salary_payments;
+create policy "authenticated can insert staff salary payments"
+on public.staff_salary_payments
+for insert
+to authenticated
+with check (true);
+
+drop policy if exists "anon can update staff salary payments" on public.staff_salary_payments;
+drop policy if exists "authenticated can update staff salary payments" on public.staff_salary_payments;
+create policy "authenticated can update staff salary payments"
+on public.staff_salary_payments
+for update
+to authenticated
+using (true)
+with check (true);
+
+drop policy if exists "anon can delete staff salary payments" on public.staff_salary_payments;
+drop policy if exists "authenticated can delete staff salary payments" on public.staff_salary_payments;
+create policy "authenticated can delete staff salary payments"
+on public.staff_salary_payments
 for delete
 to authenticated
 using (true);
@@ -536,6 +608,14 @@ select
   coalesce(sum(remaining_salary), 0)::numeric(12, 2) as total_remaining_amount
 from public.staff_profiles;
 
+create or replace view public.staff_payment_summary as
+select
+  count(*) as total_salary_entries,
+  coalesce(sum(monthly_payment), 0)::numeric(12, 2) as total_monthly_payment,
+  coalesce(sum(advance_payment), 0)::numeric(12, 2) as total_advance_payment,
+  coalesce(sum(remaining_payment), 0)::numeric(12, 2) as total_remaining_payment
+from public.staff_salary_payments;
+
 drop trigger if exists products_set_updated_at on public.products;
 create trigger products_set_updated_at
 before update on public.products
@@ -551,6 +631,12 @@ execute function public.set_updated_at();
 drop trigger if exists staff_profiles_set_updated_at on public.staff_profiles;
 create trigger staff_profiles_set_updated_at
 before update on public.staff_profiles
+for each row
+execute function public.set_updated_at();
+
+drop trigger if exists staff_salary_payments_set_updated_at on public.staff_salary_payments;
+create trigger staff_salary_payments_set_updated_at
+before update on public.staff_salary_payments
 for each row
 execute function public.set_updated_at();
 

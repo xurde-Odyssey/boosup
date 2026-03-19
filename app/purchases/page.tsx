@@ -200,6 +200,7 @@ export default async function PurchasesPage({
                             <Link
                               href={`/vendors/${purchase.vendor_id}`}
                               className="font-semibold text-slate-700 hover:text-blue-600"
+                              title={`Open vendor profile for ${purchase.vendors.name}`}
                             >
                               {purchase.vendors.name}
                             </Link>
@@ -226,12 +227,14 @@ export default async function PurchasesPage({
                             <Link
                               href={`/purchases/create?edit=${purchase.id}`}
                               className="rounded-lg p-2 text-slate-400 transition-all hover:bg-blue-50 hover:text-blue-600"
+                              title={`Edit purchase ${purchase.purchase_number}`}
                             >
                               <Pencil className="h-4 w-4" />
                             </Link>
                             <Link
                               href={`/purchases/create?edit=${purchase.id}`}
                               className="rounded-lg p-2 text-slate-400 transition-all hover:bg-amber-50 hover:text-amber-600"
+                              title={`Open update view for purchase ${purchase.purchase_number}`}
                             >
                               <RefreshCcw className="h-4 w-4" />
                             </Link>
@@ -243,7 +246,10 @@ export default async function PurchasesPage({
                                 { name: "redirect_to", value: "/purchases" },
                               ]}
                             >
-                              <button className="rounded-lg p-2 text-slate-400 transition-all hover:bg-red-50 hover:text-red-600">
+                              <button
+                                className="rounded-lg p-2 text-slate-400 transition-all hover:bg-red-50 hover:text-red-600"
+                                title={`Delete purchase ${purchase.purchase_number}`}
+                              >
                                 <Trash2 className="h-4 w-4" />
                               </button>
                             </ConfirmActionForm>
@@ -317,12 +323,14 @@ export default async function PurchasesPage({
                             <Link
                               href={`/purchases/expense/create?edit=${expense.id}`}
                               className="rounded-lg p-2 text-slate-400 transition-all hover:bg-blue-50 hover:text-blue-600"
+                              title={`Edit expense ${expense.expense_title}`}
                             >
                               <Pencil className="h-4 w-4" />
                             </Link>
                             <Link
                               href={`/purchases/expense/create?edit=${expense.id}`}
                               className="rounded-lg p-2 text-slate-400 transition-all hover:bg-amber-50 hover:text-amber-600"
+                              title={`Open update view for expense ${expense.expense_title}`}
                             >
                               <RefreshCcw className="h-4 w-4" />
                             </Link>
@@ -334,7 +342,10 @@ export default async function PurchasesPage({
                                 { name: "redirect_to", value: "/purchases" },
                               ]}
                             >
-                              <button className="rounded-lg p-2 text-slate-400 transition-all hover:bg-red-50 hover:text-red-600">
+                              <button
+                                className="rounded-lg p-2 text-slate-400 transition-all hover:bg-red-50 hover:text-red-600"
+                                title={`Delete expense ${expense.expense_title}`}
+                              >
                                 <Trash2 className="h-4 w-4" />
                               </button>
                             </ConfirmActionForm>
@@ -397,13 +408,14 @@ export default async function PurchasesPage({
                           {formatBsDisplayDate(payment.payment_date)}
                         </td>
                         <td className="px-6 py-4 text-sm text-slate-600">
-                          {payment.purchases?.vendors?.name ? (
-                            <Link
-                              href={`/vendors/${payment.purchases.vendor_id}`}
-                              className="font-semibold text-slate-700 hover:text-blue-600"
-                            >
-                              {payment.purchases.vendors.name}
-                            </Link>
+                            {payment.purchases?.vendors?.name ? (
+                              <Link
+                                href={`/vendors/${payment.purchases.vendor_id}`}
+                                className="font-semibold text-slate-700 hover:text-blue-600"
+                                title={`Open vendor profile for ${payment.purchases.vendors.name}`}
+                              >
+                                {payment.purchases.vendors.name}
+                              </Link>
                           ) : payment.purchases?.vendor_name ? (
                             <span className="font-semibold text-slate-700">
                               {payment.purchases.vendor_name}

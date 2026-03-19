@@ -407,14 +407,14 @@ export default async function ProductsPage({
                           <Link
                             href={`/products?edit=${product.id}`}
                             className="rounded-lg p-2 text-slate-400 transition-all hover:bg-blue-50 hover:text-blue-600"
-                            title="Edit"
+                            title={`Edit product ${product.name}`}
                           >
                             <Pencil className="h-4 w-4" />
                           </Link>
                           <Link
                             href={`/products?edit=${product.id}`}
                             className="rounded-lg p-2 text-slate-400 transition-all hover:bg-amber-50 hover:text-amber-600"
-                            title="Update"
+                            title={`Open update view for product ${product.name}`}
                           >
                             <RefreshCcw className="h-4 w-4" />
                           </Link>
@@ -426,7 +426,7 @@ export default async function ProductsPage({
                             <button
                               type="submit"
                               className="rounded-lg p-2 text-slate-400 transition-all hover:bg-red-50 hover:text-red-600"
-                              title="Delete"
+                              title={`Delete product ${product.name}`}
                             >
                               <Trash2 className="h-4 w-4" />
                             </button>

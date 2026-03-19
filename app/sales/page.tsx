@@ -4,6 +4,8 @@ import { InvoicesTable } from "@/components/dashboard/InvoicesTable";
 import { SalesReportPrintButton } from "@/components/dashboard/SalesReportPrintButton";
 import { Sidebar } from "@/components/dashboard/Sidebar";
 import { SummaryCard } from "@/components/dashboard/SummaryCard";
+import { SalesTrendChart } from "@/components/dashboard/SalesTrendChart";
+import { TopSalesItemsTable } from "@/components/dashboard/TopSalesItemsTable";
 import { PageActionStrip } from "@/components/shared/PageActionStrip";
 import { PaginationControls } from "@/components/shared/PaginationControls";
 import { QueryNoticeToast } from "@/components/shared/QueryNoticeToast";
@@ -91,12 +93,17 @@ export default async function SalesPage({
     return [10, 25, 50].includes(rawValue) ? rawValue : PAGE_SIZE;
   })();
   const supabase = await getSupabaseClient();
-  const { data: allSales = [] } = await supabase
-    .from("sales")
-    .select(
-      "id, invoice_number, customer_name, sales_date, payment_status, grand_total, amount_received, remaining_amount",
-    )
-    .order("created_at", { ascending: false });
+  const [{ data: allSales = [] }, { data: allSalesItems = [] }] = await Promise.all([
+    supabase
+      .from("sales")
+      .select(
+        "id, invoice_number, customer_name, sales_date, payment_status, grand_total, amount_received, remaining_amount",
+      )
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("sales_items")
+      .select("sale_id, product_name, quantity, amount"),
+  ]);
 
   const rangedSales = allSales.filter((sale) => isWithinRange(sale.sales_date, fromDate, toDate));
   const searchedSales = search
@@ -175,6 +182,58 @@ export default async function SalesPage({
     status: sale.payment_status,
     date: formatBsDisplayDate(sale.sales_date),
   }));
+  const filteredSaleIds = new Set(sales.map((sale) => sale.id));
+  const filteredSalesItems = allSalesItems.filter((item) => filteredSaleIds.has(item.sale_id));
+  const topSalesItemMap = new Map<
+    string,
+    { quantity: number; amount: number; invoiceCount: number; lastSold: string | null }
+  >();
+  filteredSalesItems.forEach((item) => {
+    const itemName = item.product_name?.trim();
+    if (!itemName) return;
+
+    const parentSale = sales.find((sale) => sale.id === item.sale_id);
+    const existing = topSalesItemMap.get(itemName) ?? {
+      quantity: 0,
+      amount: 0,
+      invoiceCount: 0,
+      lastSold: null,
+    };
+
+    existing.quantity += Number(item.quantity ?? 0);
+    existing.amount += Number(item.amount ?? 0);
+    existing.invoiceCount += 1;
+    if (parentSale?.sales_date) {
+      existing.lastSold =
+        existing.lastSold && existing.lastSold > parentSale.sales_date
+          ? existing.lastSold
+          : parentSale.sales_date;
+    }
+
+    topSalesItemMap.set(itemName, existing);
+  });
+  const topSalesItems = Array.from(topSalesItemMap.entries())
+    .sort((left, right) => right[1].amount - left[1].amount)
+    .slice(0, 5)
+    .map(([name, value]) => ({
+      name,
+      quantitySold: `${value.quantity}`,
+      salesAmount: formatCurrency(value.amount),
+      invoiceCount: value.invoiceCount,
+      lastSold: formatBsDisplayDate(value.lastSold),
+    }));
+  const salesTrendMap = new Map<string, number>();
+  sales.forEach((sale) => {
+    const saleDate = sale.sales_date;
+    if (!saleDate) return;
+    salesTrendMap.set(saleDate, (salesTrendMap.get(saleDate) ?? 0) + Number(sale.grand_total ?? 0));
+  });
+  const salesTrendData = Array.from(salesTrendMap.entries())
+    .sort((left, right) => left[0].localeCompare(right[0]))
+    .map(([date, total]) => ({
+      name: formatBsDisplayDate(date),
+      sales: total,
+    }));
 
   return (
     <div className="flex min-h-screen bg-slate-50/50">
@@ -209,7 +268,7 @@ export default async function SalesPage({
         <PageActionStrip
           actions={[
             { label: "Create Sales", href: "/sales/create" },
-            { label: "View Recent Invoices", href: "/sales", variant: "secondary" },
+            { label: "View Recent Invoices", href: "/sales/view", variant: "secondary" },
           ]}
         />
 
@@ -261,7 +320,16 @@ export default async function SalesPage({
           />
         </div>
 
-        <div className="mb-8">
+        <div className="mb-8 grid grid-cols-1 gap-6 xl:grid-cols-12">
+          <div className="xl:col-span-8">
+            <SalesTrendChart data={salesTrendData} />
+          </div>
+          <div className="xl:col-span-4">
+            <TopSalesItemsTable items={topSalesItems} />
+          </div>
+        </div>
+
+        <div>
           <InvoicesTable
             invoices={invoices}
             search={search}

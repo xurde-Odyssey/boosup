@@ -211,6 +211,7 @@ export default async function VendorsPage({
                         <Link
                           href={`/vendors/${vendor.id}`}
                           className="text-sm font-semibold text-slate-900 hover:text-blue-600"
+                          title={`Open vendor profile for ${vendor.name}`}
                         >
                           {vendor.name}
                         </Link>
@@ -307,12 +308,14 @@ export default async function VendorsPage({
                           <Link
                             href={`/vendors/create?edit=${vendor.id}`}
                             className="rounded-lg p-2 text-slate-400 transition-all hover:bg-blue-50 hover:text-blue-600"
+                            title={`Edit vendor ${vendor.name}`}
                           >
                             <Pencil className="h-4 w-4" />
                           </Link>
                           <Link
                             href={`/vendors/create?edit=${vendor.id}`}
                             className="rounded-lg p-2 text-slate-400 transition-all hover:bg-amber-50 hover:text-amber-600"
+                            title={`Open update view for vendor ${vendor.name}`}
                           >
                             <RefreshCcw className="h-4 w-4" />
                           </Link>
@@ -324,7 +327,10 @@ export default async function VendorsPage({
                               { name: "redirect_to", value: "/vendors" },
                             ]}
                           >
-                            <button className="rounded-lg p-2 text-slate-400 transition-all hover:bg-red-50 hover:text-red-600">
+                            <button
+                              className="rounded-lg p-2 text-slate-400 transition-all hover:bg-red-50 hover:text-red-600"
+                              title={`Delete vendor ${vendor.name}`}
+                            >
                               <Trash2 className="h-4 w-4" />
                             </button>
                           </ConfirmActionForm>
