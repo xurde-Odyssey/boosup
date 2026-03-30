@@ -1,8 +1,8 @@
 import Image from "next/image";
 import Link from "next/link";
-import logo from "@/app/logos/logo.png";
 import { AutoPrint } from "@/components/shared/AutoPrint";
 import { PrintAgainButton } from "@/components/shared/PrintAgainButton";
+import { getCompanySettings } from "@/lib/company-settings-server";
 import { formatCurrency, formatDate } from "@/lib/presentation";
 import { getSupabaseClient } from "@/lib/supabase/server";
 
@@ -15,6 +15,7 @@ export default async function SalesPrintPage({
 }) {
   const { id } = await params;
   const supabase = await getSupabaseClient();
+  const company = await getCompanySettings();
 
   const [{ data: sale }, itemsResponse, paymentsResponse] = await Promise.all([
     supabase
@@ -106,20 +107,23 @@ export default async function SalesPrintPage({
           <div className="flex items-center gap-4">
             <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-2xl border border-slate-100 bg-white">
               <Image
-                src={logo}
-                alt="Dipak Suppliers logo"
+                src={company.logoPath}
+                alt={`${company.businessName} logo`}
+                width={80}
+                height={80}
                 className="h-full w-full object-contain"
                 priority
+                unoptimized
               />
             </div>
             <div>
               <h1 className="text-3xl font-black tracking-tight text-slate-900">
-                Dipak Suppliers
+                {company.businessName}
               </h1>
               <div className="mt-2 space-y-1 text-sm text-slate-600">
-                <p>Urlabari 07, Nepal</p>
-                <p>suppliersdipak@gmail.com</p>
-                <p>www.dipaksuppliers.com.np</p>
+                <p>{company.address || "-"}</p>
+                <p>{company.email || "-"}</p>
+                <p>{company.website || "-"}</p>
               </div>
             </div>
           </div>

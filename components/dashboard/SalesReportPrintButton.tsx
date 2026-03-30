@@ -11,6 +11,7 @@ import {
   PRINT_TABLE_HEAD_ROW_CLASS,
   PRINT_TABLE_WRAP_CLASS,
 } from "@/components/shared/PrintDocument";
+import { CompanySettings, DEFAULT_COMPANY_SETTINGS } from "@/lib/company-settings";
 
 type SummaryMetric = {
   title: string;
@@ -32,11 +33,13 @@ export function SalesReportPrintButton({
   selectedPeriod,
   metrics,
   invoices,
+  company = DEFAULT_COMPANY_SETTINGS,
 }: {
   generatedDate: string;
   selectedPeriod: string;
   metrics: SummaryMetric[];
   invoices: SalesInvoiceRow[];
+  company?: CompanySettings;
 }) {
   const isMounted = useSyncExternalStore(
     () => () => {},
@@ -77,6 +80,7 @@ export function SalesReportPrintButton({
           <PrintDocument root="sales-report">
             <PrintHeader
               title="Sales Summary Report"
+              company={company}
               metaRows={[
                 { label: "Generated", value: generatedDate },
                 { label: "Period", value: selectedPeriod },

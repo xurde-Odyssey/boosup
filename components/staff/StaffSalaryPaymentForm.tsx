@@ -5,6 +5,11 @@ import { upsertStaffSalaryPayment } from "@/app/actions";
 import { NepaliDateInput } from "@/components/shared/NepaliDateInput";
 import { adToBs, bsToAd, formatBsDisplayDate } from "@/lib/nepali-date";
 import { formatCurrency } from "@/lib/presentation";
+import {
+  buildPayrollEntries,
+  buildPayrollMonthSummaries,
+  computeMonthlyDue,
+} from "@/lib/staff-payroll";
 
 type StaffOption = {
   id: string;
@@ -18,6 +23,7 @@ type EditingSalaryPayment = {
   staff_id: string;
   salary_month_bs: string;
   payment_date: string;
+  payment_type?: string | null;
   working_days: number | null;
   leave_days: number | null;
   monthly_salary: number | null;
@@ -30,9 +36,10 @@ type SalaryHistoryItem = {
   staff_id: string;
   salary_month_bs: string;
   payment_date?: string | null;
+  payment_type?: string | null;
   working_days?: number | null;
   leave_days?: number | null;
-  monthly_payment?: number | null;
+  monthly_salary?: number | null;
   advance_payment: number | null;
   notes?: string | null;
   created_at?: string | null;
@@ -72,82 +79,64 @@ export function StaffSalaryPaymentForm({
   const [paymentDateBs, setPaymentDateBs] = useState(
     adToBs(editingPayment?.payment_date ?? defaultDate),
   );
+  const [paymentType, setPaymentType] = useState(editingPayment?.payment_type ?? "ADVANCE");
   const [workingDays, setWorkingDays] = useState(String(editingPayment?.working_days ?? 30));
   const [leaveDays, setLeaveDays] = useState(String(editingPayment?.leave_days ?? 0));
   const [monthlySalary, setMonthlySalary] = useState(String(editingPayment?.monthly_salary ?? 0));
-  const [advancePayment, setAdvancePayment] = useState(
-    String(editingPayment?.advance_payment ?? 0),
-  );
+  const [paidNow, setPaidNow] = useState(String(editingPayment?.advance_payment ?? 0));
   const [notes, setNotes] = useState(editingPayment?.notes ?? "");
 
   const activeStaff = useMemo(
     () => staffProfiles.find((staff) => staff.id === staffId) ?? null,
     [staffId, staffProfiles],
   );
+  const selectedStaffHistory = useMemo(
+    () =>
+      salaryHistory.filter(
+        (entry) => entry.staff_id === staffId && entry.id !== editingPayment?.id,
+      ),
+    [editingPayment?.id, salaryHistory, staffId],
+  );
+
+  const normalizedWorkingDays = Math.max(toNumber(workingDays), 1);
+  const normalizedLeaveDays = Math.min(Math.max(toNumber(leaveDays), 0), normalizedWorkingDays);
+  const baseMonthlySalary = Math.max(toNumber(monthlySalary), 0);
+  const dueSalary = computeMonthlyDue({
+    workingDays: normalizedWorkingDays,
+    leaveDays: normalizedLeaveDays,
+    monthlySalary: baseMonthlySalary,
+  });
+  const currentPaidNow = Math.max(toNumber(paidNow), 0);
   const previousPaid = useMemo(() => {
     if (!staffId || !salaryMonthBs) {
       return 0;
     }
 
-    return salaryHistory
-      .filter(
-        (entry) =>
-          entry.staff_id === staffId &&
-          entry.salary_month_bs === salaryMonthBs &&
-          entry.id !== editingPayment?.id,
-      )
-      .reduce((sum, entry) => sum + Number(entry.advance_payment ?? 0), 0);
-  }, [editingPayment?.id, salaryHistory, salaryMonthBs, staffId]);
-
-  const normalizedWorkingDays = Math.max(toNumber(workingDays), 1);
-  const normalizedLeaveDays = Math.min(Math.max(toNumber(leaveDays), 0), normalizedWorkingDays);
-  const baseMonthlySalary = toNumber(monthlySalary);
-  const monthlyPayment = Number(
-    ((baseMonthlySalary * Math.max(normalizedWorkingDays - normalizedLeaveDays, 0)) /
-      normalizedWorkingDays).toFixed(2),
-  );
-  const paymentNow = toNumber(advancePayment);
-  const remainingPayment = Math.max(monthlyPayment - previousPaid - paymentNow, 0);
+    const monthEntries = buildPayrollEntries(
+      selectedStaffHistory.filter((entry) => entry.salary_month_bs === salaryMonthBs),
+    );
+    return monthEntries.at(-1)?.total_paid ?? 0;
+  }, [salaryMonthBs, selectedStaffHistory, staffId]);
+  const totalPaidAfterThisEntry = previousPaid + currentPaidNow;
+  const remainingSalary = Math.max(dueSalary - totalPaidAfterThisEntry, 0);
   const paymentDate = bsToAd(paymentDateBs);
-  const recentHistory = useMemo(() => {
+  const payrollMonthSummaries = useMemo(() => {
     if (!staffId) {
       return [];
     }
 
-    const filteredHistory = salaryHistory
-      .filter((entry) => entry.staff_id === staffId && entry.id !== editingPayment?.id)
-      .sort((left, right) => {
-        const leftTime = new Date(left.created_at ?? left.payment_date ?? 0).getTime();
-        const rightTime = new Date(right.created_at ?? right.payment_date ?? 0).getTime();
-        return leftTime - rightTime;
-      });
+    return buildPayrollMonthSummaries(selectedStaffHistory).slice(0, 6);
+  }, [selectedStaffHistory, staffId]);
+  const recentTransactions = useMemo(() => {
+    if (!staffId) {
+      return [];
+    }
 
-    const runningPaidByMonth = new Map<string, number>();
-
-    return filteredHistory
-      .map((entry) => {
-        const monthKey = entry.salary_month_bs || "default";
-        const previousMonthPaid = runningPaidByMonth.get(monthKey) ?? 0;
-        const paidNowAmount = Number(entry.advance_payment ?? 0);
-        const totalPaidForMonth = previousMonthPaid + paidNowAmount;
-        const monthlyDue = Number(entry.monthly_payment ?? 0);
-        const remainingForMonth = Math.max(monthlyDue - totalPaidForMonth, 0);
-
-        runningPaidByMonth.set(monthKey, totalPaidForMonth);
-
-        return {
-          ...entry,
-          previous_paid: previousMonthPaid,
-          paid_now: paidNowAmount,
-          remaining_payment: remainingForMonth,
-        };
-      })
-      .reverse()
-      .slice(0, 6);
-  }, [editingPayment?.id, salaryHistory, staffId]);
+    return buildPayrollEntries(selectedStaffHistory).reverse().slice(0, 8);
+  }, [selectedStaffHistory, staffId]);
 
   return (
-    <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
+    <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">
       <form action={upsertStaffSalaryPayment} autoComplete="off" className="space-y-4">
         <input type="hidden" name="id" defaultValue={editingPayment?.id ?? ""} />
         <input type="hidden" name="redirect_to" value={redirectTo} />
@@ -166,7 +155,8 @@ export function StaffSalaryPaymentForm({
               const nextStaff = staffProfiles.find((staff) => staff.id === nextStaffId);
               if (nextStaff && !editingPayment) {
                 setMonthlySalary(String(nextStaff.total_salary ?? 0));
-                setAdvancePayment("0");
+                setPaidNow("0");
+                setPaymentType("ADVANCE");
               }
             }}
             className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-blue-500 focus:bg-white"
@@ -198,6 +188,19 @@ export function StaffSalaryPaymentForm({
           </div>
         </div>
 
+        <div>
+          <label className="mb-2 block text-sm font-semibold text-slate-700">Payment Type</label>
+          <select
+            name="payment_type"
+            value={paymentType}
+            onChange={(event) => setPaymentType(event.target.value)}
+            className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-blue-500 focus:bg-white"
+          >
+            <option value="ADVANCE">Advance During Month</option>
+            <option value="SALARY">Salary On Payday</option>
+          </select>
+        </div>
+
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <div>
             <label className="mb-2 block text-sm font-semibold text-slate-700">Base Monthly Salary</label>
@@ -218,19 +221,21 @@ export function StaffSalaryPaymentForm({
             ) : null}
           </div>
           <div>
-            <label className="mb-2 block text-sm font-semibold text-slate-700">Payment Now</label>
+            <label className="mb-2 block text-sm font-semibold text-slate-700">Amount Paid Now</label>
             <input
               name="advance_payment"
               type="number"
               min="0"
               step="0.01"
-              value={advancePayment}
-              onChange={(event) => setAdvancePayment(event.target.value)}
-              placeholder="Salary paid in this transaction"
+              value={paidNow}
+              onChange={(event) => setPaidNow(event.target.value)}
+              placeholder="Enter amount being paid now"
               className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-blue-500 focus:bg-white"
             />
             <div className="mt-2 text-xs text-slate-500">
-              Enter the amount being paid now for this salary month.
+              {paymentType === "SALARY"
+                ? "Use this for the actual payday salary payment."
+                : "Use this for salary taken in advance during the month."}
             </div>
           </div>
         </div>
@@ -273,33 +278,24 @@ export function StaffSalaryPaymentForm({
               value={formatCurrency(previousPaid)}
               className="w-full rounded-xl border border-slate-200 bg-slate-100 px-4 py-3 text-sm outline-none"
             />
-            <div className="mt-2 text-xs text-slate-500">
-              Total already paid for this staff and salary month.
-            </div>
           </div>
           <div>
-            <label className="mb-2 block text-sm font-semibold text-slate-700">Monthly Payment</label>
+            <label className="mb-2 block text-sm font-semibold text-slate-700">Salary Due For Month</label>
             <input
               type="text"
               readOnly
-              value={formatCurrency(monthlyPayment)}
+              value={formatCurrency(dueSalary)}
               className="w-full rounded-xl border border-slate-200 bg-slate-100 px-4 py-3 text-sm outline-none"
             />
-            <div className="mt-2 text-xs text-slate-500">
-              Salary is prorated using working days and leave for the selected month.
-            </div>
           </div>
           <div>
-            <label className="mb-2 block text-sm font-semibold text-slate-700">Remaining Payment</label>
+            <label className="mb-2 block text-sm font-semibold text-slate-700">Remaining Salary</label>
             <input
               type="text"
               readOnly
-              value={formatCurrency(remainingPayment)}
+              value={formatCurrency(remainingSalary)}
               className="w-full rounded-xl border border-slate-200 bg-slate-100 px-4 py-3 text-sm outline-none"
             />
-            <div className="mt-2 text-xs text-slate-500">
-              Remaining payment after this entry = monthly payment minus previously paid and payment now.
-            </div>
           </div>
         </div>
 
@@ -327,45 +323,45 @@ export function StaffSalaryPaymentForm({
 
       <section className="overflow-hidden rounded-2xl border border-slate-100 bg-slate-50/40 shadow-sm xl:self-start">
         <div className="border-b border-slate-50 px-6 py-5">
-          <h3 className="text-lg font-bold text-slate-900">Recent Salary Transaction History</h3>
+          <h3 className="text-lg font-bold text-slate-900">Payroll Month Summary</h3>
           <p className="mt-1 text-xs text-slate-500">
-            Latest salary transactions for the selected staff member.
+            One row per month with paid and remaining salary derived from transaction history.
           </p>
         </div>
 
         {staffId ? (
-          recentHistory.length > 0 ? (
+          payrollMonthSummaries.length > 0 ? (
             <div className="overflow-x-auto">
               <table className="w-full text-left">
                 <thead>
                   <tr className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                    <th className="bg-slate-50 px-6 py-4">Salary Month</th>
-                    <th className="bg-slate-50 px-6 py-4">Payment Date</th>
-                    <th className="bg-slate-50 px-6 py-4">Previously Paid</th>
-                    <th className="bg-slate-50 px-6 py-4">Paid Now</th>
+                    <th className="bg-slate-50 px-6 py-4">Month</th>
+                    <th className="bg-slate-50 px-6 py-4">Due</th>
+                    <th className="bg-slate-50 px-6 py-4">Advance</th>
+                    <th className="bg-slate-50 px-6 py-4">Salary</th>
                     <th className="bg-slate-50 px-6 py-4">Remaining</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-50">
-                  {recentHistory.map((entry, index) => (
+                  {payrollMonthSummaries.map((entry, index) => (
                     <tr
-                      key={entry.id}
+                      key={`${entry.staff_id}-${entry.salary_month_bs}`}
                       className={`${
                         index % 2 === 0 ? "bg-white" : "bg-slate-50/40"
                       } transition-colors hover:bg-blue-50/40`}
                     >
                       <td className="px-6 py-4 text-sm text-slate-600">{entry.salary_month_bs}</td>
-                      <td className="px-6 py-4 text-sm text-slate-600">
-                        {entry.payment_date ? formatBsDisplayDate(entry.payment_date) : "-"}
+                      <td className="px-6 py-4 text-sm font-semibold text-slate-900">
+                        {formatCurrency(entry.due_salary)}
                       </td>
-                      <td className="px-6 py-4 text-sm font-semibold text-slate-700">
-                        {formatCurrency(entry.previous_paid)}
+                      <td className="px-6 py-4 text-sm font-semibold text-amber-700">
+                        {formatCurrency(entry.advance_paid)}
                       </td>
-                      <td className="px-6 py-4 text-sm font-bold text-blue-700">
-                        {formatCurrency(entry.paid_now)}
+                      <td className="px-6 py-4 text-sm font-semibold text-blue-700">
+                        {formatCurrency(entry.salary_paid)}
                       </td>
-                      <td className="px-6 py-4 text-sm font-bold text-green-700">
-                        {formatCurrency(entry.remaining_payment)}
+                      <td className="px-6 py-4 text-sm font-semibold text-green-700">
+                        {formatCurrency(entry.remaining_salary)}
                       </td>
                     </tr>
                   ))}
@@ -379,9 +375,61 @@ export function StaffSalaryPaymentForm({
           )
         ) : (
           <div className="px-6 py-10 text-center text-sm text-slate-500">
-            Select a staff member to view their recent salary transaction history.
+            Select a staff member to view payroll history.
           </div>
         )}
+
+        {staffId && recentTransactions.length > 0 ? (
+          <div className="border-t border-slate-50">
+            <div className="px-6 py-5">
+              <h4 className="text-base font-bold text-slate-900">Recent Salary Transactions</h4>
+              <p className="mt-1 text-xs text-slate-500">
+                Latest payment rows for this staff member, newest first.
+              </p>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                    <th className="bg-slate-50 px-6 py-4">Month</th>
+                    <th className="bg-slate-50 px-6 py-4">Date</th>
+                    <th className="bg-slate-50 px-6 py-4">Type</th>
+                    <th className="bg-slate-50 px-6 py-4">Previously Paid</th>
+                    <th className="bg-slate-50 px-6 py-4">Paid Now</th>
+                    <th className="bg-slate-50 px-6 py-4">Remaining</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-50">
+                  {recentTransactions.map((entry, index) => (
+                    <tr
+                      key={entry.id}
+                      className={`${
+                        index % 2 === 0 ? "bg-white" : "bg-slate-50/40"
+                      } transition-colors hover:bg-blue-50/40`}
+                    >
+                      <td className="px-6 py-4 text-sm text-slate-600">{entry.salary_month_bs}</td>
+                      <td className="px-6 py-4 text-sm text-slate-600">
+                        {entry.payment_date ? formatBsDisplayDate(entry.payment_date) : "-"}
+                      </td>
+                      <td className="px-6 py-4 text-sm font-semibold text-slate-900">
+                        {entry.payment_type === "SALARY" ? "Payday Salary" : "Advance"}
+                      </td>
+                      <td className="px-6 py-4 text-sm font-semibold text-red-600">
+                        {formatCurrency(entry.previous_paid)}
+                      </td>
+                      <td className="px-6 py-4 text-sm font-semibold text-blue-700">
+                        {formatCurrency(entry.paid_now)}
+                      </td>
+                      <td className="px-6 py-4 text-sm font-semibold text-green-700">
+                        {formatCurrency(entry.remaining_salary)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        ) : null}
       </section>
     </div>
   );

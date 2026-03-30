@@ -1,7 +1,7 @@
 "use client";
 
 import { createPortal } from "react-dom";
-import { useMemo, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useRef, useSyncExternalStore } from "react";
 import { Printer } from "lucide-react";
 import {
   PrintDocument,
@@ -11,8 +11,10 @@ import {
   PRINT_TABLE_HEAD_ROW_CLASS,
   PRINT_TABLE_WRAP_CLASS,
 } from "@/components/shared/PrintDocument";
+import { CompanySettings, DEFAULT_COMPANY_SETTINGS } from "@/lib/company-settings";
 import { formatBsDisplayDate } from "@/lib/nepali-date";
 import { formatCurrency } from "@/lib/presentation";
+import { cn } from "@/lib/utils";
 
 type SalesItem = {
   product_name: string;
@@ -45,7 +47,19 @@ type PrintableSale = {
   sales_payments: SalesPayment[];
 };
 
-export function SalesPrintPreview({ sale }: { sale: PrintableSale }) {
+export function SalesPrintPreview({
+  sale,
+  label = "Print Invoice",
+  className,
+  autoPrint = false,
+  company = DEFAULT_COMPANY_SETTINGS,
+}: {
+  sale: PrintableSale;
+  label?: string;
+  className?: string;
+  autoPrint?: boolean;
+  company?: CompanySettings;
+}) {
   const isMounted = useSyncExternalStore(
     () => () => {},
     () => true,
@@ -97,8 +111,9 @@ export function SalesPrintPreview({ sale }: { sale: PrintableSale }) {
   const discount = Number(sale.discount ?? 0);
   const grandTotal = Math.max(subtotal - discount + tax, 0);
   const remainingAmount = Number(sale.remaining_amount ?? 0);
+  const hasAutoPrinted = useRef(false);
 
-  const handlePrint = () => {
+  const handlePrint = useCallback(() => {
     document.body.classList.add("invoice-print-active");
     const previousTitle = document.title;
     document.title = `${sale.customer_name} - ${sale.invoice_number}`;
@@ -111,17 +126,31 @@ export function SalesPrintPreview({ sale }: { sale: PrintableSale }) {
 
     window.addEventListener("afterprint", handleAfterPrint);
     window.print();
-  };
+  }, [sale.customer_name, sale.invoice_number]);
+
+  useEffect(() => {
+    if (!autoPrint || !isMounted || hasAutoPrinted.current) return;
+    hasAutoPrinted.current = true;
+
+    const timer = window.setTimeout(() => {
+      handlePrint();
+    }, 150);
+
+    return () => window.clearTimeout(timer);
+  }, [autoPrint, handlePrint, isMounted]);
 
   return (
     <>
       <button
         type="button"
         onClick={handlePrint}
-        className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-slate-800"
+        className={cn(
+          "inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-slate-800",
+          className ?? "w-full",
+        )}
       >
         <Printer className="h-4 w-4" />
-        Print Invoice
+        {label}
       </button>
 
       {isMounted &&
@@ -129,6 +158,7 @@ export function SalesPrintPreview({ sale }: { sale: PrintableSale }) {
           <PrintDocument root="sales-invoice">
             <PrintHeader
               title="Sales Invoice"
+              company={company}
               metaRows={[
                 { label: "Invoice", value: sale.invoice_number },
                 { label: "Date", value: formatBsDisplayDate(sale.sales_date) },

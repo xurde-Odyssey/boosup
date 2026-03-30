@@ -146,6 +146,33 @@ export async function deleteVendor(formData: FormData) {
   redirectWithNotice("/vendors", formData, "Supplier", "deleted");
 }
 
+export async function upsertCompanySettings(formData: FormData) {
+  const supabase = await getSupabaseClient();
+  const id = readText(formData, "id");
+  const successMessage = id
+    ? "Company profile updated successfully"
+    : "Company profile saved successfully";
+
+  const payload = {
+    business_name: readText(formData, "business_name"),
+    address: readText(formData, "address") || null,
+    phone: readText(formData, "phone") || null,
+    email: readText(formData, "email") || null,
+    website: readText(formData, "website") || null,
+    logo_path: readText(formData, "logo_path") || null,
+    favicon_path: readText(formData, "favicon_path") || null,
+  };
+
+  if (id) {
+    await supabase.from("company_settings").update(payload).eq("id", id);
+  } else {
+    await supabase.from("company_settings").insert(payload);
+  }
+
+  revalidateAll("/settings");
+  redirectWithMessage("/settings", successMessage);
+}
+
 export async function upsertStaffProfile(formData: FormData) {
   const supabase = await getSupabaseClient();
   const id = readText(formData, "id");
@@ -200,6 +227,7 @@ export async function upsertStaffSalaryPayment(formData: FormData) {
   const leaveDays = Math.max(Math.trunc(readNumber(formData, "leave_days")), 0);
   const monthlySalary = readNumber(formData, "monthly_salary");
   const advancePayment = readNumber(formData, "advance_payment");
+  const paymentType = readText(formData, "payment_type") || "ADVANCE";
   const staffFormPath = id
     ? `/staff/payment/create?edit=${id}`
     : `/staff/payment/create${staffId ? `?staff=${staffId}` : ""}`;
@@ -224,6 +252,7 @@ export async function upsertStaffSalaryPayment(formData: FormData) {
     staff_id: staffId,
     salary_month_bs: salaryMonthBs,
     payment_date: paymentDate,
+    payment_type: paymentType === "SALARY" ? "SALARY" : "ADVANCE",
     working_days: workingDays,
     leave_days: Math.min(leaveDays, workingDays),
     monthly_salary: monthlySalary,

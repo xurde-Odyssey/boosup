@@ -230,7 +230,7 @@
     margin: 10mm;
   }
 
-  body.invoice-print-active > *:not([data-print-root="sales-invoice"]):not([data-print-root="dashboard-report"]):not([data-print-root="sales-report"]) {
+  body.invoice-print-active > *:not([data-print-root="sales-invoice"]):not([data-print-root="dashboard-report"]):not([data-print-root="sales-report"]):not([data-print-root="supplier-statement"]) {
     display: none !important;
   }
 
@@ -279,6 +279,26 @@
   }
 
   body.invoice-print-active [data-print-card="sales-report"] {
+    width: auto !important;
+    max-width: none !important;
+    min-height: auto !important;
+    margin: 0 !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    box-sizing: border-box !important;
+  }
+
+  body.invoice-print-active [data-print-root="supplier-statement"] {
+    display: block !important;
+    position: static !important;
+    inset: auto !important;
+    overflow: visible !important;
+    background: white !important;
+    padding: 0 !important;
+    visibility: visible !important;
+  }
+
+  body.invoice-print-active [data-print-card="supplier-statement"] {
     width: auto !important;
     max-width: none !important;
     min-height: auto !important;

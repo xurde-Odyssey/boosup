@@ -33,7 +33,7 @@ export default async function CreateStaffPaymentPage({
     supabase
       .from("staff_salary_payments")
       .select(
-        "id, staff_id, salary_month_bs, payment_date, working_days, leave_days, monthly_salary, monthly_payment, advance_payment, notes, created_at",
+        "id, staff_id, salary_month_bs, payment_date, payment_type, working_days, leave_days, monthly_salary, monthly_payment, advance_payment, notes, created_at",
       )
       .order("created_at", { ascending: false }),
   ]);
@@ -49,6 +49,7 @@ export default async function CreateStaffPaymentPage({
         staff_id: preselectedStaffId,
         salary_month_bs: currentSalaryMonthBs,
         payment_date: todayDate,
+        payment_type: "ADVANCE",
         working_days: 30,
         leave_days: 0,
         monthly_salary:
@@ -76,7 +77,7 @@ export default async function CreateStaffPaymentPage({
               {editingPayment?.id ? "Update Salary Entry" : "Add Monthly Salary Entry"}
             </h3>
             <p className="text-sm text-slate-500">
-              Record monthly payment, working days, leave, advance payment, and remaining amount.
+              Record monthly due salary, advance taken during the month, payday settlements, and remaining balance.
             </p>
           </div>
 

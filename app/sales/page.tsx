@@ -10,6 +10,7 @@ import { PageActionStrip } from "@/components/shared/PageActionStrip";
 import { PaginationControls } from "@/components/shared/PaginationControls";
 import { QueryNoticeToast } from "@/components/shared/QueryNoticeToast";
 import { ReportToolbar } from "@/components/shared/ReportToolbar";
+import { getCompanySettings } from "@/lib/company-settings-server";
 import { formatBsDisplayDate } from "@/lib/nepali-date";
 import { formatCurrency, getAvatarTone, getInitials } from "@/lib/presentation";
 import { getSupabaseClient } from "@/lib/supabase/server";
@@ -92,6 +93,7 @@ export default async function SalesPage({
     const rawValue = typeof params.perPage === "string" ? Number(params.perPage) : PAGE_SIZE;
     return [10, 25, 50].includes(rawValue) ? rawValue : PAGE_SIZE;
   })();
+  const company = await getCompanySettings();
   const supabase = await getSupabaseClient();
   const [{ data: allSales = [] }, { data: allSalesItems = [] }] = await Promise.all([
     supabase
@@ -252,6 +254,7 @@ export default async function SalesPage({
           toDate={toDate}
           reportButton={
             <SalesReportPrintButton
+              company={company}
               generatedDate={formatBsDisplayDate(todayDate)}
               selectedPeriod={formatReportPeriod(selectedRange, fromDate, toDate)}
               metrics={[
@@ -267,8 +270,8 @@ export default async function SalesPage({
         />
         <PageActionStrip
           actions={[
-            { label: "Create Sales", href: "/sales/create" },
-            { label: "View Recent Invoices", href: "/sales/view", variant: "secondary" },
+            { label: "Create Sales Bill", href: "/sales/create" },
+            { label: "Open Invoice Register", href: "/sales/view", variant: "secondary" },
           ]}
         />
 

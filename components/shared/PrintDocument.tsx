@@ -1,6 +1,6 @@
 import Image from "next/image";
 import { ReactNode } from "react";
-import logo from "@/app/logos/logo.png";
+import { CompanySettings, DEFAULT_COMPANY_SETTINGS } from "@/lib/company-settings";
 
 export const PRINT_TABLE_WRAP_CLASS = "overflow-hidden rounded-[22px] border border-slate-200";
 export const PRINT_TABLE_HEAD_ROW_CLASS =
@@ -11,7 +11,7 @@ export function PrintDocument({
   root,
   children,
 }: {
-  root: "sales-invoice" | "dashboard-report" | "sales-report";
+  root: "sales-invoice" | "dashboard-report" | "sales-report" | "supplier-statement";
   children: ReactNode;
 }) {
   return (
@@ -29,27 +29,34 @@ export function PrintDocument({
 export function PrintHeader({
   title,
   metaRows,
+  company = DEFAULT_COMPANY_SETTINGS,
 }: {
   title: string;
   metaRows: Array<{ label: string; value: string }>;
+  company?: CompanySettings;
 }) {
   return (
     <header className="flex items-start justify-between gap-4 border-b border-slate-200 pb-5">
       <div className="flex items-center gap-3">
         <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl border border-slate-100 bg-white">
           <Image
-            src={logo}
-            alt="Dipak Suppliers logo"
+            src={company.logoPath}
+            alt={`${company.businessName} logo`}
+            width={64}
+            height={64}
             className="h-full w-full object-contain"
             priority
+            unoptimized
           />
         </div>
         <div>
-          <h1 className="text-2xl font-black tracking-tight text-slate-900">Dipak Suppliers</h1>
+          <h1 className="text-2xl font-black tracking-tight text-slate-900">
+            {company.businessName}
+          </h1>
           <div className="mt-1 space-y-0.5 text-xs text-slate-600">
-            <p>Urlabari 07, Nepal</p>
-            <p>suppliersdipak@gmail.com</p>
-            <p>www.dipaksuppliers.com.np</p>
+            <p>{company.address || "-"}</p>
+            <p>{company.email || "-"}</p>
+            <p>{company.website || "-"}</p>
           </div>
         </div>
       </div>

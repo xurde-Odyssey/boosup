@@ -121,8 +121,8 @@ export default async function PurchasesPage({
         <ReportToolbar actionPath="/purchases" />
         <PageActionStrip
           actions={[
-            { label: "Create Purchase", href: "/purchases/create" },
-            { label: "Add Expense", href: "/purchases/expense/create", variant: "secondary" },
+            { label: "Create Purchase Bill", href: "/purchases/create" },
+            { label: "Add Expense Entry", href: "/purchases/expense/create", variant: "secondary" },
           ]}
         />
 

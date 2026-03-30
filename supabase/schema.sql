@@ -38,6 +38,19 @@ create table if not exists public.vendors (
   updated_at timestamptz not null default timezone('utc', now())
 );
 
+create table if not exists public.company_settings (
+  id uuid primary key default gen_random_uuid(),
+  business_name text not null default '',
+  address text,
+  phone text,
+  email text,
+  website text,
+  logo_path text,
+  favicon_path text,
+  created_at timestamptz not null default timezone('utc', now()),
+  updated_at timestamptz not null default timezone('utc', now())
+);
+
 create table if not exists public.staff_profiles (
   id uuid primary key default gen_random_uuid(),
   staff_code text not null unique,
@@ -57,6 +70,7 @@ create table if not exists public.staff_salary_payments (
   staff_id uuid not null references public.staff_profiles(id) on delete cascade,
   salary_month_bs text not null,
   payment_date date not null default current_date,
+  payment_type text not null default 'ADVANCE',
   working_days integer not null default 30 check (working_days > 0),
   leave_days integer not null default 0 check (leave_days >= 0),
   monthly_salary numeric(12, 2) not null default 0 check (monthly_salary >= 0),
@@ -86,6 +100,16 @@ create table if not exists public.staff_salary_payments (
   created_at timestamptz not null default timezone('utc', now()),
   updated_at timestamptz not null default timezone('utc', now())
 );
+
+alter table public.staff_salary_payments
+  add column if not exists payment_type text not null default 'ADVANCE';
+
+alter table public.staff_salary_payments
+  drop constraint if exists staff_salary_payments_payment_type_check;
+
+alter table public.staff_salary_payments
+  add constraint staff_salary_payments_payment_type_check
+  check (payment_type in ('ADVANCE', 'SALARY'));
 
 create table if not exists public.sales (
   id uuid primary key default gen_random_uuid(),
@@ -212,8 +236,57 @@ create table if not exists public.purchase_payments (
   created_at timestamptz not null default timezone('utc', now())
 );
 
+create index if not exists idx_purchases_vendor_id
+  on public.purchases(vendor_id);
+
+create index if not exists idx_purchases_vendor_id_id
+  on public.purchases(vendor_id, id);
+
+create index if not exists idx_purchase_payments_purchase_id
+  on public.purchase_payments(purchase_id);
+
+create or replace function public.get_vendor_purchase_summary(p_vendor_id uuid)
+returns table (
+  total_purchase_amount numeric(12,2),
+  total_paid numeric(12,2),
+  total_outstanding numeric(12,2),
+  total_bills integer
+)
+language sql
+stable
+as $$
+  with vendor_purchases as (
+    select
+      p.id,
+      p.total_amount
+    from public.purchases p
+    where p.vendor_id = p_vendor_id
+  ),
+  payments_by_purchase as (
+    select
+      pp.purchase_id,
+      sum(pp.amount) as paid_amount
+    from public.purchase_payments pp
+    join vendor_purchases vp
+      on vp.id = pp.purchase_id
+    group by pp.purchase_id
+  )
+  select
+    coalesce(sum(vp.total_amount), 0)::numeric(12,2) as total_purchase_amount,
+    coalesce(sum(coalesce(pbp.paid_amount, 0)), 0)::numeric(12,2) as total_paid,
+    coalesce(
+      sum(greatest(vp.total_amount - coalesce(pbp.paid_amount, 0), 0)),
+      0
+    )::numeric(12,2) as total_outstanding,
+    count(vp.id)::integer as total_bills
+  from vendor_purchases vp
+  left join payments_by_purchase pbp
+    on pbp.purchase_id = vp.id;
+$$;
+
 alter table public.products enable row level security;
 alter table public.vendors enable row level security;
+alter table public.company_settings enable row level security;
 alter table public.staff_profiles enable row level security;
 alter table public.staff_salary_payments enable row level security;
 alter table public.sales enable row level security;
@@ -286,6 +359,39 @@ drop policy if exists "anon can delete vendors" on public.vendors;
 drop policy if exists "authenticated can delete vendors" on public.vendors;
 create policy "authenticated can delete vendors"
 on public.vendors
+for delete
+to authenticated
+using (true);
+
+drop policy if exists "anon can read company settings" on public.company_settings;
+drop policy if exists "authenticated can read company settings" on public.company_settings;
+create policy "authenticated can read company settings"
+on public.company_settings
+for select
+to authenticated
+using (true);
+
+drop policy if exists "anon can insert company settings" on public.company_settings;
+drop policy if exists "authenticated can insert company settings" on public.company_settings;
+create policy "authenticated can insert company settings"
+on public.company_settings
+for insert
+to authenticated
+with check (true);
+
+drop policy if exists "anon can update company settings" on public.company_settings;
+drop policy if exists "authenticated can update company settings" on public.company_settings;
+create policy "authenticated can update company settings"
+on public.company_settings
+for update
+to authenticated
+using (true)
+with check (true);
+
+drop policy if exists "anon can delete company settings" on public.company_settings;
+drop policy if exists "authenticated can delete company settings" on public.company_settings;
+create policy "authenticated can delete company settings"
+on public.company_settings
 for delete
 to authenticated
 using (true);
@@ -625,6 +731,12 @@ execute function public.set_updated_at();
 drop trigger if exists vendors_set_updated_at on public.vendors;
 create trigger vendors_set_updated_at
 before update on public.vendors
+for each row
+execute function public.set_updated_at();
+
+drop trigger if exists company_settings_set_updated_at on public.company_settings;
+create trigger company_settings_set_updated_at
+before update on public.company_settings
 for each row
 execute function public.set_updated_at();
 

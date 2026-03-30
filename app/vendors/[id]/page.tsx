@@ -11,6 +11,8 @@ import { Header } from "@/components/dashboard/Header";
 import { Sidebar } from "@/components/dashboard/Sidebar";
 import { SummaryCard } from "@/components/dashboard/SummaryCard";
 import { ReportToolbar } from "@/components/shared/ReportToolbar";
+import { VendorPrintPreview } from "@/components/vendors/VendorPrintPreview";
+import { getCompanySettings } from "@/lib/company-settings-server";
 import { formatBsDisplayDate } from "@/lib/nepali-date";
 import { formatCurrency } from "@/lib/presentation";
 import { getSupabaseClient } from "@/lib/supabase/server";
@@ -24,8 +26,9 @@ export default async function VendorLedgerPage({
 }) {
   const { id } = await params;
   const supabase = await getSupabaseClient();
+  const company = await getCompanySettings();
 
-  const [vendorResponse, purchasesResponse, paymentsResponse] = await Promise.all([
+  const [vendorResponse, purchasesResponse, paymentsResponse, summaryResponse] = await Promise.all([
     supabase
       .from("vendors")
       .select("id, vendor_code, name, contact_person, phone, address, payment_terms, status, notes")
@@ -43,6 +46,7 @@ export default async function VendorLedgerPage({
       .select("id, payment_date, amount, payment_method, purchase_id, purchases!inner(vendor_id, purchase_number)")
       .eq("purchases.vendor_id", id)
       .order("payment_date", { ascending: false }),
+    supabase.rpc("get_vendor_purchase_summary", { p_vendor_id: id }),
   ]);
 
   const vendor = vendorResponse.data;
@@ -77,18 +81,23 @@ export default async function VendorLedgerPage({
     };
   });
 
-  const totalPurchase = purchaseRows.reduce(
+  const localTotalPurchase = purchaseRows.reduce(
     (sum, purchase) => sum + Number(purchase.total_amount ?? 0),
     0,
   );
-  const totalPaid = purchaseRows.reduce(
+  const localTotalPaid = purchaseRows.reduce(
     (sum, purchase) => sum + purchase.paidAmount,
     0,
   );
-  const totalPayable = purchaseRows.reduce(
+  const localTotalPayable = purchaseRows.reduce(
     (sum, purchase) => sum + purchase.remainingAmount,
     0,
   );
+  const summaryRow = Array.isArray(summaryResponse.data) ? summaryResponse.data[0] : null;
+  const totalPurchase = Number(summaryRow?.total_purchase_amount ?? localTotalPurchase);
+  const totalPaid = Number(summaryRow?.total_paid ?? localTotalPaid);
+  const totalPayable = Number(summaryRow?.total_outstanding ?? localTotalPayable);
+  const totalBills = Number(summaryRow?.total_bills ?? purchaseRows.length);
   const totalItemsBought = purchaseRows.reduce((sum, purchase) => {
     return (
       sum +
@@ -121,7 +130,7 @@ export default async function VendorLedgerPage({
           <SummaryCard
             title="Total Purchase"
             value={formatCurrency(totalPurchase)}
-            trend={`${purchases.length} bills`}
+            trend={`${totalBills} bills`}
             trendType="positive"
             icon={ReceiptText}
             iconBgColor="bg-blue-50"
@@ -192,7 +201,7 @@ export default async function VendorLedgerPage({
                   <td className="px-6 py-4 text-sm font-semibold text-amber-700">
                     {formatCurrency(totalPayable)}
                   </td>
-                  <td className="px-6 py-4 text-sm text-slate-600">{purchaseRows.length}</td>
+                  <td className="px-6 py-4 text-sm text-slate-600">{totalBills}</td>
                   <td className="px-6 py-4 text-sm text-slate-600">
                     {formatBsDisplayDate(lastPurchaseDate)}
                   </td>
@@ -251,6 +260,23 @@ export default async function VendorLedgerPage({
                 >
                   Edit Supplier Profile
                 </Link>
+                <VendorPrintPreview
+                  company={company}
+                  vendor={{
+                    name: vendor.name,
+                    vendor_code: vendor.vendor_code,
+                    contact_person: vendor.contact_person,
+                    phone: vendor.phone,
+                    address: vendor.address,
+                    totalPurchase,
+                    totalPaid,
+                    totalPayable,
+                    totalBills,
+                    lastPurchaseDate,
+                    payments,
+                  }}
+                  className="w-full"
+                />
               </div>
             ) : (
               <div className="text-sm text-slate-500">Supplier not found.</div>

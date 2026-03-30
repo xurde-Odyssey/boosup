@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "nepali-datepicker-reactjs/dist/index.css";
+import { getCompanySettings } from "@/lib/company-settings-server";
 import { SiteFooter } from "@/components/shared/SiteFooter";
 import { SonnerToaster } from "@/components/shared/SonnerToaster";
 import siteIcon from "./logos/icon.png";
@@ -16,15 +17,20 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-export const metadata: Metadata = {
-  title: "BookKeep Pro",
-  description: "Bookkeeping system for sales, purchases, suppliers, products, and staff.",
-  icons: {
-    icon: siteIcon.src,
-    shortcut: siteIcon.src,
-    apple: siteIcon.src,
-  },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const company = await getCompanySettings();
+  const faviconPath = company.faviconPath || siteIcon.src;
+
+  return {
+    title: "BookKeep Pro",
+    description: "Bookkeeping system for sales, purchases, suppliers, products, and staff.",
+    icons: {
+      icon: faviconPath,
+      shortcut: faviconPath,
+      apple: faviconPath,
+    },
+  };
+}
 
 export default function RootLayout({
   children,
