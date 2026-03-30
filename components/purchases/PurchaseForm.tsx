@@ -84,6 +84,7 @@ export function PurchaseForm({
   const [notes, setNotes] = useState(editingPurchase?.notes ?? "");
   const purchaseDate = bsToAd(purchaseDateBs);
   const paymentDate = bsToAd(paymentDateBs);
+  const showPaymentMethod = paymentStatus === "PAID" || paymentStatus === "PARTIAL";
 
   const previousPaidAmount = Number(editingPurchase?.paid_amount ?? 0);
   const itemAmount = Math.max(toNumber(quantity) * toNumber(rate), 0);
@@ -94,7 +95,9 @@ export function PurchaseForm({
   const nextPaidAmount = Math.min(previousPaidAmount + normalizedPaymentNow, itemAmount);
   const remainingAmount = Math.max(itemAmount - nextPaidAmount, 0);
   const activeVendorLabel =
-    vendorId ? vendors.find((vendor) => vendor.id === vendorId)?.name ?? "Saved vendor" : vendorName || "No vendor selected";
+    vendorId
+      ? vendors.find((vendor) => vendor.id === vendorId)?.name ?? "Saved supplier"
+      : vendorName || "No supplier selected";
 
   return (
     <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
@@ -116,7 +119,7 @@ export function PurchaseForm({
           <div className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
             <FormSectionHeader
               eyebrow="Party"
-              title="Vendor and bill details"
+              title="Supplier and bill details"
               description="Capture who supplied the goods and when the bill was issued."
             />
             <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -133,7 +136,7 @@ export function PurchaseForm({
                   placeholder="PUR-2026-001"
                   className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-blue-500"
                 />
-                <FieldHint>Keep the bill number aligned with the vendor invoice when possible.</FieldHint>
+                <FieldHint>Keep the bill number aligned with the supplier invoice when possible.</FieldHint>
               </div>
               <div>
                 <label className="mb-2 block text-sm font-semibold text-slate-700">
@@ -145,7 +148,7 @@ export function PurchaseForm({
               </div>
               <div>
                 <label className="mb-2 block text-sm font-semibold text-slate-700">
-                  Saved Vendor
+                  Saved Supplier
                 </label>
                 <select
                   name="vendor_id"
@@ -153,24 +156,24 @@ export function PurchaseForm({
                   onChange={(event) => setVendorId(event.target.value)}
                   className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-blue-500"
                 >
-                  <option value="">Select saved vendor</option>
+                  <option value="">Select saved supplier</option>
                   {vendors.map((vendor) => (
                     <option key={vendor.id} value={vendor.id}>
                       {vendor.name}
                     </option>
                   ))}
                 </select>
-                <FieldHint>Choose a saved vendor or type a one-time vendor name below.</FieldHint>
+                <FieldHint>Choose a saved supplier or type a one-time supplier name below.</FieldHint>
               </div>
               <div>
                 <label className="mb-2 block text-sm font-semibold text-slate-700">
-                  One-Time Vendor Name
+                  One-Time Supplier Name
                 </label>
                 <input
                   name="vendor_name"
                   value={vendorName}
                   onChange={(event) => setVendorName(event.target.value)}
-                  placeholder="Type vendor name if no profile exists"
+                  placeholder="Type supplier name if no profile exists"
                   className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-blue-500"
                 />
               </div>
@@ -242,7 +245,7 @@ export function PurchaseForm({
                 </div>
                 <div>
                   <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-slate-400">
-                    Active Vendor
+                    Active Supplier
                   </div>
                   <div className="mt-1 font-semibold text-slate-900">{activeVendorLabel}</div>
                 </div>
@@ -301,20 +304,24 @@ export function PurchaseForm({
                   <option value="PENDING">Pending</option>
                 </select>
               </div>
-              <div>
-                <label className="mb-2 block text-sm font-semibold text-slate-700">
-                  Payment Method
-                </label>
-                <select
-                  name="payment_method"
-                  value={paymentMethod}
-                  onChange={(event) => setPaymentMethod(event.target.value)}
-                  className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-blue-500"
-                >
-                  <option value="Cash">Cash</option>
-                  <option value="Mobile">Mobile</option>
-                </select>
-              </div>
+              {showPaymentMethod ? (
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-slate-700">
+                    Payment Method
+                  </label>
+                  <select
+                    name="payment_method"
+                    value={paymentMethod}
+                    onChange={(event) => setPaymentMethod(event.target.value)}
+                    className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-blue-500"
+                  >
+                    <option value="Cash">Cash</option>
+                    <option value="Mobile">Mobile</option>
+                  </select>
+                </div>
+              ) : (
+                <input type="hidden" name="payment_method" value={paymentMethod} />
+              )}
               <div>
                 <label className="mb-2 block text-sm font-semibold text-slate-700">
                   Payment Date
@@ -400,7 +407,7 @@ export function PurchaseForm({
           <div className="mt-5 space-y-4">
             <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
               <div className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                Vendor
+                Supplier
               </div>
               <div className="mt-2 text-base font-semibold text-slate-900">{activeVendorLabel}</div>
             </div>

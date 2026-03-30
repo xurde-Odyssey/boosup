@@ -48,28 +48,6 @@ export default async function VendorLedgerPage({
   const vendor = vendorResponse.data;
   const purchases = purchasesResponse.data ?? [];
   const payments = paymentsResponse.data ?? [];
-
-  const totalPurchase = purchases.reduce(
-    (sum, purchase) => sum + Number(purchase.total_amount ?? 0),
-    0,
-  );
-  const totalPaid = purchases.reduce(
-    (sum, purchase) => sum + Number(purchase.paid_amount ?? 0),
-    0,
-  );
-  const totalPayable = purchases.reduce(
-    (sum, purchase) => sum + Number(purchase.credit_amount ?? 0),
-    0,
-  );
-  const totalItemsBought = purchases.reduce((sum, purchase) => {
-    return (
-      sum +
-      (purchase.purchase_items ?? []).reduce(
-        (itemSum, item) => itemSum + Number(item.quantity ?? 0),
-        0,
-      )
-    );
-  }, 0);
   const paymentsByPurchase = new Map<string, typeof payments>();
   payments.forEach((payment) => {
     const purchaseId = payment.purchase_id;
@@ -79,15 +57,62 @@ export default async function VendorLedgerPage({
     paymentsByPurchase.set(purchaseId, existingPayments);
   });
 
+  const purchaseRows = purchases.map((purchase) => {
+    const purchasePayments = paymentsByPurchase.get(purchase.id) ?? [];
+    const paidFromHistory = purchasePayments.reduce(
+      (sum, payment) => sum + Number(payment.amount ?? 0),
+      0,
+    );
+    const paidAmount = purchasePayments.length > 0
+      ? paidFromHistory
+      : Number(purchase.paid_amount ?? 0);
+    const totalAmount = Number(purchase.total_amount ?? 0);
+    const remainingAmount = Math.max(totalAmount - paidAmount, 0);
+
+    return {
+      ...purchase,
+      paidAmount,
+      remainingAmount,
+      purchasePayments,
+    };
+  });
+
+  const totalPurchase = purchaseRows.reduce(
+    (sum, purchase) => sum + Number(purchase.total_amount ?? 0),
+    0,
+  );
+  const totalPaid = purchaseRows.reduce(
+    (sum, purchase) => sum + purchase.paidAmount,
+    0,
+  );
+  const totalPayable = purchaseRows.reduce(
+    (sum, purchase) => sum + purchase.remainingAmount,
+    0,
+  );
+  const totalItemsBought = purchaseRows.reduce((sum, purchase) => {
+    return (
+      sum +
+      (purchase.purchase_items ?? []).reduce(
+        (itemSum, item) => itemSum + Number(item.quantity ?? 0),
+        0,
+      )
+    );
+  }, 0);
+  const lastPurchaseDate = purchaseRows.reduce<string | null>((latest, purchase) => {
+    if (!purchase.purchase_date) return latest;
+    if (!latest) return purchase.purchase_date;
+    return purchase.purchase_date > latest ? purchase.purchase_date : latest;
+  }, null);
+
   return (
     <div className="flex min-h-screen bg-slate-50/50">
       <Sidebar />
 
       <main className="flex-1 overflow-y-auto p-8">
         <Header
-          title={vendor ? `${vendor.name} Ledger` : "Vendor Ledger"}
-          description="Vendor-wise purchase history, bills, paid amount, and outstanding payable."
-          primaryActionLabel="Back To Vendors"
+          title={vendor ? `${vendor.name} Ledger` : "Supplier Ledger"}
+          description="Supplier-wise purchase history, bills, paid amount, and outstanding payable."
+          primaryActionLabel="Back To Suppliers"
           primaryActionHref="/vendors"
         />
         <ReportToolbar actionPath={`/vendors/${id}`} />
@@ -105,7 +130,7 @@ export default async function VendorLedgerPage({
           <SummaryCard
             title="Total Paid"
             value={formatCurrency(totalPaid)}
-            trend="Settled with vendor"
+            trend="Settled with supplier"
             trendType="positive"
             icon={BadgeDollarSign}
             iconBgColor="bg-green-50"
@@ -131,6 +156,52 @@ export default async function VendorLedgerPage({
           />
         </div>
 
+        <section className="mb-6 overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
+          <div className="border-b border-slate-50 p-6">
+            <h3 className="text-lg font-bold text-slate-900">Supplier Balance Summary</h3>
+            <p className="mt-1 text-xs text-slate-500">
+              One combined balance view for this supplier across all purchase bills.
+            </p>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left">
+              <thead>
+                <tr className="bg-slate-50/50 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                  <th className="px-6 py-4">Supplier</th>
+                  <th className="px-6 py-4">Total Purchase</th>
+                  <th className="px-6 py-4">Total Paid</th>
+                  <th className="px-6 py-4">Total Pending</th>
+                  <th className="px-6 py-4">Bills</th>
+                  <th className="px-6 py-4">Last Purchase</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr className="border-t border-slate-50">
+                  <td className="px-6 py-4">
+                    <div className="text-sm font-semibold text-slate-900">
+                      {vendor?.name ?? "Unknown supplier"}
+                    </div>
+                    <div className="text-xs text-slate-500">{vendor?.vendor_code ?? "-"}</div>
+                  </td>
+                  <td className="px-6 py-4 text-sm font-semibold text-slate-900">
+                    {formatCurrency(totalPurchase)}
+                  </td>
+                  <td className="px-6 py-4 text-sm font-semibold text-green-600">
+                    {formatCurrency(totalPaid)}
+                  </td>
+                  <td className="px-6 py-4 text-sm font-semibold text-amber-700">
+                    {formatCurrency(totalPayable)}
+                  </td>
+                  <td className="px-6 py-4 text-sm text-slate-600">{purchaseRows.length}</td>
+                  <td className="px-6 py-4 text-sm text-slate-600">
+                    {formatBsDisplayDate(lastPurchaseDate)}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
         <div className="grid grid-cols-1 gap-6 xl:grid-cols-[340px_minmax(0,1fr)]">
           <section className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
             <div className="mb-6 flex items-center gap-3">
@@ -138,7 +209,7 @@ export default async function VendorLedgerPage({
                 <Truck className="h-5 w-5" />
               </div>
               <div>
-                <h3 className="text-lg font-bold text-slate-900">Vendor Details</h3>
+                <h3 className="text-lg font-bold text-slate-900">Supplier Details</h3>
                 <p className="text-sm text-slate-500">Supplier profile and payment terms.</p>
               </div>
             </div>
@@ -146,7 +217,7 @@ export default async function VendorLedgerPage({
             {vendor ? (
               <div className="space-y-4 text-sm">
                 <div>
-                  <div className="text-xs font-bold uppercase tracking-wider text-slate-400">Vendor</div>
+                  <div className="text-xs font-bold uppercase tracking-wider text-slate-400">Supplier</div>
                   <div className="mt-1 font-semibold text-slate-900">{vendor.name}</div>
                   <div className="text-slate-500">{vendor.vendor_code}</div>
                 </div>
@@ -178,18 +249,18 @@ export default async function VendorLedgerPage({
                   href={`/vendors/create?edit=${vendor.id}`}
                   className="inline-flex items-center justify-center rounded-xl border border-slate-200 px-4 py-2 font-semibold text-slate-700 transition-colors hover:bg-slate-50"
                 >
-                  Edit Vendor Profile
+                  Edit Supplier Profile
                 </Link>
               </div>
             ) : (
-              <div className="text-sm text-slate-500">Vendor not found.</div>
+              <div className="text-sm text-slate-500">Supplier not found.</div>
             )}
           </section>
 
           <section className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
             <div className="border-b border-slate-50 p-6">
               <h3 className="text-lg font-bold text-slate-900">Purchase History</h3>
-              <p className="mt-1 text-xs text-slate-500">Bill-wise vendor ledger and balance.</p>
+              <p className="mt-1 text-xs text-slate-500">Bill-wise supplier ledger and balance.</p>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-left">
@@ -207,9 +278,7 @@ export default async function VendorLedgerPage({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-50">
-                  {purchases.map((purchase) => {
-                    const purchasePayments = paymentsByPurchase.get(purchase.id) ?? [];
-
+                  {purchaseRows.map((purchase) => {
                     return (
                       <Fragment key={purchase.id}>
                         <tr key={purchase.id} className="transition-colors hover:bg-slate-50/50">
@@ -232,10 +301,10 @@ export default async function VendorLedgerPage({
                             {formatCurrency(purchase.total_amount)}
                           </td>
                           <td className="px-6 py-4 text-sm font-semibold text-green-600">
-                            {formatCurrency(purchase.paid_amount)}
+                            {formatCurrency(purchase.paidAmount)}
                           </td>
                           <td className="px-6 py-4 text-sm font-semibold text-red-600">
-                            {formatCurrency(purchase.credit_amount)}
+                            {formatCurrency(purchase.remainingAmount)}
                           </td>
                           <td className="px-6 py-4 text-sm text-slate-600">
                             {purchase.payment_status}
@@ -252,7 +321,7 @@ export default async function VendorLedgerPage({
                             </Link>
                           </td>
                         </tr>
-                        {purchasePayments.length > 0 && (
+                        {purchase.purchasePayments.length > 0 && (
                           <tr className="bg-slate-50/40">
                             <td colSpan={9} className="px-6 py-4">
                               <div className="rounded-xl border border-slate-100 bg-white p-4">
@@ -260,7 +329,7 @@ export default async function VendorLedgerPage({
                                   Payment History
                                 </div>
                                 <div className="space-y-2">
-                                  {purchasePayments.map((payment) => (
+                                  {purchase.purchasePayments.map((payment) => (
                                     <div
                                       key={payment.id}
                                       className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-slate-50 px-3 py-2 text-sm"
@@ -285,7 +354,7 @@ export default async function VendorLedgerPage({
                   {purchases.length === 0 && (
                     <tr>
                       <td colSpan={9} className="px-6 py-10 text-center text-sm text-slate-500">
-                        No purchase history for this vendor yet.
+                        No purchase history for this supplier yet.
                       </td>
                     </tr>
                   )}
@@ -298,7 +367,7 @@ export default async function VendorLedgerPage({
         <section className="mt-6 overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
           <div className="border-b border-slate-50 p-6">
             <h3 className="text-lg font-bold text-slate-900">Payment History</h3>
-            <p className="mt-1 text-xs text-slate-500">All payment transactions recorded for this vendor.</p>
+            <p className="mt-1 text-xs text-slate-500">All payment transactions recorded for this supplier.</p>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-left">
@@ -330,7 +399,7 @@ export default async function VendorLedgerPage({
                 {payments.length === 0 && (
                   <tr>
                     <td colSpan={4} className="px-6 py-10 text-center text-sm text-slate-500">
-                      No payments recorded for this vendor yet.
+                      No payments recorded for this supplier yet.
                     </td>
                   </tr>
                 )}

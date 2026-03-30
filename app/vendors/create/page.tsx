@@ -31,9 +31,9 @@ export default async function CreateVendorPage({
 
       <main className="flex-1 overflow-y-auto p-8">
         <Header
-          title={editingVendor ? "Update Vendor Profile" : "Create Vendor Profile"}
-          description="Create and update vendor profiles in a dedicated screen."
-          primaryActionLabel="Back To Vendors"
+          title={editingVendor ? "Update Supplier Profile" : "Create Supplier Profile"}
+          description="Create and update supplier profiles in a dedicated screen."
+          primaryActionLabel="Back To Suppliers"
           primaryActionHref="/vendors"
         />
 
@@ -43,9 +43,9 @@ export default async function CreateVendorPage({
         <section className="max-w-2xl rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
           <div className="mb-6">
             <h3 className="text-lg font-bold text-slate-900">
-              {editingVendor ? "Update Vendor Profile" : "Create Vendor Profile"}
+              {editingVendor ? "Update Supplier Profile" : "Create Supplier Profile"}
             </h3>
-            <p className="text-sm text-slate-500">Vendor records stored in Supabase.</p>
+            <p className="text-sm text-slate-500">Supplier records stored in Supabase.</p>
           </div>
 
           <form action={upsertVendor} className="space-y-4">
@@ -53,7 +53,7 @@ export default async function CreateVendorPage({
             <input type="hidden" name="redirect_to" value="/vendors/create" />
 
             <div>
-              <label className="mb-2 block text-sm font-semibold text-slate-700">Vendor Code</label>
+              <label className="mb-2 block text-sm font-semibold text-slate-700">Supplier Code</label>
               <input
                 name="vendor_code"
                 required
@@ -64,12 +64,12 @@ export default async function CreateVendorPage({
             </div>
 
             <div>
-              <label className="mb-2 block text-sm font-semibold text-slate-700">Vendor Name</label>
+              <label className="mb-2 block text-sm font-semibold text-slate-700">Supplier Name</label>
               <input
                 name="name"
                 required
                 defaultValue={editingVendor?.name ?? ""}
-                placeholder="Enter vendor name"
+                placeholder="Enter supplier name"
                 className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-blue-500 focus:bg-white"
               />
             </div>
@@ -107,7 +107,7 @@ export default async function CreateVendorPage({
               name="address"
               rows={3}
               defaultValue={editingVendor?.address ?? ""}
-              placeholder="Vendor address"
+              placeholder="Supplier address"
               className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-blue-500 focus:bg-white"
             />
 
@@ -134,7 +134,7 @@ export default async function CreateVendorPage({
                 type="submit"
                 className="flex-1 rounded-xl bg-blue-600 px-5 py-3 font-semibold text-white"
               >
-                {editingVendor ? "Update Vendor" : "Save Vendor Profile"}
+                {editingVendor ? "Update Supplier" : "Save Supplier Profile"}
               </button>
               <Link
                 href="/vendors"

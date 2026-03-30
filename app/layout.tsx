@@ -18,7 +18,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "BookKeep Pro",
-  description: "Bookkeeping system for sales, purchases, vendors, products, and staff.",
+  description: "Bookkeeping system for sales, purchases, suppliers, products, and staff.",
   icons: {
     icon: siteIcon.src,
     shortcut: siteIcon.src,

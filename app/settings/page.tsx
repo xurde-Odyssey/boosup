@@ -67,8 +67,8 @@ const settingSections = [
     title: "Data and System Setup",
     description: "Operational settings tied to Supabase and day-to-day bookkeeping structure.",
     items: [
-      "Backup and export strategy for sales, purchases, vendors, and staff",
-      "Default numbering rules for invoices, purchases, vendors, and staff codes",
+      "Backup and export strategy for sales, purchases, suppliers, and staff",
+      "Default numbering rules for invoices, purchases, suppliers, and staff codes",
       "Future toggles for tax, payment methods, and product catalog behavior",
     ],
   },

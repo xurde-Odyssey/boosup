@@ -4,7 +4,7 @@ export function SiteFooter() {
       <div className="mx-auto flex max-w-7xl flex-col gap-2 text-sm text-slate-500 md:flex-row md:items-center md:justify-between">
         <div>
           <span className="font-semibold text-slate-900">BookKeep Pro</span>{" "}
-          <span>for bookkeeping, purchases, sales, vendors, products, and staff.</span>
+          <span>for bookkeeping, purchases, sales, suppliers, products, and staff.</span>
         </div>
         <div className="text-slate-400">Built for daily operations</div>
       </div>

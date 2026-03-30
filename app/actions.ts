@@ -135,7 +135,7 @@ export async function upsertVendor(formData: FormData) {
   }
 
   revalidateAll("/purchases", "/vendors");
-  redirectWithNotice("/vendors", formData, "Vendor", actionType);
+  redirectWithNotice("/vendors", formData, "Supplier", actionType);
 }
 
 export async function deleteVendor(formData: FormData) {
@@ -143,7 +143,7 @@ export async function deleteVendor(formData: FormData) {
   const id = readText(formData, "id");
   await supabase.from("vendors").delete().eq("id", id);
   revalidateAll("/purchases", "/vendors");
-  redirectWithNotice("/vendors", formData, "Vendor", "deleted");
+  redirectWithNotice("/vendors", formData, "Supplier", "deleted");
 }
 
 export async function upsertStaffProfile(formData: FormData) {
@@ -319,7 +319,7 @@ export async function upsertPurchase(formData: FormData) {
   };
 
   if (!vendorId && !vendorName) {
-    redirect("/purchases/create?notice=Select%20or%20type%20a%20vendor");
+    redirect("/purchases/create?notice=Select%20or%20type%20a%20supplier");
   }
 
   if (id) {

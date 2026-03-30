@@ -364,7 +364,7 @@ export default async function Home({
     overduePurchasesCount > 0
       ? {
           title: `${overduePurchasesCount} purchase bill${overduePurchasesCount > 1 ? "s" : ""} still payable`,
-          description: "Vendor credit remains unsettled.",
+          description: "Supplier credit remains unsettled.",
           tone: "amber",
         }
       : null,

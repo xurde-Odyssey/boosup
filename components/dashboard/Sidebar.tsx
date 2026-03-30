@@ -22,7 +22,7 @@ const navItems = [
   { icon: ShoppingBag, label: 'Sales', href: '/sales' },
   { icon: ShoppingCart, label: 'Purchases', href: '/purchases' },
   { icon: Users, label: 'Staff', href: '/staff' },
-  { icon: Truck, label: 'Vendors', href: '/vendors' },
+  { icon: Truck, label: 'Suppliers', href: '/vendors' },
   { icon: BarChart3, label: 'Your Products', href: '/products' },
 ];
 

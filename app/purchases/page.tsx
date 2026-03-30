@@ -115,7 +115,7 @@ export default async function PurchasesPage({
       <main className="flex-1 overflow-y-auto p-8">
         <Header
           title="Purchases Overview"
-          description="Track vendor profiles, purchase totals, and outstanding credit."
+          description="Track supplier profiles, purchase totals, and outstanding credit."
         />
         <QueryNoticeToast message={notice} />
         <ReportToolbar actionPath="/purchases" />
@@ -148,7 +148,7 @@ export default async function PurchasesPage({
           <SummaryCard
             title="Total Paid"
             value={formatCurrency(totalPaid)}
-            trend="Settled against vendor bills"
+            trend="Settled against supplier bills"
             trendType="positive"
             icon={BadgeDollarSign}
             iconBgColor="bg-green-50"
@@ -176,7 +176,7 @@ export default async function PurchasesPage({
                   <thead>
                     <tr className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
                       <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">Purchase ID</th>
-                      <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">Vendor</th>
+                      <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">Supplier</th>
                       <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">Product</th>
                       <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">Amount</th>
                       <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">Credit</th>
@@ -200,7 +200,7 @@ export default async function PurchasesPage({
                             <Link
                               href={`/vendors/${purchase.vendor_id}`}
                               className="font-semibold text-slate-700 hover:text-blue-600"
-                              title={`Open vendor profile for ${purchase.vendors.name}`}
+                              title={`Open supplier profile for ${purchase.vendors.name}`}
                             >
                               {purchase.vendors.name}
                             </Link>
@@ -263,7 +263,7 @@ export default async function PurchasesPage({
                           <EmptyState
                             icon={FileText}
                             title="No purchase records yet"
-                            description="Vendor bills will begin appearing here once the first purchase is entered."
+                            description="Supplier bills will begin appearing here once the first purchase is entered."
                             actionLabel="Create Purchase"
                             actionHref="/purchases/create"
                           />
@@ -383,14 +383,14 @@ export default async function PurchasesPage({
             <section className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
               <div className="border-b border-slate-50 p-6">
                 <h3 className="text-lg font-bold text-slate-900">Recent Payments</h3>
-                <p className="mt-1 text-xs text-slate-500">Latest vendor payment transactions against purchase bills.</p>
+                <p className="mt-1 text-xs text-slate-500">Latest supplier payment transactions against purchase bills.</p>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-left">
                   <thead>
                     <tr className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
                       <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">Date</th>
-                      <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">Vendor</th>
+                      <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">Supplier</th>
                       <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">Bill</th>
                       <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">Method</th>
                       <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">Amount</th>
@@ -412,7 +412,7 @@ export default async function PurchasesPage({
                               <Link
                                 href={`/vendors/${payment.purchases.vendor_id}`}
                                 className="font-semibold text-slate-700 hover:text-blue-600"
-                                title={`Open vendor profile for ${payment.purchases.vendors.name}`}
+                                title={`Open supplier profile for ${payment.purchases.vendors.name}`}
                               >
                                 {payment.purchases.vendors.name}
                               </Link>
@@ -441,7 +441,7 @@ export default async function PurchasesPage({
                           <EmptyState
                             icon={WalletCards}
                             title="No purchase payments recorded"
-                            description="Partial and full vendor payments will build a payment trail here after bills are updated."
+                            description="Partial and full supplier payments will build a payment trail here after bills are updated."
                             actionLabel="Open Purchase Bills"
                             actionHref="/purchases"
                           />

@@ -25,7 +25,7 @@ export default async function LoginPage({
             <span className="block text-blue-300">manufacturing bookkeeping control</span>
           </h1>
           <p className="mt-5 max-w-lg text-sm leading-7 text-slate-300">
-            Sign in with the admin account to manage sales, purchases, vendors, products,
+            Sign in with the admin account to manage sales, purchases, suppliers, products,
             staff, and payment records.
           </p>
           <div className="mt-10 grid gap-4 text-sm text-slate-200">

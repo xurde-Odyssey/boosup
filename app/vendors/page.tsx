@@ -127,41 +127,41 @@ export default async function VendorsPage({
 
       <main className="flex-1 overflow-y-auto p-8">
         <Header
-          title="Vendor Overview"
-          description="Manage vendor profiles, payables, and supplier-wise purchase balances."
+          title="Supplier Overview"
+          description="Manage supplier profiles, payables, and supplier-wise purchase balances."
         />
         {notice && <ActionNotice message={notice} />}
         <ReportToolbar actionPath="/vendors" />
         <PageActionStrip
           actions={[
-            { label: "Create Vendor Profile", href: "/vendors/create" },
-            { label: "View Vendor Payables", href: "/vendors", variant: "secondary" },
+            { label: "Create Supplier Profile", href: "/vendors/create" },
+            { label: "View Supplier Payables", href: "/vendors", variant: "secondary" },
           ]}
         />
 
         <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
           <SummaryCard
-            title="Total Vendors"
+            title="Total Suppliers"
             value={`${vendors.length}`}
-            trend={`${activeVendors} active vendors`}
+            trend={`${activeVendors} active suppliers`}
             trendType="neutral"
             icon={Truck}
             iconBgColor="bg-amber-50"
             iconColor="text-amber-600"
           />
           <SummaryCard
-            title="Vendor Purchase"
+            title="Supplier Purchase"
             value={formatCurrency(totalVendorPurchase)}
-            trend="Total vendor bills"
+            trend="Total supplier bills"
             trendType="positive"
             icon={BadgeDollarSign}
             iconBgColor="bg-blue-50"
             iconColor="text-blue-600"
           />
           <SummaryCard
-            title="Vendor Paid"
+            title="Supplier Paid"
             value={formatCurrency(totalVendorPaid)}
-            trend="Paid against vendor bills"
+            trend="Paid against supplier bills"
             trendType="positive"
             icon={BadgeDollarSign}
             iconBgColor="bg-green-50"
@@ -170,7 +170,7 @@ export default async function VendorsPage({
           <SummaryCard
             title="Outstanding Payables"
             value={formatCurrency(totalPayables)}
-            trend="Vendor-wise credit outstanding"
+            trend="Supplier-wise credit outstanding"
             trendType="negative"
             icon={CreditCard}
             iconBgColor="bg-red-50"
@@ -181,16 +181,16 @@ export default async function VendorsPage({
         <div className="space-y-6">
           <SectionCard className="overflow-hidden" padded={false}>
             <div className="border-b border-slate-50 p-6">
-              <h3 className="text-lg font-bold text-slate-900">Vendor Payables</h3>
+              <h3 className="text-lg font-bold text-slate-900">Supplier Payables</h3>
               <p className="mt-1 text-xs text-slate-500">
-                Vendor-wise payable balance, bills, and total items bought.
+                Supplier-wise payable balance, bills, and total items bought.
               </p>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-left">
                 <thead>
                   <tr className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                    <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">Vendor</th>
+                    <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">Supplier</th>
                     <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">Total Purchase</th>
                     <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">Paid</th>
                     <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">Payable</th>
@@ -211,7 +211,7 @@ export default async function VendorsPage({
                         <Link
                           href={`/vendors/${vendor.id}`}
                           className="text-sm font-semibold text-slate-900 hover:text-blue-600"
-                          title={`Open vendor profile for ${vendor.name}`}
+                          title={`Open supplier profile for ${vendor.name}`}
                         >
                           {vendor.name}
                         </Link>
@@ -238,9 +238,9 @@ export default async function VendorsPage({
                       <td colSpan={7} className="px-6 py-10">
                         <EmptyState
                           icon={Wallet}
-                          title="No vendor payables yet"
-                          description="Supplier balances will show here after vendors and purchase bills start accumulating."
-                          actionLabel="Create Vendor"
+                          title="No supplier payables yet"
+                          description="Supplier balances will show here after supplier profiles and purchase bills start accumulating."
+                          actionLabel="Create Supplier"
                           actionHref="/vendors/create"
                         />
                       </td>
@@ -262,14 +262,14 @@ export default async function VendorsPage({
 
           <SectionCard className="overflow-hidden" padded={false}>
             <div className="border-b border-slate-50 p-6">
-              <h3 className="text-lg font-bold text-slate-900">Vendor Profiles</h3>
+              <h3 className="text-lg font-bold text-slate-900">Supplier Profiles</h3>
               <p className="mt-1 text-xs text-slate-500">All supplier profiles stored in Supabase.</p>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-left">
                 <thead>
                   <tr className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                    <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">Vendor</th>
+                    <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">Supplier</th>
                     <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">Contact</th>
                     <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">Phone</th>
                     <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">Terms</th>
@@ -308,20 +308,20 @@ export default async function VendorsPage({
                           <Link
                             href={`/vendors/create?edit=${vendor.id}`}
                             className="rounded-lg p-2 text-slate-400 transition-all hover:bg-blue-50 hover:text-blue-600"
-                            title={`Edit vendor ${vendor.name}`}
+                            title={`Edit supplier ${vendor.name}`}
                           >
                             <Pencil className="h-4 w-4" />
                           </Link>
                           <Link
                             href={`/vendors/create?edit=${vendor.id}`}
                             className="rounded-lg p-2 text-slate-400 transition-all hover:bg-amber-50 hover:text-amber-600"
-                            title={`Open update view for vendor ${vendor.name}`}
+                            title={`Open update view for supplier ${vendor.name}`}
                           >
                             <RefreshCcw className="h-4 w-4" />
                           </Link>
                           <ConfirmActionForm
                             action={deleteVendor}
-                            confirmMessage="Are you sure you want to delete this vendor profile?"
+                            confirmMessage="Are you sure you want to delete this supplier profile?"
                             hiddenFields={[
                               { name: "id", value: vendor.id },
                               { name: "redirect_to", value: "/vendors" },
@@ -329,7 +329,7 @@ export default async function VendorsPage({
                           >
                             <button
                               className="rounded-lg p-2 text-slate-400 transition-all hover:bg-red-50 hover:text-red-600"
-                              title={`Delete vendor ${vendor.name}`}
+                              title={`Delete supplier ${vendor.name}`}
                             >
                               <Trash2 className="h-4 w-4" />
                             </button>
@@ -343,9 +343,9 @@ export default async function VendorsPage({
                       <td colSpan={6} className="px-6 py-10">
                         <EmptyState
                           icon={Truck}
-                          title="No vendor profiles yet"
+                          title="No supplier profiles yet"
                           description="Create supplier profiles first so purchases and payable ledgers stay organized."
-                          actionLabel="Create Vendor Profile"
+                          actionLabel="Create Supplier Profile"
                           actionHref="/vendors/create"
                         />
                       </td>
