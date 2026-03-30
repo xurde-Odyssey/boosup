@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Image from 'next/image';
 import {
   LayoutDashboard,
@@ -16,6 +17,8 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import appIcon from '@/app/logos/icon.png';
 import { logoutAdmin } from '@/app/actions';
+import { DEFAULT_COMPANY_SETTINGS } from '@/lib/company-settings';
+import { getSupabaseBrowserClient } from '@/lib/supabase/client';
 
 const navItems = [
   { icon: LayoutDashboard, label: 'Dashboard', href: '/' },
@@ -28,6 +31,23 @@ const navItems = [
 
 export function Sidebar() {
   const pathname = usePathname();
+  const [companyName, setCompanyName] = useState(DEFAULT_COMPANY_SETTINGS.businessName);
+
+  useEffect(() => {
+    const supabase = getSupabaseBrowserClient();
+
+    void supabase
+      .from("company_settings")
+      .select("business_name")
+      .order("created_at", { ascending: true })
+      .limit(1)
+      .then(({ data }) => {
+        const nextName = data?.[0]?.business_name?.trim();
+        if (nextName) {
+          setCompanyName(nextName);
+        }
+      });
+  }, []);
 
   return (
     <aside className="sticky top-0 flex h-screen w-64 shrink-0 flex-col border-r border-slate-200 bg-white px-4 py-5 dark:border-slate-800 dark:bg-slate-950">
@@ -52,7 +72,7 @@ export function Sidebar() {
 
       <nav className="min-h-0 flex-1 space-y-1.5 overflow-y-auto pr-1">
         {navItems.map((item) => {
-          const isActive = pathname === item.href;
+          const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
           return (
             <Link
               key={item.label}
@@ -89,7 +109,7 @@ export function Sidebar() {
               AS
             </div>
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-semibold text-slate-900 dark:text-slate-50">Alex Sterling</p>
+              <p className="truncate text-sm font-semibold text-slate-900 dark:text-slate-50">{companyName}</p>
               <p className="truncate text-xs text-slate-500 dark:text-slate-400">Admin Account</p>
             </div>
           </div>

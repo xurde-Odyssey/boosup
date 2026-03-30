@@ -17,6 +17,7 @@ import { QueryNoticeToast } from "@/components/shared/QueryNoticeToast";
 import { ReportToolbar } from "@/components/shared/ReportToolbar";
 import { formatBsDisplayDate } from "@/lib/nepali-date";
 import { formatCurrency } from "@/lib/presentation";
+import { buildPayrollEntries, buildPayrollMonthSummaries } from "@/lib/staff-payroll";
 import { getSupabaseClient } from "@/lib/supabase/server";
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
@@ -39,71 +40,53 @@ export default async function StaffPage({
     supabase
       .from("staff_salary_payments")
       .select(
-        "id, staff_id, salary_month_bs, payment_date, working_days, leave_days, monthly_salary, monthly_payment, advance_payment, remaining_payment, notes, created_at",
+        "id, staff_id, salary_month_bs, payment_date, payment_type, working_days, leave_days, monthly_salary, monthly_payment, advance_payment, remaining_payment, notes, created_at",
       )
       .order("created_at", { ascending: false }),
   ]);
 
   const staffProfiles = staffProfilesResponse.data ?? [];
   const staffPayments = staffPaymentsResponse.data ?? [];
+  const payrollEntries = buildPayrollEntries(staffPayments);
+  const payrollMonthSummaries = buildPayrollMonthSummaries(staffPayments);
   const activeStaffId = selectedStaffId || staffProfiles[0]?.id || "";
   const activeStaff = staffProfiles.find((staff) => staff.id === activeStaffId) ?? null;
   const activeStaffPayments = staffPayments.filter((payment) => payment.staff_id === activeStaffId);
-  const activePaymentHistory = (() => {
-    const chronologicalPayments = [...activeStaffPayments].sort((left, right) => {
-      const leftTime = new Date(left.created_at ?? left.payment_date).getTime();
-      const rightTime = new Date(right.created_at ?? right.payment_date).getTime();
-      return leftTime - rightTime;
-    });
-
-    const runningPaidByMonth = new Map<string, number>();
-
-    return chronologicalPayments
-      .map((payment) => {
-        const salaryMonthKey = payment.salary_month_bs || "default";
-        const previousPaid = runningPaidByMonth.get(salaryMonthKey) ?? 0;
-        const paidNow = Number(payment.advance_payment ?? 0);
-        const totalPaid = previousPaid + paidNow;
-        const effectiveRemaining = Math.max(
-          Number(payment.monthly_payment ?? 0) - totalPaid,
-          0,
-        );
-
-        runningPaidByMonth.set(salaryMonthKey, totalPaid);
-
-        return {
-          ...payment,
-          previous_paid: previousPaid,
-          paid_now: paidNow,
-          total_paid: totalPaid,
-          effective_remaining: effectiveRemaining,
-        };
-      })
-      .reverse();
-  })();
-  const activeMonthlyTotal = activeStaffPayments.reduce(
-    (sum, payment) => sum + Number(payment.monthly_payment ?? 0),
+  const activePaymentHistory = payrollEntries
+    .filter((payment) => payment.staff_id === activeStaffId)
+    .reverse();
+  const activeMonthSummaries = payrollMonthSummaries.filter(
+    (summary) => summary.staff_id === activeStaffId,
+  );
+  const activeAdvanceTotal = activeMonthSummaries.reduce(
+    (sum, month) => sum + month.advance_paid,
     0,
   );
-  const activeAdvanceTotal = activeStaffPayments.reduce(
-    (sum, payment) => sum + Number(payment.advance_payment ?? 0),
+  const activeSalaryPaidTotal = activeMonthSummaries.reduce(
+    (sum, month) => sum + month.salary_paid,
     0,
   );
-  const activeRemainingTotal =
-    activePaymentHistory[0]?.effective_remaining ?? Number(activeStaff?.total_salary ?? 0);
+  const activeTotalPaid = activeMonthSummaries.reduce(
+    (sum, month) => sum + month.total_paid,
+    0,
+  );
+  const activeRemainingTotal = activeMonthSummaries.reduce(
+    (sum, month) => sum + month.remaining_salary,
+    0,
+  );
   const latestPayment = activePaymentHistory[0] ?? null;
 
   const totalSalary = staffProfiles.reduce((sum, staff) => sum + Number(staff.total_salary ?? 0), 0);
-  const totalAdvance = staffPayments.reduce(
-    (sum, payment) => sum + Number(payment.advance_payment ?? 0),
+  const totalAdvance = payrollMonthSummaries.reduce(
+    (sum, month) => sum + month.advance_paid,
     0,
   );
-  const totalRemaining = staffPayments.reduce(
-    (sum, payment) => sum + Number(payment.remaining_payment ?? 0),
+  const totalRemaining = payrollMonthSummaries.reduce(
+    (sum, month) => sum + month.remaining_salary,
     0,
   );
-  const totalMonthlyPayment = staffPayments.reduce(
-    (sum, payment) => sum + Number(payment.monthly_payment ?? 0),
+  const totalSalaryPaid = payrollMonthSummaries.reduce(
+    (sum, month) => sum + month.salary_paid,
     0,
   );
 
@@ -149,18 +132,18 @@ export default async function StaffPage({
             iconColor="text-green-600"
           />
           <SummaryCard
-            title="Advance Payment"
+            title="Advance Salary"
             value={formatCurrency(totalAdvance)}
-            trend={`${staffPayments.length} salary entries`}
+            trend={`${staffPayments.length} payroll transactions`}
             trendType="negative"
             icon={CreditCard}
             iconBgColor="bg-red-50"
             iconColor="text-red-600"
           />
           <SummaryCard
-            title="Remaining Payment"
+            title="Remaining Salary"
             value={formatCurrency(totalRemaining)}
-            trend={`${formatCurrency(totalMonthlyPayment)} monthly payment processed`}
+            trend={`${formatCurrency(totalSalaryPaid)} released on payday`}
             trendType="neutral"
             icon={MapPin}
             iconBgColor="bg-amber-50"
@@ -263,17 +246,17 @@ export default async function StaffPage({
                     </div>
                     <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
                       <div className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                        Salary This Month
+                        Payroll Months
                       </div>
                       <div className="mt-2 font-semibold text-slate-900">
-                        {formatCurrency(latestPayment?.monthly_payment ?? activeStaff.total_salary)}
+                        {activeMonthSummaries.length}
                       </div>
                     </div>
                     <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
                       <div className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                        Current Remaining
+                        Total Remaining
                       </div>
-                      <div className="mt-2 font-semibold text-green-700">
+                      <div className="mt-2 font-semibold text-amber-700">
                         {formatCurrency(activeRemainingTotal)}
                       </div>
                     </div>
@@ -290,15 +273,15 @@ export default async function StaffPage({
                     </div>
                     <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
                       <div className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                        Monthly Payment Total
+                        Total Paid
                       </div>
                       <div className="mt-2 font-semibold text-slate-900">
-                        {formatCurrency(activeMonthlyTotal)}
+                        {formatCurrency(activeTotalPaid)}
                       </div>
                     </div>
                     <div className="rounded-2xl border border-red-100 bg-red-50/70 p-4">
                       <div className="text-xs font-bold uppercase tracking-wider text-red-500">
-                        Advance Deducted
+                        Advance Salary
                       </div>
                       <div className="mt-2 font-semibold text-red-700">
                         {formatCurrency(activeAdvanceTotal)}
@@ -306,10 +289,10 @@ export default async function StaffPage({
                     </div>
                     <div className="rounded-2xl border border-emerald-100 bg-emerald-50/70 p-4">
                       <div className="text-xs font-bold uppercase tracking-wider text-emerald-500">
-                        Remaining To Pay
+                        Payday Salary
                       </div>
                       <div className="mt-2 font-semibold text-emerald-700">
-                        {formatCurrency(activeRemainingTotal)}
+                        {formatCurrency(activeSalaryPaidTotal)}
                       </div>
                     </div>
                   </div>
@@ -320,7 +303,7 @@ export default async function StaffPage({
                     </div>
                     <div className="mt-2 text-sm text-slate-600">
                       {latestPayment
-                        ? `${latestPayment.salary_month_bs} paid on ${formatBsDisplayDate(latestPayment.payment_date)} with ${formatCurrency(latestPayment.effective_remaining)} remaining`
+                        ? `${latestPayment.salary_month_bs} ${latestPayment.payment_type === "SALARY" ? "salary paid" : "advance paid"} on ${formatBsDisplayDate(latestPayment.payment_date)} with ${formatCurrency(latestPayment.remaining_salary)} remaining`
                         : "No salary activity has been recorded yet."}
                     </div>
                   </div>
@@ -338,9 +321,9 @@ export default async function StaffPage({
 
             <section className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
               <div className="border-b border-slate-50 p-6">
-                <h3 className="text-lg font-bold text-slate-900">Salary Transaction History</h3>
+                <h3 className="text-lg font-bold text-slate-900">Monthly Payroll Ledger</h3>
                 <p className="mt-1 text-xs text-slate-500">
-                  Monthly payment, working days, leave, advance deduction, and remaining payment.
+                  One row per salary month with due salary, total paid, and remaining balance.
                 </p>
               </div>
               <div className="overflow-x-auto">
@@ -348,57 +331,61 @@ export default async function StaffPage({
                   <thead>
                     <tr className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
                       <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">Salary Month</th>
-                      <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">Payment Date</th>
                       <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">Working Days</th>
                       <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">Leave</th>
-                      <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">Monthly Payment</th>
-                      <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">Previously Paid</th>
-                      <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">Paid Now</th>
+                      <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">Due Salary</th>
+                      <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">Advance Paid</th>
+                      <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">Salary Paid</th>
+                      <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">Total Paid</th>
                       <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">Remaining</th>
+                      <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">Last Payment</th>
                       <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4 text-right">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-50">
-                    {activePaymentHistory.map((payment, index) => (
+                    {activeMonthSummaries.map((payment, index) => (
                       <tr
-                        key={payment.id}
+                        key={`${payment.staff_id}-${payment.salary_month_bs}`}
                         className={`transition-colors hover:bg-blue-50/40 ${
                           index % 2 === 0 ? "bg-white" : "bg-slate-50/40"
                         }`}
                       >
                         <td className="px-6 py-4 text-sm text-slate-600">{payment.salary_month_bs}</td>
-                        <td className="px-6 py-4 text-sm text-slate-600">
-                          {formatBsDisplayDate(payment.payment_date)}
-                        </td>
                         <td className="px-6 py-4 text-sm text-slate-600">{payment.working_days}</td>
                         <td className="px-6 py-4 text-sm text-slate-600">{payment.leave_days}</td>
                         <td className="px-6 py-4 text-sm font-semibold text-slate-900">
-                          {formatCurrency(payment.monthly_payment)}
+                          {formatCurrency(payment.due_salary)}
                         </td>
                         <td className="px-6 py-4 text-sm font-bold text-red-600">
-                          {formatCurrency(payment.previous_paid)}
+                          {formatCurrency(payment.advance_paid)}
                         </td>
                         <td className="px-6 py-4 text-sm font-bold text-blue-700">
-                          {formatCurrency(payment.paid_now)}
+                          {formatCurrency(payment.salary_paid)}
+                        </td>
+                        <td className="px-6 py-4 text-sm font-bold text-slate-900">
+                          {formatCurrency(payment.total_paid)}
                         </td>
                         <td className="px-6 py-4 text-sm font-bold text-green-700">
-                          {formatCurrency(payment.effective_remaining)}
+                          {formatCurrency(payment.remaining_salary)}
+                        </td>
+                        <td className="px-6 py-4 text-sm text-slate-600">
+                          {payment.last_payment_date ? formatBsDisplayDate(payment.last_payment_date) : "-"}
                         </td>
                         <td className="px-6 py-4 text-right">
                           <Link
-                            href={`/staff/payment/create?edit=${payment.id}&staff=${payment.staff_id}`}
+                            href={`/staff/payment/create?staff=${payment.staff_id}`}
                             className="text-sm font-semibold text-blue-600 hover:text-blue-700"
                             title={`Open salary entry for ${payment.salary_month_bs}`}
                           >
-                            Open Entry
+                            Add Entry
                           </Link>
                         </td>
                       </tr>
                     ))}
 
-                    {activeStaff && activePaymentHistory.length === 0 && (
+                    {activeStaff && activeMonthSummaries.length === 0 && (
                       <tr>
-                        <td colSpan={9} className="px-6 py-10">
+                        <td colSpan={10} className="px-6 py-10">
                           <EmptyState
                             icon={CalendarClock}
                             title="No salary transactions yet"
@@ -412,7 +399,7 @@ export default async function StaffPage({
 
                     {!activeStaff && (
                       <tr>
-                        <td colSpan={9} className="px-6 py-10">
+                        <td colSpan={10} className="px-6 py-10">
                           <EmptyState
                             icon={CalendarClock}
                             title="No staff selected"

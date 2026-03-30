@@ -8,7 +8,7 @@ import { ConfirmActionForm } from "@/components/shared/ConfirmActionForm";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { PaymentStatusBadge } from "@/components/shared/StatusBadge";
 import { cn } from "@/lib/utils";
-import { FileText, Pencil, RefreshCcw, Trash2 } from "lucide-react";
+import { FileText, Pencil, Printer, RefreshCcw, Trash2 } from "lucide-react";
 
 type Invoice = {
   id: string;
@@ -280,6 +280,13 @@ export function InvoicesTable({
                       title={`Edit sales invoice ${invoice.invoiceNumber}`}
                     >
                       <Pencil className="h-4 w-4" />
+                    </Link>
+                    <Link
+                      href={`/sales/create?edit=${invoice.id}&print=1`}
+                      className="rounded-lg p-1.5 text-slate-300 transition-all hover:bg-slate-100 hover:text-slate-700"
+                      title={`Print sales invoice ${invoice.invoiceNumber}`}
+                    >
+                      <Printer className="h-4 w-4" />
                     </Link>
                     <Link
                       href={`/sales/create?edit=${invoice.id}`}

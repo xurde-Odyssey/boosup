@@ -20,12 +20,14 @@ import { TopSalesItemsTable } from "@/components/dashboard/TopSalesItemsTable";
 import { DashboardReportPrintButton } from "@/components/dashboard/DashboardReportPrintButton";
 import { ReportToolbar } from "@/components/shared/ReportToolbar";
 import { ThemeToggle } from "@/components/shared/ThemeToggle";
+import { getCompanySettings } from "@/lib/company-settings-server";
 import { formatBsDisplayDate } from "@/lib/nepali-date";
 import {
   formatCurrency,
   getAvatarTone,
   getInitials,
 } from "@/lib/presentation";
+import { buildPayrollMonthSummaries } from "@/lib/staff-payroll";
 import { getSupabaseClient } from "@/lib/supabase/server";
 import { ADtoBS } from "nepali-date-library";
 
@@ -116,6 +118,7 @@ export default async function Home({
 }) {
   const params = await searchParams;
   const supabase = await getSupabaseClient();
+  const company = await getCompanySettings();
   const todayDate = getTodayDate();
   const selectedRange = typeof params.range === "string" ? params.range : "month";
   const defaultRange = getDateRange(selectedRange, todayDate);
@@ -150,7 +153,7 @@ export default async function Home({
       .order("created_at", { ascending: false }),
     supabase
       .from("staff_salary_payments")
-      .select("salary_month_bs, payment_date, advance_payment, remaining_payment, created_at, staff_profiles(name)")
+      .select("staff_id, salary_month_bs, payment_date, payment_type, working_days, leave_days, monthly_salary, advance_payment, created_at, staff_profiles(name)")
       .order("created_at", { ascending: false }),
   ]);
 
@@ -161,6 +164,7 @@ export default async function Home({
   const salesItems = salesItemsResponse.data ?? [];
   const purchaseItems = purchaseItemsResponse.data ?? [];
   const staffSalaryPayments = staffSalaryPaymentsResponse.data ?? [];
+  const payrollMonthSummaries = buildPayrollMonthSummaries(staffSalaryPayments);
   const filteredSales = sales.filter((sale) => isWithinRange(sale.sales_date, fromDate, toDate));
   const filteredPurchases = purchases.filter((purchase) =>
     isWithinRange(purchase.purchase_date, fromDate, toDate),
@@ -350,8 +354,8 @@ export default async function Home({
   const overduePurchasesCount = filteredPurchases.filter(
     (purchase) => Number(purchase.credit_amount ?? 0) > 0,
   ).length;
-  const unpaidSalaryCount = staffSalaryPayments.filter(
-    (payment) => Number(payment.remaining_payment ?? 0) > 0,
+  const unpaidSalaryCount = payrollMonthSummaries.filter(
+    (summary) => summary.remaining_salary > 0,
   ).length;
   const alerts = [
     overdueSalesCount > 0
@@ -409,7 +413,7 @@ export default async function Home({
     })),
     ...staffSalaryPayments.slice(0, 5).map((payment) => ({
       id: `salary-${payment.created_at ?? payment.payment_date}-${payment.salary_month_bs}`,
-      title: `Salary payment ${payment.salary_month_bs}`,
+      title: `${payment.payment_type === "SALARY" ? "Salary paid" : "Advance paid"} ${payment.salary_month_bs}`,
       description: Array.isArray(payment.staff_profiles)
         ? payment.staff_profiles[0]?.name ?? "Staff"
         : payment.staff_profiles?.name ?? "Staff",
@@ -461,6 +465,7 @@ export default async function Home({
           toDate={toDate}
           reportButton={
             <DashboardReportPrintButton
+              company={company}
               generatedDate={generatedReportDate}
               selectedPeriod={selectedPeriodLabel}
               metrics={[

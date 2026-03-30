@@ -1,9 +1,11 @@
-import { FilePlus2, Printer, ReceiptText } from "lucide-react";
+import { FilePlus2, ReceiptText } from "lucide-react";
 import { Header } from "@/components/dashboard/Header";
 import { Sidebar } from "@/components/dashboard/Sidebar";
 import { SalesPrintPreview } from "@/components/sales/SalesPrintPreview";
+import { PageActionStrip } from "@/components/shared/PageActionStrip";
 import { SalesForm } from "@/components/sales/SalesForm";
 import { QueryNoticeToast } from "@/components/shared/QueryNoticeToast";
+import { getCompanySettings } from "@/lib/company-settings-server";
 import { formatBsDisplayDate } from "@/lib/nepali-date";
 import { formatCurrency } from "@/lib/presentation";
 import { getSupabaseClient } from "@/lib/supabase/server";
@@ -21,8 +23,10 @@ export default async function CreateSalesPage({
   searchParams: SearchParams;
 }) {
   const supabase = await getSupabaseClient();
+  const company = await getCompanySettings();
   const params = await searchParams;
   const editId = typeof params.edit === "string" ? params.edit : "";
+  const shouldPrint = typeof params.print === "string" && params.print === "1";
   const notice = typeof params.notice === "string" ? params.notice : "";
   const todayDate = getTodayDate();
 
@@ -111,6 +115,12 @@ export default async function CreateSalesPage({
           primaryActionLabel={editingSale ? "Update Sales" : "Save Sales"}
         />
         <QueryNoticeToast message={notice} />
+        <PageActionStrip
+          actions={[
+            { label: "Back To Sales", href: "/sales", variant: "secondary" },
+            ...(editingSale ? [{ label: "Open Invoice Register", href: "/sales/view", variant: "secondary" as const }] : []),
+          ]}
+        />
 
         <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
           <section className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
@@ -193,14 +203,17 @@ export default async function CreateSalesPage({
               </div>
               <div className="mt-4 border-t border-slate-100 pt-4">
                 {editingSale ? (
-                  <SalesPrintPreview sale={editingSale} />
+                  <SalesPrintPreview
+                    sale={editingSale}
+                    autoPrint={shouldPrint}
+                    company={company}
+                  />
                 ) : (
                   <button
                     type="button"
                     disabled
                     className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-slate-300 px-4 py-3 text-sm font-semibold text-white"
                   >
-                    <Printer className="h-4 w-4" />
                     Save Sales To Enable Print
                   </button>
                 )}

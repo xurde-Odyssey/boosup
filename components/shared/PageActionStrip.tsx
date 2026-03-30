@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Plus } from "lucide-react";
+import type { ReactNode } from "react";
 
 type ActionItem = {
   label: string;
@@ -9,10 +10,12 @@ type ActionItem = {
 
 export function PageActionStrip({
   actions,
+  extra,
 }: {
   actions: ActionItem[];
+  extra?: ReactNode;
 }) {
-  if (actions.length === 0) return null;
+  if (actions.length === 0 && !extra) return null;
 
   return (
     <div className="sticky top-4 z-20 mb-8 rounded-2xl border border-slate-200 bg-white/95 p-3 shadow-lg shadow-slate-200/40 backdrop-blur">
@@ -38,6 +41,7 @@ export function PageActionStrip({
               {action.label}
             </Link>
           ))}
+          {extra}
         </div>
       </div>
     </div>
