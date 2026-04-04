@@ -10,24 +10,33 @@ type DashboardRange = "week" | "month" | "year";
 type AppLanguage = "eng" | "nep";
 
 const THEME_KEY = "bookkeep-theme";
+const THEME_EVENT = "bookkeep-theme-change";
 const LANGUAGE_KEY = "bookkeep-language";
 const PAGE_SIZE_KEY = "bookkeep-page-size";
 const DASHBOARD_RANGE_KEY = "bookkeep-dashboard-range";
 const TIMEZONE_KEY = "bookkeep-timezone";
 
+const getResolvedTheme = (): ThemeMode => {
+  if (typeof window === "undefined") return "light";
+  const savedTheme = localStorage.getItem(THEME_KEY);
+  if (savedTheme === "dark" || savedTheme === "light") {
+    return savedTheme;
+  }
+
+  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+};
+
 const preferenceButtonClass = (active: boolean) =>
   cn(
     "rounded-xl border px-3 py-2 text-sm font-semibold transition-colors",
     active
-      ? "border-blue-200 bg-blue-50 text-blue-700"
-      : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50",
+      ? "border-blue-200 bg-blue-50 text-blue-700 dark:border-cyan-900/70 dark:bg-cyan-950/40 dark:text-cyan-200"
+      : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800",
   );
 
 export function SystemPreferencesPanel() {
   const [theme, setTheme] = useState<ThemeMode>(() => {
-    if (typeof window === "undefined") return "light";
-    const savedTheme = localStorage.getItem(THEME_KEY);
-    return savedTheme === "dark" || savedTheme === "light" ? savedTheme : "light";
+    return getResolvedTheme();
   });
   const [language, setLanguage] = useState<AppLanguage>(() => {
     if (typeof window === "undefined") return "eng";
@@ -57,12 +66,31 @@ export function SystemPreferencesPanel() {
 
   useEffect(() => {
     document.documentElement.classList.toggle("dark", theme === "dark");
+    document.documentElement.style.colorScheme = theme;
   }, [theme]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const syncTheme = () => setTheme(getResolvedTheme());
+    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+
+    window.addEventListener(THEME_EVENT, syncTheme);
+    window.addEventListener("storage", syncTheme);
+    mediaQuery.addEventListener("change", syncTheme);
+
+    return () => {
+      window.removeEventListener(THEME_EVENT, syncTheme);
+      window.removeEventListener("storage", syncTheme);
+      mediaQuery.removeEventListener("change", syncTheme);
+    };
+  }, []);
 
   const updateTheme = (value: ThemeMode) => {
     setTheme(value);
     localStorage.setItem(THEME_KEY, value);
     document.documentElement.classList.toggle("dark", value === "dark");
+    document.documentElement.style.colorScheme = value;
     window.dispatchEvent(new Event("bookkeep-theme-change"));
   };
 
@@ -88,9 +116,9 @@ export function SystemPreferencesPanel() {
 
   return (
     <div className="mt-5 space-y-4">
-      <div className="rounded-2xl border border-slate-100 bg-slate-50/70 p-4">
-        <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-800">
-          <MonitorCog className="h-4 w-4 text-slate-500" />
+      <div className="rounded-2xl border border-slate-100 bg-slate-50/70 p-4 dark:border-slate-800 dark:bg-slate-900/70">
+        <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-800 dark:text-slate-100">
+          <MonitorCog className="h-4 w-4 text-slate-500 dark:text-slate-400" />
           Theme
         </div>
         <div className="flex flex-wrap gap-2">
@@ -109,9 +137,9 @@ export function SystemPreferencesPanel() {
         </div>
       </div>
 
-      <div className="rounded-2xl border border-slate-100 bg-slate-50/70 p-4">
-        <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-800">
-          <Languages className="h-4 w-4 text-slate-500" />
+      <div className="rounded-2xl border border-slate-100 bg-slate-50/70 p-4 dark:border-slate-800 dark:bg-slate-900/70">
+        <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-800 dark:text-slate-100">
+          <Languages className="h-4 w-4 text-slate-500 dark:text-slate-400" />
           Language
         </div>
         <div className="flex flex-wrap gap-2">
@@ -124,9 +152,9 @@ export function SystemPreferencesPanel() {
         </div>
       </div>
 
-      <div className="rounded-2xl border border-slate-100 bg-slate-50/70 p-4">
-        <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-800">
-          <Rows3 className="h-4 w-4 text-slate-500" />
+      <div className="rounded-2xl border border-slate-100 bg-slate-50/70 p-4 dark:border-slate-800 dark:bg-slate-900/70">
+        <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-800 dark:text-slate-100">
+          <Rows3 className="h-4 w-4 text-slate-500 dark:text-slate-400" />
           Default Pagination Size
         </div>
         <div className="flex flex-wrap gap-2">
@@ -143,9 +171,9 @@ export function SystemPreferencesPanel() {
         </div>
       </div>
 
-      <div className="rounded-2xl border border-slate-100 bg-slate-50/70 p-4">
-        <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-800">
-          <TimerReset className="h-4 w-4 text-slate-500" />
+      <div className="rounded-2xl border border-slate-100 bg-slate-50/70 p-4 dark:border-slate-800 dark:bg-slate-900/70">
+        <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-800 dark:text-slate-100">
+          <TimerReset className="h-4 w-4 text-slate-500 dark:text-slate-400" />
           Default Dashboard Range
         </div>
         <div className="flex flex-wrap gap-2">
@@ -166,8 +194,8 @@ export function SystemPreferencesPanel() {
         </div>
       </div>
 
-      <div className="rounded-2xl border border-slate-100 bg-slate-50/70 p-4">
-        <div className="mb-3 text-sm font-semibold text-slate-800">Timezone</div>
+      <div className="rounded-2xl border border-slate-100 bg-slate-50/70 p-4 dark:border-slate-800 dark:bg-slate-900/70">
+        <div className="mb-3 text-sm font-semibold text-slate-800 dark:text-slate-100">Timezone</div>
         <div className="flex flex-wrap gap-2">
           {[
             "Asia/Kathmandu",

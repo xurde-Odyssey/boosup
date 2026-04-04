@@ -541,6 +541,20 @@ export async function upsertSale(formData: FormData) {
     : 0;
   const remainingBeforePayment = Math.max(grossTotal - existingAmountReceived, 0);
   const maxCollectibleAmount = remainingBeforePayment > 0 ? remainingBeforePayment : 0;
+
+  if (
+    paymentIncrementInput > 0 &&
+    (requestedPaymentStatus === "PAID" || requestedPaymentStatus === "PARTIAL") &&
+    paymentIncrementInput > maxCollectibleAmount
+  ) {
+    redirectWithMessage(
+      salesFormPath,
+      maxCollectibleAmount > 0
+        ? `Amount received now cannot exceed the remaining amount of ${maxCollectibleAmount.toFixed(2)}`
+        : "This invoice is already fully paid",
+    );
+  }
+
   const paymentIncrement =
     maxCollectibleAmount <= 0
       ? 0

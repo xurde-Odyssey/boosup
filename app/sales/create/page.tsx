@@ -1,4 +1,4 @@
-import { FilePlus2, ReceiptText } from "lucide-react";
+import { ArrowLeft, FilePlus2, ReceiptText, ScrollText } from "lucide-react";
 import { Header } from "@/components/dashboard/Header";
 import { Sidebar } from "@/components/dashboard/Sidebar";
 import { SalesPrintPreview } from "@/components/sales/SalesPrintPreview";
@@ -117,8 +117,17 @@ export default async function CreateSalesPage({
         <QueryNoticeToast message={notice} />
         <PageActionStrip
           actions={[
-            { label: "Back To Sales", href: "/sales", variant: "secondary" },
-            ...(editingSale ? [{ label: "Open Invoice Register", href: "/sales/view", variant: "secondary" as const }] : []),
+            { label: "Back To Sales", href: "/sales", variant: "secondary", icon: ArrowLeft },
+            ...(editingSale
+              ? [
+                  {
+                    label: "Recorded Bills",
+                    href: "/sales/view",
+                    variant: "secondary" as const,
+                    icon: ScrollText,
+                  },
+                ]
+              : []),
           ]}
         />
 
