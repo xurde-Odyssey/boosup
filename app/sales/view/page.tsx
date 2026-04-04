@@ -70,7 +70,7 @@ export default async function RecentSalesInvoicesPage({
   const search = typeof params.q === "string" ? params.q.trim() : "";
   const sort = typeof params.sort === "string" ? params.sort : "date_desc";
   const status = typeof params.status === "string" ? params.status : "ALL";
-  const selectedRange = typeof params.range === "string" ? params.range : "month";
+  const selectedRange = typeof params.range === "string" ? params.range : "year";
   const todayDate = getTodayDate();
   const defaultRange = getDateRange(selectedRange, todayDate);
   const fromDate = typeof params.from === "string" && params.from ? params.from : defaultRange.from;

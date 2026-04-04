@@ -21,6 +21,7 @@ export function PrintDocument({
         className="w-full bg-white p-6 shadow-sm print:min-h-[297mm] print:shadow-none"
       >
         {children}
+        <PrintClosing />
       </section>
     </div>
   );
@@ -89,5 +90,26 @@ export function PrintSectionTitle({
     >
       {children}
     </div>
+  );
+}
+
+export function PrintClosing() {
+  return (
+    <footer className="mt-8 pt-5">
+      <div className="flex justify-end">
+        <div className="w-72 pt-3 text-center">
+          <div className="mb-2 h-12" />
+          <div className="border-t border-slate-400 pt-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-600">
+            Seller Signature
+          </div>
+        </div>
+      </div>
+      <div className="mt-10 border-t border-slate-300 pt-5">
+        <p className="text-center text-[11px] leading-5 text-slate-500">
+        This invoice does not represent any legal work; it is computer-generated and used for
+        information only.
+        </p>
+      </div>
+    </footer>
   );
 }

@@ -48,7 +48,7 @@ const getDefaultRange = (range: string, today: string) => {
 
 export function ReportToolbar({
   actionPath,
-  selectedRange = "month",
+  selectedRange = "year",
   fromDate,
   toDate,
   reportButton,

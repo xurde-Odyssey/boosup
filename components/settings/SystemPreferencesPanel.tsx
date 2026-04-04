@@ -42,13 +42,13 @@ export function SystemPreferencesPanel() {
       : "10";
   });
   const [dashboardRange, setDashboardRange] = useState<DashboardRange>(() => {
-    if (typeof window === "undefined") return "month";
+    if (typeof window === "undefined") return "year";
     const savedDashboardRange = localStorage.getItem(DASHBOARD_RANGE_KEY);
     return savedDashboardRange === "week" ||
       savedDashboardRange === "month" ||
       savedDashboardRange === "year"
       ? savedDashboardRange
-      : "month";
+      : "year";
   });
   const [timezone, setTimezone] = useState(() => {
     if (typeof window === "undefined") return "Asia/Kathmandu";

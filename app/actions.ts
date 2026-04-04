@@ -540,14 +540,17 @@ export async function upsertSale(formData: FormData) {
       )
     : 0;
   const remainingBeforePayment = Math.max(grossTotal - existingAmountReceived, 0);
+  const maxCollectibleAmount = remainingBeforePayment > 0 ? remainingBeforePayment : 0;
   const paymentIncrement =
-    requestedPaymentStatus === "PAID"
+    maxCollectibleAmount <= 0
+      ? 0
+      : requestedPaymentStatus === "PAID"
       ? Math.min(
-          paymentIncrementInput > 0 ? paymentIncrementInput : remainingBeforePayment || grossTotal,
-          remainingBeforePayment || grossTotal,
+          paymentIncrementInput > 0 ? paymentIncrementInput : maxCollectibleAmount,
+          maxCollectibleAmount,
         )
       : requestedPaymentStatus === "PARTIAL"
-        ? Math.min(paymentIncrementInput, remainingBeforePayment || grossTotal)
+        ? Math.min(paymentIncrementInput, maxCollectibleAmount)
         : 0;
   const amountReceived = Math.max(existingAmountReceived + paymentIncrement, 0);
   const paymentStatus =

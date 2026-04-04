@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { AutoPrint } from "@/components/shared/AutoPrint";
 import { PrintAgainButton } from "@/components/shared/PrintAgainButton";
+import { PrintClosing } from "@/components/shared/PrintDocument";
 import { getCompanySettings } from "@/lib/company-settings-server";
 import { formatCurrency, formatDate } from "@/lib/presentation";
 import { getSupabaseClient } from "@/lib/supabase/server";
@@ -288,6 +289,8 @@ export default async function SalesPrintPage({
             </div>
           </div>
         </div>
+
+        <PrintClosing />
       </section>
     </main>
   );

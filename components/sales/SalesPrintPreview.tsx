@@ -301,11 +301,6 @@ export function SalesPrintPreview({
                 <p className="mt-2 text-sm leading-6 text-slate-600">{sale.notes}</p>
               </div>
             )}
-
-            <footer className="mt-6 border-t border-slate-200 pt-4 text-[11px] leading-5 text-slate-500">
-              This invoice does not represent any legal work; it is computer-generated and used for
-              information only.
-            </footer>
           </PrintDocument>,
           document.body,
         )}

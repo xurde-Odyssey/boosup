@@ -126,14 +126,17 @@ export function SalesForm({
   const previousAmountReceived = Number(editingSale?.amount_received ?? 0);
   const enteredPaymentAmount = toNumber(paymentIncrement);
   const remainingBeforePayment = Math.max(grandTotal - previousAmountReceived, 0);
+  const isFullyPaid = remainingBeforePayment <= 0 && grandTotal > 0;
   const effectivePaymentIncrement =
-    paymentStatus === "PAID"
+    isFullyPaid
+      ? 0
+      : paymentStatus === "PAID"
       ? Math.min(
-          enteredPaymentAmount > 0 ? enteredPaymentAmount : remainingBeforePayment || grandTotal,
-          remainingBeforePayment || grandTotal,
+          enteredPaymentAmount > 0 ? enteredPaymentAmount : remainingBeforePayment,
+          remainingBeforePayment,
         )
       : paymentStatus === "PARTIAL"
-        ? Math.min(enteredPaymentAmount, remainingBeforePayment || grandTotal)
+        ? Math.min(enteredPaymentAmount, remainingBeforePayment)
         : 0;
   const effectiveAmountReceived = previousAmountReceived + effectivePaymentIncrement;
   const remainingAmount = Math.max(grandTotal - effectiveAmountReceived, 0);
@@ -517,7 +520,7 @@ export function SalesForm({
             </div>
           </div>
 
-          {(paymentStatus === "PARTIAL" || paymentStatus === "PAID") && (
+          {(paymentStatus === "PARTIAL" || paymentStatus === "PAID") && !isFullyPaid && (
             <div className="grid grid-cols-1 gap-4 rounded-2xl border border-dashed border-slate-200 bg-slate-50/80 p-4 md:grid-cols-2">
               <div>
                 <label className="mb-2 block text-sm font-semibold text-slate-700">
@@ -545,6 +548,12 @@ export function SalesForm({
                 <input type="hidden" name="payment_date_bs" value={paymentDateBs} />
                 <input type="hidden" name="payment_date" value={paymentDate} />
               </div>
+            </div>
+          )}
+
+          {(paymentStatus === "PARTIAL" || paymentStatus === "PAID") && isFullyPaid && (
+            <div className="rounded-2xl border border-green-200 bg-green-50 px-4 py-3 text-sm font-medium text-green-700">
+              This invoice is already fully paid. No additional amount can be received now.
             </div>
           )}
         </div>

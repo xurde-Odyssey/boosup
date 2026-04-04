@@ -120,7 +120,7 @@ export default async function Home({
   const supabase = await getSupabaseClient();
   const company = await getCompanySettings();
   const todayDate = getTodayDate();
-  const selectedRange = typeof params.range === "string" ? params.range : "month";
+  const selectedRange = typeof params.range === "string" ? params.range : "year";
   const defaultRange = getDateRange(selectedRange, todayDate);
   const fromDate = typeof params.from === "string" && params.from ? params.from : defaultRange.from;
   const toDate = typeof params.to === "string" && params.to ? params.to : defaultRange.to;
