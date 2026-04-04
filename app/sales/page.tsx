@@ -1,4 +1,12 @@
-import { AlertCircle, CircleDollarSign, Clock, HandCoins, TrendingUp } from "lucide-react";
+import {
+  AlertCircle,
+  CircleDollarSign,
+  Clock,
+  FilePlus2,
+  HandCoins,
+  LayoutList,
+  TrendingUp,
+} from "lucide-react";
 import { Header } from "@/components/dashboard/Header";
 import { InvoicesTable } from "@/components/dashboard/InvoicesTable";
 import { SalesReportPrintButton } from "@/components/dashboard/SalesReportPrintButton";
@@ -270,8 +278,13 @@ export default async function SalesPage({
         />
         <PageActionStrip
           actions={[
-            { label: "Create Sales Bill", href: "/sales/create" },
-            { label: "Open Invoice Register", href: "/sales/view", variant: "secondary" },
+            { label: "Create Sales Bill", href: "/sales/create", icon: FilePlus2 },
+            {
+              label: "Recorded Bills",
+              href: "/sales/view",
+              variant: "secondary",
+              icon: LayoutList,
+            },
           ]}
         />
 

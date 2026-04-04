@@ -32,18 +32,24 @@ export function QueryNoticeToast({ message }: { message: string }) {
     if (!message) return;
 
     const variant = getToastVariant(message);
+    const toastId = `query-notice:${variant}:${message}`;
+    const toastOptions = {
+      id: toastId,
+      className: "min-w-[360px] rounded-2xl px-4 py-4 text-base font-semibold shadow-lg",
+      descriptionClassName: "text-sm",
+    };
 
     if (variant === "success") {
-      toast.success(message);
+      toast.success(message, toastOptions);
       return;
     }
 
     if (variant === "error") {
-      toast.error(message);
+      toast.error(message, toastOptions);
       return;
     }
 
-    toast.message(message);
+    toast.message(message, toastOptions);
   }, [message]);
 
   return null;

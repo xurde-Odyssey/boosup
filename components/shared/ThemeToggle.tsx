@@ -6,27 +6,43 @@ import { useSyncExternalStore } from "react";
 const THEME_KEY = "bookkeep-theme";
 const THEME_EVENT = "bookkeep-theme-change";
 
+const getResolvedTheme = () => {
+  if (typeof window === "undefined") {
+    return "light";
+  }
+
+  const storedTheme = window.localStorage.getItem(THEME_KEY);
+  if (storedTheme === "dark" || storedTheme === "light") {
+    return storedTheme;
+  }
+
+  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+};
+
 const subscribe = (callback: () => void) => {
   if (typeof window === "undefined") {
     return () => {};
   }
 
   const handleChange = () => callback();
+  const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
   window.addEventListener(THEME_EVENT, handleChange);
   window.addEventListener("storage", handleChange);
+  mediaQuery.addEventListener("change", handleChange);
 
   return () => {
     window.removeEventListener(THEME_EVENT, handleChange);
     window.removeEventListener("storage", handleChange);
+    mediaQuery.removeEventListener("change", handleChange);
   };
 };
 
 const getThemeSnapshot = () => {
-  if (typeof document === "undefined") {
+  if (typeof window === "undefined") {
     return false;
   }
 
-  return document.documentElement.classList.contains("dark");
+  return getResolvedTheme() === "dark";
 };
 
 export function ThemeToggle() {
@@ -39,6 +55,7 @@ export function ThemeToggle() {
 
     const nextIsDark = !document.documentElement.classList.contains("dark");
     document.documentElement.classList.toggle("dark", nextIsDark);
+    document.documentElement.style.colorScheme = nextIsDark ? "dark" : "light";
     window.localStorage.setItem(THEME_KEY, nextIsDark ? "dark" : "light");
     window.dispatchEvent(new Event(THEME_EVENT));
   };

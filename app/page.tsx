@@ -9,6 +9,7 @@ import {
   TrendingUp,
   Wallet,
 } from "lucide-react";
+import Link from "next/link";
 import { ExpenseBreakdownChart } from "@/components/dashboard/ExpenseBreakdownChart";
 import { Header } from "@/components/dashboard/Header";
 import { SalesPurchasesChart } from "@/components/dashboard/SalesPurchasesChart";
@@ -132,14 +133,20 @@ export default async function Home({
     salesItemsResponse,
     purchaseItemsResponse,
     staffSalaryPaymentsResponse,
+    salesPaymentsResponse,
+    purchasePaymentsResponse,
   ] = await Promise.all([
     supabase
       .from("sales")
-      .select("invoice_number, customer_name, sales_date, grand_total, payment_status, created_at")
+      .select(
+        "invoice_number, customer_name, sales_date, grand_total, amount_received, remaining_amount, payment_status, created_at",
+      )
       .order("sales_date", { ascending: true }),
     supabase
       .from("purchases")
-      .select("purchase_number, purchase_date, total_amount, credit_amount, created_at")
+      .select(
+        "purchase_number, purchase_date, total_amount, paid_amount, credit_amount, payment_status, vendor_name, created_at",
+      )
       .order("purchase_date", { ascending: true }),
     supabase.from("staff_profiles").select("total_salary, advance_salary"),
     supabase.from("purchase_expenses").select("expense_date, expense_title, amount, created_at"),
@@ -153,7 +160,21 @@ export default async function Home({
       .order("created_at", { ascending: false }),
     supabase
       .from("staff_salary_payments")
-      .select("staff_id, salary_month_bs, payment_date, payment_type, working_days, leave_days, monthly_salary, advance_payment, created_at, staff_profiles(name)")
+      .select(
+        "staff_id, salary_month_bs, payment_date, payment_type, working_days, leave_days, monthly_salary, monthly_payment, advance_payment, created_at, staff_profiles(name)",
+      )
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("sales_payments")
+      .select(
+        "id, payment_date, amount, created_at, sales(id, invoice_number, customer_name, grand_total, amount_received, payment_status)",
+      )
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("purchase_payments")
+      .select(
+        "id, payment_date, amount, created_at, payment_method, purchases(id, purchase_number, total_amount, paid_amount, credit_amount, payment_status, vendor_name, vendors(name))",
+      )
       .order("created_at", { ascending: false }),
   ]);
 
@@ -164,6 +185,8 @@ export default async function Home({
   const salesItems = salesItemsResponse.data ?? [];
   const purchaseItems = purchaseItemsResponse.data ?? [];
   const staffSalaryPayments = staffSalaryPaymentsResponse.data ?? [];
+  const salesPayments = salesPaymentsResponse.data ?? [];
+  const purchasePayments = purchasePaymentsResponse.data ?? [];
   const payrollMonthSummaries = buildPayrollMonthSummaries(staffSalaryPayments);
   const filteredSales = sales.filter((sale) => isWithinRange(sale.sales_date, fromDate, toDate));
   const filteredPurchases = purchases.filter((purchase) =>
@@ -184,6 +207,15 @@ export default async function Home({
       : item.purchases?.purchase_date ?? null;
     return isWithinRange(boughtOn, fromDate, toDate);
   });
+  const filteredStaffSalaryPayments = staffSalaryPayments.filter((payment) =>
+    isWithinRange(payment.payment_date, fromDate, toDate),
+  );
+  const filteredSalesPayments = salesPayments.filter((payment) =>
+    isWithinRange(payment.payment_date, fromDate, toDate),
+  );
+  const filteredPurchasePayments = purchasePayments.filter((payment) =>
+    isWithinRange(payment.payment_date, fromDate, toDate),
+  );
 
   const totalSales = filteredSales.reduce((sum, sale) => sum + Number(sale.grand_total ?? 0), 0);
   const totalPurchases = filteredPurchases.reduce(
@@ -350,74 +382,163 @@ export default async function Home({
       billCount: value.billCount,
       lastBought: formatBsDisplayDate(value.lastBought),
     }));
-  const overdueSalesCount = filteredSales.filter((sale) => sale.payment_status === "OVERDUE").length;
-  const overduePurchasesCount = filteredPurchases.filter(
-    (purchase) => Number(purchase.credit_amount ?? 0) > 0,
-  ).length;
-  const unpaidSalaryCount = payrollMonthSummaries.filter(
-    (summary) => summary.remaining_salary > 0,
-  ).length;
+  const overdueSales = filteredSales.filter((sale) => sale.payment_status === "OVERDUE");
+  const pendingCustomerCollections = filteredSales.filter(
+    (sale) =>
+      sale.payment_status !== "OVERDUE" && Number(sale.remaining_amount ?? 0) > 0,
+  );
+  const overdueSupplierBills = filteredPurchases.filter(
+    (purchase) => purchase.payment_status === "OVERDUE",
+  );
+  const supplierDues = filteredPurchases.filter((purchase) => Number(purchase.credit_amount ?? 0) > 0);
+  const unpaidSalaryEntries = payrollMonthSummaries.filter((summary) => summary.remaining_salary > 0);
+  const highExpensesTotal = filteredExpenses.reduce((sum, expense) => sum + Number(expense.amount ?? 0), 0);
   const alerts = [
-    overdueSalesCount > 0
+    overdueSales.length > 0
       ? {
-          title: `${overdueSalesCount} overdue sales invoice${overdueSalesCount > 1 ? "s" : ""}`,
-          description: "Customer collections need follow-up.",
-          tone: "red",
+          title: "Overdue Sales",
+          value: `${overdueSales.length} invoice${overdueSales.length > 1 ? "s" : ""}`,
+          description: `${formatCurrency(overdueSales.reduce((sum, sale) => sum + Number(sale.remaining_amount ?? 0), 0))} needs collection follow-up.`,
+          tone: "rose",
+          href: "/sales?status=OVERDUE",
+          actionLabel: "Open Sales",
         }
       : null,
-    overduePurchasesCount > 0
+    pendingCustomerCollections.length > 0
       ? {
-          title: `${overduePurchasesCount} purchase bill${overduePurchasesCount > 1 ? "s" : ""} still payable`,
-          description: "Supplier credit remains unsettled.",
+          title: "Pending Customer Payments",
+          value: `${pendingCustomerCollections.length} bill${pendingCustomerCollections.length > 1 ? "s" : ""}`,
+          description: `${formatCurrency(pendingCustomerCollections.reduce((sum, sale) => sum + Number(sale.remaining_amount ?? 0), 0))} still outstanding.`,
           tone: "amber",
+          href: "/sales?status=PARTIAL",
+          actionLabel: "Review Pending",
         }
       : null,
-    unpaidSalaryCount > 0
+    supplierDues.length > 0
       ? {
-          title: `${unpaidSalaryCount} salary entr${unpaidSalaryCount > 1 ? "ies" : "y"} with remaining payment`,
-          description: "Staff payments need attention.",
+          title: "Supplier Dues",
+          value: `${supplierDues.length} bill${supplierDues.length > 1 ? "s" : ""}`,
+          description: `${formatCurrency(supplierDues.reduce((sum, purchase) => sum + Number(purchase.credit_amount ?? 0), 0))} remains payable to suppliers.`,
           tone: "blue",
+          href: "/purchases",
+          actionLabel: "Open Purchases",
         }
       : null,
-  ].filter(Boolean) as { title: string; description: string; tone: string }[];
+    overdueSupplierBills.length > 0
+      ? {
+          title: "Overdue Supplier Bills",
+          value: `${overdueSupplierBills.length} bill${overdueSupplierBills.length > 1 ? "s" : ""}`,
+          description: `${formatCurrency(overdueSupplierBills.reduce((sum, purchase) => sum + Number(purchase.credit_amount ?? 0), 0))} is overdue.`,
+          tone: "red",
+          href: "/purchases",
+          actionLabel: "Follow Up",
+        }
+      : null,
+    unpaidSalaryEntries.length > 0
+      ? {
+          title: "Unpaid Salary Commitments",
+          value: `${unpaidSalaryEntries.length} entr${unpaidSalaryEntries.length > 1 ? "ies" : "y"}`,
+          description: `${formatCurrency(unpaidSalaryEntries.reduce((sum, entry) => sum + Number(entry.remaining_salary ?? 0), 0))} is still pending for staff.`,
+          tone: "slate",
+          href: "/staff",
+          actionLabel: "Open Payroll",
+        }
+      : null,
+    highExpensesTotal >= 50000
+      ? {
+          title: "High Expenses In Range",
+          value: `${filteredExpenses.length} expense${filteredExpenses.length > 1 ? "s" : ""}`,
+          description: `${formatCurrency(highExpensesTotal)} recorded in the selected period.`,
+          tone: "amber",
+          href: "/purchases",
+          actionLabel: "Review Expenses",
+        }
+      : null,
+  ].filter(Boolean) as Array<{
+    title: string;
+    value: string;
+    description: string;
+    tone: string;
+    href: string;
+    actionLabel: string;
+  }>;
   const recentActivity = [
-    ...filteredSales.slice(-5).map((sale) => ({
+    ...filteredSales.map((sale) => ({
       id: `sale-${sale.invoice_number}-${sale.created_at ?? sale.sales_date}`,
-      title: `Sale invoice ${sale.invoice_number}`,
-      description: sale.customer_name,
+      title: "Sales bill created",
+      description: `${sale.invoice_number} • ${sale.customer_name}`,
       amount: formatCurrency(sale.grand_total),
       date: formatBsDisplayDate(sale.sales_date),
       sortKey: sale.created_at ?? sale.sales_date ?? "",
       tone: "green",
       icon: ReceiptText,
     })),
-    ...filteredPurchases.slice(-5).map((purchase) => ({
+    ...filteredSalesPayments.map((payment) => {
+      const sale = Array.isArray(payment.sales) ? payment.sales[0] : payment.sales;
+      const totalAmount = Number(sale?.grand_total ?? 0);
+      const amountReceived = Number(sale?.amount_received ?? 0);
+      const wasFullyPaidByThisPayment =
+        amountReceived >= totalAmount && amountReceived - Number(payment.amount ?? 0) < totalAmount;
+
+      return {
+        id: `sales-payment-${payment.id}`,
+        title: wasFullyPaidByThisPayment ? "Sales bill fully paid" : "Sales payment received",
+        description: `${sale?.invoice_number ?? "Sales bill"} • ${sale?.customer_name ?? "Customer"}`,
+        amount: formatCurrency(payment.amount),
+        date: formatBsDisplayDate(payment.payment_date),
+        sortKey: payment.created_at ?? payment.payment_date ?? "",
+        tone: wasFullyPaidByThisPayment ? "emerald" : "green",
+        icon: Wallet,
+      };
+    }),
+    ...filteredPurchases.map((purchase) => ({
       id: `purchase-${purchase.purchase_number}-${purchase.created_at ?? purchase.purchase_date}`,
-      title: `Purchase ${purchase.purchase_number}`,
-      description: "Purchase entry recorded",
+      title: "Purchase bill created",
+      description: `${purchase.purchase_number} • ${purchase.vendor_name ?? "Supplier"}`,
       amount: formatCurrency(purchase.total_amount),
       date: formatBsDisplayDate(purchase.purchase_date),
       sortKey: purchase.created_at ?? purchase.purchase_date ?? "",
       tone: "blue",
       icon: ShoppingCart,
     })),
-    ...filteredExpenses.slice(-5).map((expense) => ({
+    ...filteredPurchasePayments.map((payment) => {
+      const purchase = Array.isArray(payment.purchases) ? payment.purchases[0] : payment.purchases;
+      const vendorName = Array.isArray(purchase?.vendors)
+        ? purchase?.vendors[0]?.name
+        : purchase?.vendors?.name;
+      const totalAmount = Number(purchase?.total_amount ?? 0);
+      const paidAmount = Number(purchase?.paid_amount ?? 0);
+      const wasFullyPaidByThisPayment =
+        paidAmount >= totalAmount && paidAmount - Number(payment.amount ?? 0) < totalAmount;
+
+      return {
+        id: `purchase-payment-${payment.id}`,
+        title: wasFullyPaidByThisPayment ? "Purchase bill fully paid" : "Purchase payment made",
+        description: `${purchase?.purchase_number ?? "Purchase bill"} • ${vendorName ?? purchase?.vendor_name ?? "Supplier"}`,
+        amount: formatCurrency(payment.amount),
+        date: formatBsDisplayDate(payment.payment_date),
+        sortKey: payment.created_at ?? payment.payment_date ?? "",
+        tone: wasFullyPaidByThisPayment ? "blue" : "slate",
+        icon: CircleDollarSign,
+      };
+    }),
+    ...filteredExpenses.map((expense) => ({
       id: `expense-${expense.expense_title}-${expense.created_at ?? expense.expense_date}`,
-      title: expense.expense_title || "Purchase expense",
-      description: "Expense recorded",
+      title: "Expense added",
+      description: expense.expense_title || "Purchase expense",
       amount: formatCurrency(expense.amount),
       date: formatBsDisplayDate(expense.expense_date),
       sortKey: expense.created_at ?? expense.expense_date ?? "",
       tone: "amber",
       icon: CreditCard,
     })),
-    ...staffSalaryPayments.slice(0, 5).map((payment) => ({
+    ...filteredStaffSalaryPayments.map((payment) => ({
       id: `salary-${payment.created_at ?? payment.payment_date}-${payment.salary_month_bs}`,
-      title: `${payment.payment_type === "SALARY" ? "Salary paid" : "Advance paid"} ${payment.salary_month_bs}`,
-      description: Array.isArray(payment.staff_profiles)
-        ? payment.staff_profiles[0]?.name ?? "Staff"
-        : payment.staff_profiles?.name ?? "Staff",
-      amount: formatCurrency(payment.advance_payment),
+      title: payment.payment_type === "SALARY" ? "Staff salary paid" : "Staff advance paid",
+      description: `${Array.isArray(payment.staff_profiles) ? payment.staff_profiles[0]?.name ?? "Staff" : payment.staff_profiles?.name ?? "Staff"} • ${payment.salary_month_bs}`,
+      amount: formatCurrency(
+        payment.payment_type === "SALARY" ? payment.monthly_payment : payment.advance_payment,
+      ),
       date: formatBsDisplayDate(payment.payment_date),
       sortKey: payment.created_at ?? payment.payment_date ?? "",
       tone: "slate",
@@ -425,7 +546,7 @@ export default async function Home({
     })),
   ]
     .sort((left, right) => right.sortKey.localeCompare(left.sortKey))
-    .slice(0, 8);
+    .slice(0, 10);
   const selectedPeriodLabel = formatReportPeriod(selectedRange, fromDate, toDate);
   const generatedReportDate = formatBsDisplayDate(todayDate);
   const nepaliNow = getNepaliDateTimeParts();
@@ -558,7 +679,7 @@ export default async function Home({
                 <div>
                   <h3 className="text-lg font-bold text-slate-900">Operational Alerts</h3>
                   <p className="mt-1 text-xs text-slate-500">
-                    Follow-up items needing action across sales, purchases, and payroll.
+                    Top actionable issues needing follow-up across collections, payables, and payroll.
                   </p>
                 </div>
               </div>
@@ -572,8 +693,21 @@ export default async function Home({
                       index % 2 === 0 ? "bg-white" : "bg-slate-50/20"
                     }`}
                   >
-                    <div className="text-sm font-semibold text-slate-900">{alert.title}</div>
-                    <div className="mt-1 text-xs text-slate-500">{alert.description}</div>
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-400">
+                          {alert.title}
+                        </div>
+                        <div className="mt-1 text-sm font-semibold text-slate-900">{alert.value}</div>
+                        <div className="mt-1 text-xs leading-5 text-slate-500">{alert.description}</div>
+                      </div>
+                      <Link
+                        href={alert.href}
+                        className="shrink-0 rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50"
+                      >
+                        {alert.actionLabel}
+                      </Link>
+                    </div>
                   </div>
                 ))
               ) : (
@@ -588,7 +722,7 @@ export default async function Home({
             <div className="border-b border-slate-50 p-6">
               <h3 className="text-lg font-bold text-slate-900">Recent Activity</h3>
               <p className="mt-1 text-xs text-slate-500">
-                Latest entries flowing through the system.
+                Latest financial events recorded across sales, purchases, expenses, and staff payments.
               </p>
             </div>
             <div className="divide-y divide-slate-50">
@@ -603,7 +737,19 @@ export default async function Home({
                       }`}
                     >
                       <div className="flex min-w-0 items-center gap-3">
-                        <div className="rounded-xl bg-slate-100 p-2.5 text-slate-600">
+                        <div
+                          className={`rounded-xl p-2.5 ${
+                            activity.tone === "green"
+                              ? "bg-emerald-50 text-emerald-600"
+                              : activity.tone === "emerald"
+                                ? "bg-green-50 text-green-700"
+                                : activity.tone === "blue"
+                                  ? "bg-blue-50 text-blue-600"
+                                  : activity.tone === "amber"
+                                    ? "bg-amber-50 text-amber-700"
+                                    : "bg-slate-100 text-slate-600"
+                          }`}
+                        >
                           <Icon className="h-4 w-4" />
                         </div>
                         <div className="min-w-0">

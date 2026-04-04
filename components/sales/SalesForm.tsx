@@ -531,6 +531,7 @@ export function SalesForm({
                   name="payment_increment"
                   type="number"
                   min="0"
+                  max={remainingBeforePayment}
                   step="0.01"
                   value={paymentIncrement}
                   onChange={(event) => setPaymentIncrement(event.target.value)}
@@ -539,8 +540,9 @@ export function SalesForm({
                       ? "Leave blank to collect full remaining"
                       : "Enter received amount"
                   }
-                  className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-blue-500"
+                  className="[appearance:textfield] w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none focus:border-blue-500"
                 />
+                <FieldHint>Cannot be more than the current remaining amount.</FieldHint>
               </div>
               <div>
                 <label className="mb-2 block text-sm font-semibold text-slate-700">Payment Date</label>

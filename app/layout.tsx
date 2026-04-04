@@ -49,6 +49,7 @@ export default function RootLayout({
                   var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
                   var shouldUseDark = storedTheme ? storedTheme === 'dark' : prefersDark;
                   document.documentElement.classList.toggle('dark', shouldUseDark);
+                  document.documentElement.style.colorScheme = shouldUseDark ? 'dark' : 'light';
                 } catch (error) {}
               })();
             `,

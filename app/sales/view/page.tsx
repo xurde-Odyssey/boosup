@@ -1,3 +1,4 @@
+import { ArrowLeft, FilePlus2 } from "lucide-react";
 import { Header } from "@/components/dashboard/Header";
 import { InvoicesTable } from "@/components/dashboard/InvoicesTable";
 import { Sidebar } from "@/components/dashboard/Sidebar";
@@ -160,8 +161,13 @@ export default async function RecentSalesInvoicesPage({
         />
         <PageActionStrip
           actions={[
-            { label: "Create Sales", href: "/sales/create" },
-            { label: "Back To Sales Overview", href: "/sales", variant: "secondary" },
+            { label: "Create Sales", href: "/sales/create", icon: FilePlus2 },
+            {
+              label: "Back To Sales Overview",
+              href: "/sales",
+              variant: "secondary",
+              icon: ArrowLeft,
+            },
           ]}
         />
 
