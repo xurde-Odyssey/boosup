@@ -1,6 +1,7 @@
 "use client";
 
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
+import { cn } from "@/lib/utils";
 
 type ExpensePoint = {
   name: string;
@@ -11,16 +12,29 @@ type ExpensePoint = {
 export function ExpenseBreakdownChart({
   data,
   total,
+  compact = false,
+  className,
 }: {
   data: ExpensePoint[];
   total: string;
+  compact?: boolean;
+  className?: string;
 }) {
   return (
-    <div className="flex h-[400px] flex-col rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
-      <div className="mb-6">
-        <h3 className="text-lg font-bold text-slate-900">Expense Breakdown</h3>
-        <p className="text-sm text-slate-500">Current allocation from stored records</p>
-      </div>
+    <div
+      className={cn(
+        compact
+          ? "flex h-[320px] flex-col"
+          : "flex h-[400px] flex-col rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm shadow-slate-200/50",
+        className,
+      )}
+    >
+      {!compact ? (
+        <div className="mb-6">
+          <h3 className="text-lg font-bold text-slate-900">Expense Breakdown</h3>
+          <p className="text-sm text-slate-500">Current allocation from stored records</p>
+        </div>
+      ) : null}
       <div className="relative flex-1">
         {data.length > 0 ? (
           <ResponsiveContainer width="100%" height="100%">
@@ -48,7 +62,7 @@ export function ExpenseBreakdownChart({
             </PieChart>
           </ResponsiveContainer>
         ) : (
-          <div className="flex h-full items-center justify-center rounded-2xl border border-dashed border-slate-200 text-sm text-slate-500">
+          <div className="flex h-full items-center justify-center rounded-2xl border border-dashed border-slate-200/80 bg-slate-50/50 text-sm text-slate-500">
             No expense data yet.
           </div>
         )}

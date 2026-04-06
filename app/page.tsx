@@ -1,24 +1,27 @@
 import {
-  AlertCircle,
-  BellRing,
   CalendarClock,
   CircleDollarSign,
   CreditCard,
+  FilePlus,
+  HandCoins,
   ReceiptText,
   ShoppingCart,
   TrendingUp,
   Wallet,
 } from "lucide-react";
-import Link from "next/link";
+import { ActivityCard } from "@/components/dashboard/ActivityCard";
+import { AlertsCard } from "@/components/dashboard/AlertsCard";
+import { ChartCard } from "@/components/dashboard/ChartCard";
+import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
+import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
+import { DashboardGrid } from "@/components/dashboard/DashboardGrid";
 import { ExpenseBreakdownChart } from "@/components/dashboard/ExpenseBreakdownChart";
-import { Header } from "@/components/dashboard/Header";
+import { KpiCard } from "@/components/dashboard/KpiCard";
 import { SalesPurchasesChart } from "@/components/dashboard/SalesPurchasesChart";
-import { Sidebar } from "@/components/dashboard/Sidebar";
-import { SummaryCard } from "@/components/dashboard/SummaryCard";
-import { TopCustomersTable } from "@/components/dashboard/TopCustomersTable";
-import { TopPurchaseItemsTable } from "@/components/dashboard/TopPurchaseItemsTable";
-import { TopSalesItemsTable } from "@/components/dashboard/TopSalesItemsTable";
+import { Tab, TabList, TabPanel, Tabs } from "@/components/dashboard/Tabs";
+import { TableCard } from "@/components/dashboard/TableCard";
 import { DashboardReportPrintButton } from "@/components/dashboard/DashboardReportPrintButton";
+import { Button } from "@/components/shared/Button";
 import { ReportToolbar } from "@/components/shared/ReportToolbar";
 import { ThemeToggle } from "@/components/shared/ThemeToggle";
 import { getCompanySettings } from "@/lib/company-settings-server";
@@ -616,76 +619,83 @@ export default async function Home({
       const staffName =
         staffProfiles.find((staff) => staff.id === payment.staff_id)?.name ?? "Staff";
       return {
-      id: `salary-${payment.created_at ?? payment.transaction_date}-${payment.id}`,
-      title: payment.type === "SALARY" ? "Staff salary paid" : "Staff advance paid",
-      description: `${staffName} • ${payment.month_label}`,
-      amount: formatCurrency(payment.amount),
-      date: formatBsDisplayDate(payment.transaction_date),
-      sortKey: payment.created_at ?? payment.transaction_date ?? "",
-      tone: "slate",
-      icon: Wallet,
-    };
+        id: `salary-${payment.created_at ?? payment.transaction_date}-${payment.id}`,
+        title: payment.type === "SALARY" ? "Staff salary paid" : "Staff advance paid",
+        description: `${staffName} • ${payment.month_label}`,
+        amount: formatCurrency(payment.amount),
+        date: formatBsDisplayDate(payment.transaction_date),
+        sortKey: payment.created_at ?? payment.transaction_date ?? "",
+        tone: "slate",
+        icon: Wallet,
+      };
     }),
   ]
     .sort((left, right) => right.sortKey.localeCompare(left.sortKey))
     .slice(0, 10);
+  const overviewCustomerRows = customers.map((customer) => ({
+    id: customer.name,
+    name: customer.name,
+    category: customer.category,
+    revenue: customer.revenue,
+    lastTransaction: customer.lastTransaction,
+    status: customer.status,
+    initials: customer.initials,
+    initialsBg: customer.initialsBg,
+    initialsColor: customer.initialsColor,
+  }));
+  const salesItemRows = topSalesItems.map((item) => ({
+    id: item.name,
+    name: item.name,
+    quantitySold: item.quantitySold,
+    salesAmount: item.salesAmount,
+    invoiceCount: String(item.invoiceCount),
+    lastSold: item.lastSold,
+  }));
+  const purchaseItemRows = topPurchaseItems.map((item) => ({
+    id: item.name,
+    name: item.name,
+    quantityBought: item.quantityBought,
+    purchaseAmount: item.purchaseAmount,
+    billCount: String(item.billCount),
+    lastBought: item.lastBought,
+  }));
+  const expenseRows = filteredExpenses.slice(0, 6).map((expense, index) => ({
+    id: `${expense.expense_title}-${expense.expense_date}-${index}`,
+    title: expense.expense_title || "Purchase expense",
+    amount: formatCurrency(expense.amount),
+    date: formatBsDisplayDate(expense.expense_date),
+  }));
+  const staffRows = filteredStaffSalaryPayments.slice(0, 6).map((payment, index) => ({
+    id: `${payment.id}-${index}`,
+    staff:
+      staffProfiles.find((staff) => staff.id === payment.staff_id)?.name ?? "Staff",
+    month: payment.month_label,
+    type: payment.type,
+    amount: formatCurrency(payment.amount),
+    date: formatBsDisplayDate(payment.transaction_date),
+  }));
   const selectedPeriodLabel = formatReportPeriod(selectedRange, fromDate, toDate);
   const generatedReportDate = formatBsDisplayDate(todayDate);
   const nepaliNow = getNepaliDateTimeParts();
-  const overdueSalesHref = buildDrillDownHref("/sales", selectedRange, fromDate, toDate, {
-    status: "OVERDUE",
-  });
-  const pendingCollectionsHref = buildDrillDownHref(
-    "/sales",
-    selectedRange,
-    fromDate,
-    toDate,
-    { collection: "pending" },
-  );
-  const supplierDuesHref = buildDrillDownHref("/purchases", selectedRange, fromDate, toDate, {
-    dues: "1",
-  });
   const salaryPendingHref = buildDrillDownHref("/staff", selectedRange, fromDate, toDate, {
     salary_status: "pending",
   });
-  const expenseSpikesHref = buildDrillDownHref("/purchases", selectedRange, fromDate, toDate, {
-    expense_min: "50000",
-  });
 
   return (
-    <div className="flex min-h-screen bg-slate-50/50">
-      <Sidebar />
-
-      <main className="flex-1 overflow-y-auto p-8">
-        <Header
-          actions={<ThemeToggle />}
-          meta={
-            <section className="inline-flex max-w-full items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
-              <div className="rounded-xl bg-blue-50 p-2.5 text-blue-600">
-                <CalendarClock className="h-4 w-4" />
-              </div>
-              <div className="min-w-0">
-                <div className="text-[10px] font-bold uppercase tracking-[0.22em] text-slate-400">
-                  Nepal Date & Time
-                </div>
-                <div className="mt-1 text-sm font-bold text-slate-900">{nepaliNow.date}</div>
-                <div className="text-xs font-medium text-slate-500">
-                  {nepaliNow.time}
-                  <span className="ml-2 font-semibold uppercase tracking-[0.16em] text-slate-400">
-                    {nepaliNow.timezone}
-                  </span>
-                </div>
-              </div>
-            </section>
-          }
-        />
-
-        <ReportToolbar
-          actionPath="/"
-          selectedRange={selectedRange}
-          fromDate={fromDate}
-          toDate={toDate}
-          reportButton={
+    <DashboardLayout>
+      <DashboardHeader
+        title="Main Financial Dashboard"
+        subtitle="Real-time business performance overview with alerts, analytics, and operational logs."
+        actions={
+          <>
+            <Button href="/sales/create">
+              <FilePlus className="h-4 w-4" />
+              Create Sales
+            </Button>
+            <Button href="/purchases/expense/create" variant="secondary">
+              <HandCoins className="h-4 w-4" />
+              Add Expense
+            </Button>
             <DashboardReportPrintButton
               company={company}
               generatedDate={generatedReportDate}
@@ -708,256 +718,350 @@ export default async function Home({
                 salesAmount: item.salesAmount,
               }))}
             />
-          }
-        />
-
-        <div className="mb-10 grid grid-cols-1 gap-5 xl:grid-cols-12">
-          <SummaryCard
-            title="Total Sales"
-            value={formatCurrency(totalSales)}
-            trend={`${filteredSales.length} sales recorded`}
-            trendType="positive"
-            icon={TrendingUp}
-            iconBgColor="bg-emerald-50"
-            iconColor="text-emerald-600"
-            emphasis="high"
-            className="xl:col-span-3"
-          />
-          <SummaryCard
-            title="Total Purchases"
-            value={formatCurrency(totalPurchases)}
-            trend={`${filteredPurchases.length} purchases recorded`}
-            trendType="neutral"
-            icon={ShoppingCart}
-            iconBgColor="bg-slate-100"
-            iconColor="text-slate-700"
-            emphasis="high"
-            className="xl:col-span-3"
-          />
-          <SummaryCard
-            title="Net Profit"
-            value={formatCurrency(netProfit)}
-            trend="Sales minus purchases"
-            trendType={netProfit >= 0 ? "positive" : "negative"}
-            icon={CircleDollarSign}
-            iconBgColor={netProfit >= 0 ? "bg-emerald-50" : "bg-rose-50"}
-            iconColor={netProfit >= 0 ? "text-emerald-600" : "text-rose-600"}
-            emphasis="high"
-            className="xl:col-span-3"
-          />
-          <SummaryCard
-            title="Outstanding Payables"
-            value={formatCurrency(payables)}
-            trend="Open purchase credit"
-            trendType={payables > 0 ? "negative" : "neutral"}
-            icon={AlertCircle}
-            iconBgColor={payables > 0 ? "bg-rose-50" : "bg-slate-100"}
-            iconColor={payables > 0 ? "text-rose-500" : "text-slate-700"}
-            emphasis="high"
-            className="xl:col-span-3"
-            href={supplierDuesHref}
-          />
-        </div>
-
-        <div className="mb-10 grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-5">
-          <SummaryCard
-            title="Overdue Sales"
-            value={formatCurrency(
-              overdueSales.reduce((sum, sale) => sum + Number(sale.remaining_amount ?? 0), 0),
-            )}
-            trend={`${overdueSales.length} overdue invoice${overdueSales.length === 1 ? "" : "s"}`}
-            trendType="negative"
-            icon={AlertCircle}
-            iconBgColor="bg-rose-50"
-            iconColor="text-rose-500"
-            href={overdueSalesHref}
-          />
-          <SummaryCard
-            title="Pending Collections"
-            value={formatCurrency(
-              pendingCustomerCollections.reduce(
-                (sum, sale) => sum + Number(sale.remaining_amount ?? 0),
-                0,
-              ),
-            )}
-            trend={`${pendingCustomerCollections.length} bill${pendingCustomerCollections.length === 1 ? "" : "s"} awaiting collection`}
-            trendType="neutral"
-            icon={Wallet}
-            iconBgColor="bg-amber-50"
-            iconColor="text-amber-600"
-            href={pendingCollectionsHref}
-          />
-          <SummaryCard
-            title="Supplier Dues"
-            value={formatCurrency(
-              supplierDues.reduce((sum, purchase) => sum + Number(purchase.credit_amount ?? 0), 0),
-            )}
-            trend={`${supplierDues.length} supplier bill${supplierDues.length === 1 ? "" : "s"} unpaid`}
-            trendType="negative"
-            icon={ShoppingCart}
-            iconBgColor="bg-blue-50"
-            iconColor="text-blue-600"
-            href={supplierDuesHref}
-          />
-          <SummaryCard
-            title="Salary Pending"
-            value={formatCurrency(
-              unpaidSalaryEntries.reduce(
-                (sum, entry) => sum + Number(entry.remaining ?? 0),
-                0,
-              ),
-            )}
-            trend={`${unpaidSalaryEntries.length} payroll entr${unpaidSalaryEntries.length === 1 ? "y" : "ies"} pending`}
-            trendType="neutral"
-            icon={ReceiptText}
-            iconBgColor="bg-slate-100"
-            iconColor="text-slate-700"
-            href={salaryPendingHref}
-          />
-          <SummaryCard
-            title="Expense Spikes"
-            value={formatCurrency(highExpensesTotal)}
-            trend={`${filteredExpenses.length} expense${filteredExpenses.length === 1 ? "" : "s"} in range`}
-            trendType={highExpensesTotal >= 50000 ? "negative" : "neutral"}
-            icon={CreditCard}
-            iconBgColor="bg-amber-50"
-            iconColor="text-amber-700"
-            href={expenseSpikesHref}
-          />
-        </div>
-
-        <div className="mb-10 grid grid-cols-1 gap-6 xl:grid-cols-12">
-          <div className="xl:col-span-8">
-            <SalesPurchasesChart data={chartData} />
-          </div>
-          <div className="xl:col-span-4">
-            <ExpenseBreakdownChart
-              data={expenseData}
-              total={formatCurrency(expenseTotal)}
-            />
-          </div>
-        </div>
-
-        <div className="mb-10 grid grid-cols-1 gap-6 xl:grid-cols-[360px_minmax(0,1fr)]">
-          <section className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
-            <div className="border-b border-slate-50 p-6">
-              <div className="flex items-center gap-3">
-                <div className="rounded-xl bg-rose-50 p-3 text-rose-500">
-                  <BellRing className="h-5 w-5" />
+            <ThemeToggle />
+          </>
+        }
+        meta={
+          <div className="grid gap-4 xl:grid-cols-[320px_minmax(0,1fr)] xl:items-center">
+            <section className="inline-flex max-w-full items-center gap-3 rounded-2xl border border-slate-200/80 bg-white px-4 py-3 shadow-sm shadow-slate-200/40">
+              <div className="rounded-xl bg-blue-50 p-2.5 text-blue-600">
+                <CalendarClock className="h-4 w-4" />
+              </div>
+              <div className="min-w-0">
+                <div className="text-[10px] font-bold uppercase tracking-[0.22em] text-slate-400">
+                  Nepal Date & Time
                 </div>
-                <div>
-                  <h3 className="text-lg font-bold text-slate-900">Operational Alerts</h3>
-                  <p className="mt-1 text-xs text-slate-500">
-                    Top actionable issues needing follow-up across collections, payables, and payroll.
-                  </p>
+                <div className="mt-1 text-sm font-bold text-slate-900">{nepaliNow.date}</div>
+                <div className="text-xs font-medium text-slate-500">
+                  {nepaliNow.time}
+                  <span className="ml-2 font-semibold uppercase tracking-[0.16em] text-slate-400">
+                    {nepaliNow.timezone}
+                  </span>
                 </div>
               </div>
-            </div>
-            <div className="divide-y divide-slate-50">
-              {alerts.length > 0 ? (
-                alerts.map((alert, index) => (
-                  <div
-                    key={`${alert.title}-${index}`}
-                    className={`px-6 py-4 ${
-                      index % 2 === 0 ? "bg-white" : "bg-slate-50/20"
-                    }`}
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-400">
-                          {alert.title}
-                        </div>
-                        <div className="mt-1 text-sm font-semibold text-slate-900">{alert.value}</div>
-                        <div className="mt-1 text-xs leading-5 text-slate-500">{alert.description}</div>
-                      </div>
-                      <Link
-                        href={alert.href}
-                        className="shrink-0 rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50"
-                      >
-                        {alert.actionLabel}
-                      </Link>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <div className="px-6 py-10 text-center text-sm text-slate-500">
-                  No active alerts in the selected period.
-                </div>
-              )}
-            </div>
-          </section>
+            </section>
+            <ReportToolbar
+              actionPath="/"
+              selectedRange={selectedRange}
+              fromDate={fromDate}
+              toDate={toDate}
+            />
+          </div>
+        }
+      />
 
-          <section className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
-            <div className="border-b border-slate-50 p-6">
-              <h3 className="text-lg font-bold text-slate-900">Recent Activity</h3>
-              <p className="mt-1 text-xs text-slate-500">
-                Latest financial events recorded across sales, purchases, expenses, and staff payments.
-              </p>
+      <DashboardGrid className="mb-8 md:grid-cols-2 xl:grid-cols-12">
+        <div className="xl:col-span-4">
+          <KpiCard
+            title="Total Sales"
+            value={formatCurrency(totalSales)}
+            trend="up"
+            percentage={`${filteredSales.length} sales recorded`}
+            icon={TrendingUp}
+            color="emerald"
+          />
+        </div>
+        <div className="xl:col-span-4">
+          <KpiCard
+            title="Total Purchases"
+            value={formatCurrency(totalPurchases)}
+            trend="down"
+            percentage={`${filteredPurchases.length} purchases recorded`}
+            icon={ShoppingCart}
+            color="slate"
+          />
+        </div>
+        <div className="xl:col-span-4">
+          <KpiCard
+            title="Net Profit"
+            value={formatCurrency(netProfit)}
+            trend={netProfit >= 0 ? "up" : "down"}
+            percentage="Sales minus purchases"
+            icon={CircleDollarSign}
+            color={netProfit >= 0 ? "emerald" : "rose"}
+          />
+        </div>
+      </DashboardGrid>
+
+      <DashboardGrid className="mb-8">
+        <AlertsCard items={alerts} />
+        <div className="xl:col-span-5">
+          <TableCard
+            title="Operations Grid"
+            subtitle="Priority operational numbers tied to their filtered working views."
+            rows={[
+              {
+                id: "supplier-dues",
+                metric: "Supplier Dues",
+                value: formatCurrency(
+                  supplierDues.reduce((sum, purchase) => sum + Number(purchase.credit_amount ?? 0), 0),
+                ),
+                status: `${supplierDues.length} unpaid`,
+                action: "Open Purchases",
+              },
+              {
+                id: "pending-collections",
+                metric: "Pending Collections",
+                value: formatCurrency(
+                  pendingCustomerCollections.reduce((sum, sale) => sum + Number(sale.remaining_amount ?? 0), 0),
+                ),
+                status: `${pendingCustomerCollections.length} bills`,
+                action: "View Invoices",
+              },
+              {
+                id: "salary-pending",
+                metric: "Salary Pending",
+                value: formatCurrency(
+                  unpaidSalaryEntries.reduce((sum, entry) => sum + Number(entry.remaining ?? 0), 0),
+                ),
+                status: `${unpaidSalaryEntries.length} payroll rows`,
+                action: "Open Payroll",
+              },
+            ]}
+            columns={[
+              { key: "metric", label: "Metric", className: "font-semibold text-slate-900" },
+              { key: "value", label: "Value", className: "font-bold text-slate-900" },
+              { key: "status", label: "Status" },
+              { key: "action", label: "Action" },
+            ]}
+          />
+        </div>
+      </DashboardGrid>
+
+      <DashboardGrid className="mb-8">
+        <ChartCard
+          className="xl:col-span-7"
+          title="Monthly Sales vs Purchases"
+          subtitle="Revenue versus spend over the selected time window."
+          summary={<div className="text-sm font-semibold text-slate-600">{selectedPeriodLabel}</div>}
+          insight={`Highest current sales volume is ${formatCurrency(totalSales)} against purchases of ${formatCurrency(totalPurchases)}.`}
+        >
+          <SalesPurchasesChart data={chartData} compact />
+        </ChartCard>
+        <ChartCard
+          className="xl:col-span-5"
+          title="Expense Breakdown"
+          subtitle="Current allocation across payroll, dues, advances, and extra expenses."
+          summary={<div className="text-sm font-semibold text-slate-600">{formatCurrency(expenseTotal)}</div>}
+          insight={
+            expenses[0]
+              ? `Highest expense: ${expenses[0].name} (${Math.round((expenses[0].value / Math.max(expenseTotal, 1)) * 100)}%)`
+              : "No expense insights yet."
+          }
+        >
+          <ExpenseBreakdownChart data={expenseData} total={formatCurrency(expenseTotal)} compact />
+        </ChartCard>
+      </DashboardGrid>
+
+      <DashboardGrid className="mb-8">
+        <ActivityCard
+          items={recentActivity.map((activity) => ({
+            ...activity,
+            isoDate: activity.sortKey || todayDate,
+          }))}
+          todayDate={todayDate}
+        />
+        <div className="xl:col-span-7">
+          <TableCard
+            title="Operational Summary"
+            subtitle="Quick scan of key balances and open commitments."
+            rows={[
+              {
+                id: "payables",
+                label: "Outstanding Payables",
+                value: formatCurrency(payables),
+                detail: "Open purchase credit",
+              },
+              {
+                id: "overdue",
+                label: "Overdue Sales",
+                value: formatCurrency(
+                  overdueSales.reduce((sum, sale) => sum + Number(sale.remaining_amount ?? 0), 0),
+                ),
+                detail: `${overdueSales.length} overdue invoices`,
+              },
+              {
+                id: "expense-spike",
+                label: "Expense Spikes",
+                value: formatCurrency(highExpensesTotal),
+                detail: `${filteredExpenses.length} expense records`,
+              },
+            ]}
+            columns={[
+              { key: "label", label: "Item", className: "font-semibold text-slate-900" },
+              { key: "value", label: "Value", className: "font-bold text-slate-900" },
+              { key: "detail", label: "Detail" },
+            ]}
+          />
+        </div>
+      </DashboardGrid>
+
+      <Tabs defaultValue="overview">
+        <div className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm shadow-slate-200/50">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <div className="text-lg font-semibold text-slate-900">Data Blocks</div>
+              <div className="text-sm text-slate-500">
+                Tabbed drill-down tables for overview, sales, expenses, and staff.
+              </div>
             </div>
-            <div className="divide-y divide-slate-50">
-              {recentActivity.length > 0 ? (
-                recentActivity.map((activity, index) => {
-                  const Icon = activity.icon;
-                  return (
-                    <div
-                      key={activity.id}
-                      className={`flex items-center justify-between gap-4 px-6 py-4 ${
-                        index % 2 === 0 ? "bg-white" : "bg-slate-50/20"
-                      }`}
-                    >
-                      <div className="flex min-w-0 items-center gap-3">
-                        <div
-                          className={`rounded-xl p-2.5 ${
-                            activity.tone === "green"
-                              ? "bg-emerald-50 text-emerald-600"
-                              : activity.tone === "emerald"
-                                ? "bg-green-50 text-green-700"
-                                : activity.tone === "blue"
-                                  ? "bg-blue-50 text-blue-600"
-                                  : activity.tone === "amber"
-                                    ? "bg-amber-50 text-amber-700"
-                                    : "bg-slate-100 text-slate-600"
-                          }`}
-                        >
-                          <Icon className="h-4 w-4" />
-                        </div>
-                        <div className="min-w-0">
-                          <div className="truncate text-sm font-semibold text-slate-900">
-                            {activity.title}
+            <TabList>
+              <Tab value="overview">Overview</Tab>
+              <Tab value="sales">Sales</Tab>
+              <Tab value="expenses">Expenses</Tab>
+              <Tab value="staff">Staff</Tab>
+            </TabList>
+          </div>
+
+          <TabPanel value="overview">
+            <DashboardGrid>
+              <div className="xl:col-span-6">
+                <TableCard
+                  title="Top Customers"
+                  actionLabel="View All"
+                  actionHref="/sales"
+                  rows={overviewCustomerRows}
+                  columns={[
+                    {
+                      key: "name",
+                      label: "Customer Name",
+                      render: (row) => (
+                        <div className="flex items-center gap-2.5">
+                          <div className={`flex h-8 w-8 items-center justify-center rounded-lg text-[10px] font-bold ${row.initialsBg} ${row.initialsColor}`}>
+                            {row.initials}
                           </div>
-                          <div className="truncate text-xs text-slate-500">
-                            {activity.description}
-                          </div>
+                          <span className="font-semibold text-slate-900">{row.name}</span>
                         </div>
-                      </div>
-                      <div className="shrink-0 text-right">
-                        <div className="text-sm font-bold text-slate-900">{activity.amount}</div>
-                        <div className="text-xs text-slate-500">{activity.date}</div>
-                      </div>
-                    </div>
-                  );
-                })
-              ) : (
-                <div className="px-6 py-10 text-center text-sm text-slate-500">
-                  No recent activity recorded yet.
-                </div>
-              )}
-            </div>
-          </section>
-        </div>
+                      ),
+                    },
+                    { key: "category", label: "Category" },
+                    { key: "revenue", label: "Revenue", className: "font-bold text-slate-900" },
+                    { key: "lastTransaction", label: "Last Transaction" },
+                  ]}
+                />
+              </div>
+              <div className="xl:col-span-6">
+                <TableCard
+                  title="Top Sales Items"
+                  actionLabel="View All"
+                  actionHref="/sales"
+                  rows={salesItemRows}
+                  columns={[
+                    { key: "name", label: "Item Name", className: "font-semibold text-slate-900" },
+                    { key: "quantitySold", label: "Quantity" },
+                    { key: "salesAmount", label: "Sales Amount", className: "font-bold text-slate-900" },
+                    { key: "lastSold", label: "Last Sold" },
+                  ]}
+                />
+              </div>
+            </DashboardGrid>
+          </TabPanel>
 
-        <div className="mb-10">
-          <TopCustomersTable customers={customers} />
-        </div>
+          <TabPanel value="sales">
+            <DashboardGrid>
+              <div className="xl:col-span-6">
+                <TableCard
+                  title="Top Customers"
+                  actionLabel="Open Sales"
+                  actionHref="/sales"
+                  rows={overviewCustomerRows}
+                  columns={[
+                    { key: "name", label: "Customer", className: "font-semibold text-slate-900" },
+                    { key: "revenue", label: "Revenue", className: "font-bold text-slate-900" },
+                    { key: "lastTransaction", label: "Last Transaction" },
+                  ]}
+                />
+              </div>
+              <div className="xl:col-span-6">
+                <TableCard
+                  title="Top Sales Items"
+                  actionLabel="Open Sales"
+                  actionHref="/sales"
+                  rows={salesItemRows}
+                  columns={[
+                    { key: "name", label: "Item", className: "font-semibold text-slate-900" },
+                    { key: "quantitySold", label: "Quantity" },
+                    { key: "salesAmount", label: "Amount", className: "font-bold text-slate-900" },
+                    { key: "invoiceCount", label: "Invoices" },
+                  ]}
+                />
+              </div>
+            </DashboardGrid>
+          </TabPanel>
 
-        <div>
-          <TopSalesItemsTable items={topSalesItems} />
-        </div>
+          <TabPanel value="expenses">
+            <DashboardGrid>
+              <div className="xl:col-span-7">
+                <TableCard
+                  title="Top Purchase Items"
+                  actionLabel="Open Purchases"
+                  actionHref="/purchases"
+                  rows={purchaseItemRows}
+                  columns={[
+                    { key: "name", label: "Item", className: "font-semibold text-slate-900" },
+                    { key: "quantityBought", label: "Quantity" },
+                    { key: "purchaseAmount", label: "Purchase Amount", className: "font-bold text-slate-900" },
+                    { key: "lastBought", label: "Last Bought" },
+                  ]}
+                />
+              </div>
+              <div className="xl:col-span-5">
+                <TableCard
+                  title="Recent Expenses"
+                  actionLabel="Add Expense"
+                  actionHref="/purchases/expense/create"
+                  rows={expenseRows}
+                  columns={[
+                    { key: "title", label: "Expense", className: "font-semibold text-slate-900" },
+                    { key: "amount", label: "Amount", className: "font-bold text-slate-900" },
+                    { key: "date", label: "Date" },
+                  ]}
+                />
+              </div>
+            </DashboardGrid>
+          </TabPanel>
 
-        <div className="mt-8">
-          <TopPurchaseItemsTable items={topPurchaseItems} />
+          <TabPanel value="staff">
+            <DashboardGrid>
+              <div className="xl:col-span-7">
+                <TableCard
+                  title="Recent Staff Payments"
+                  actionLabel="Open Staff"
+                  actionHref="/staff"
+                  rows={staffRows}
+                  columns={[
+                    { key: "staff", label: "Staff", className: "font-semibold text-slate-900" },
+                    { key: "month", label: "Month" },
+                    { key: "type", label: "Type" },
+                    { key: "amount", label: "Amount", className: "font-bold text-slate-900" },
+                    { key: "date", label: "Date" },
+                  ]}
+                />
+              </div>
+              <div className="xl:col-span-5">
+                <TableCard
+                  title="Salary Pending"
+                  actionLabel="Open Payroll"
+                  actionHref={salaryPendingHref}
+                  rows={unpaidSalaryEntries.slice(0, 6).map((entry) => ({
+                    id: entry.id,
+                    month: entry.month_label,
+                    payable: formatCurrency(entry.payable_amount),
+                    remaining: formatCurrency(entry.remaining),
+                    status: entry.status,
+                  }))}
+                  columns={[
+                    { key: "month", label: "Month", className: "font-semibold text-slate-900" },
+                    { key: "payable", label: "Payable" },
+                    { key: "remaining", label: "Remaining", className: "font-bold text-slate-900" },
+                    { key: "status", label: "Status" },
+                  ]}
+                />
+              </div>
+            </DashboardGrid>
+          </TabPanel>
         </div>
-      </main>
-    </div>
+      </Tabs>
+    </DashboardLayout>
   );
 }

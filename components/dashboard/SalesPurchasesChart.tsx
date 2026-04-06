@@ -10,6 +10,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { cn } from "@/lib/utils";
 
 type ChartPoint = {
   name: string;
@@ -17,16 +18,33 @@ type ChartPoint = {
   purchases: number;
 };
 
-export function SalesPurchasesChart({ data }: { data: ChartPoint[] }) {
+export function SalesPurchasesChart({
+  data,
+  compact = false,
+  className,
+}: {
+  data: ChartPoint[];
+  compact?: boolean;
+  className?: string;
+}) {
   return (
-    <div className="h-[400px] rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
-      <div className="mb-6 flex items-center justify-between">
-        <div>
-          <h3 className="text-lg font-bold text-slate-900">Monthly Sales vs Purchases</h3>
-          <p className="text-sm text-slate-500">Live summary based on stored transactions</p>
+    <div
+      className={cn(
+        compact
+          ? "h-[320px]"
+          : "h-[400px] rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm shadow-slate-200/50",
+        className,
+      )}
+    >
+      {!compact ? (
+        <div className="mb-6 flex items-center justify-between">
+          <div>
+            <h3 className="text-lg font-bold text-slate-900">Monthly Sales vs Purchases</h3>
+            <p className="text-sm text-slate-500">Live summary based on stored transactions</p>
+          </div>
         </div>
-      </div>
-      <div className="h-[300px] w-full">
+      ) : null}
+      <div className={compact ? "h-full w-full" : "h-[300px] w-full"}>
         {data.length > 0 ? (
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
@@ -88,7 +106,7 @@ export function SalesPurchasesChart({ data }: { data: ChartPoint[] }) {
             </AreaChart>
           </ResponsiveContainer>
         ) : (
-          <div className="flex h-full items-center justify-center rounded-2xl border border-dashed border-slate-200 text-sm text-slate-500">
+          <div className="flex h-full items-center justify-center rounded-2xl border border-dashed border-slate-200/80 bg-slate-50/50 text-sm text-slate-500">
             No sales or purchase chart data yet.
           </div>
         )}

@@ -1,5 +1,5 @@
 import { ReactNode } from "react";
-import { cn } from "@/lib/utils";
+import { Card } from "@/components/shared/Card";
 
 export function SectionCard({
   children,
@@ -11,14 +11,8 @@ export function SectionCard({
   padded?: boolean;
 }) {
   return (
-    <section
-      className={cn(
-        "rounded-[24px] border border-slate-100 bg-white shadow-sm",
-        padded && "p-6",
-        className,
-      )}
-    >
+    <Card className={padded ? `p-6 ${className ?? ""}` : className}>
       {children}
-    </section>
+    </Card>
   );
 }
