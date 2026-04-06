@@ -1,7 +1,9 @@
 import Link from "next/link";
 import {
+  Banknote,
   CalendarClock,
   CreditCard,
+  HandCoins,
   LayoutList,
   Pencil,
   ReceiptText,
@@ -12,6 +14,7 @@ import {
 import { Header } from "@/components/dashboard/Header";
 import { Sidebar } from "@/components/dashboard/Sidebar";
 import { SummaryCard } from "@/components/dashboard/SummaryCard";
+import { Button } from "@/components/shared/Button";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { PageActionStrip } from "@/components/shared/PageActionStrip";
 import { QueryNoticeToast } from "@/components/shared/QueryNoticeToast";
@@ -296,25 +299,26 @@ export default async function StaffPage({
                 </div>
                 {activeStaff ? (
                   <div className="flex flex-wrap gap-2">
-                    <Link
+                    <Button
                       href={`/staff/create?edit=${activeStaff.id}`}
-                      className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50"
+                      variant="ghost"
                     >
                       <Pencil className="h-4 w-4" />
                       Edit Profile
-                    </Link>
-                    <Link
+                    </Button>
+                    <Button
                       href={`/staff/payment/create?staff=${activeStaff.id}&type=ADVANCE`}
-                      className="inline-flex items-center rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-blue-700"
                     >
+                      <HandCoins className="h-4 w-4" />
                       Add Advance
-                    </Link>
-                    <Link
+                    </Button>
+                    <Button
                       href={`/staff/payment/create?staff=${activeStaff.id}&type=SALARY`}
-                      className="inline-flex items-center rounded-xl border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-semibold text-blue-700 transition-colors hover:bg-blue-100"
+                      variant="secondary"
                     >
+                      <Banknote className="h-4 w-4" />
                       Add Salary Payment
-                    </Link>
+                    </Button>
                   </div>
                 ) : null}
               </div>
@@ -387,12 +391,13 @@ export default async function StaffPage({
                   </div>
                   {activeStaff ? (
                     <div className="flex flex-wrap items-center gap-2">
-                      <Link
+                      <Button
                         href="#staff-transactions"
-                        className="inline-flex items-center rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50"
+                        variant="secondary"
+                        size="sm"
                       >
                         View Transactions
-                      </Link>
+                      </Button>
                     </div>
                   ) : null}
                 </div>

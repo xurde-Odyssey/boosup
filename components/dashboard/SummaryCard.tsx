@@ -2,6 +2,7 @@ import React from 'react';
 import Link from "next/link";
 import { LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Card } from "@/components/shared/Card";
 
 interface SummaryCardProps {
     title: string;
@@ -36,8 +37,8 @@ export function SummaryCard({
               : "border-slate-200 bg-gradient-to-br from-slate-50/80 via-white to-white dark:border-slate-800 dark:from-slate-900 dark:via-slate-900 dark:to-slate-950";
 
     const cardContent = (
-        <div className={cn(
-            "rounded-3xl border shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md dark:shadow-slate-950/30",
+        <Card className={cn(
+            "transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md dark:shadow-slate-950/30",
             href && "cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60",
             toneClasses,
             emphasis === 'high' ? "p-7" : "p-6",
@@ -82,7 +83,7 @@ export function SummaryCard({
                     trendType === 'neutral' && "bg-slate-300"
                 )} />
             </div>
-        </div>
+        </Card>
     );
 
     if (href) {

@@ -2,13 +2,14 @@ import Link from "next/link";
 import {
   BadgeDollarSign,
   CreditCard,
+  FilePlus,
   FileText,
   FolderClock,
   Pencil,
   RefreshCcw,
   ShoppingCart,
   Trash2,
-  WalletCards,
+  Wallet,
 } from "lucide-react";
 import {
   deletePurchaseExpense,
@@ -185,8 +186,8 @@ export default async function PurchasesPage({
         <ReportToolbar actionPath="/purchases" selectedRange={selectedRange} fromDate={fromDate} toDate={toDate} />
         <PageActionStrip
           actions={[
-            { label: "Create Purchase Bill", href: "/purchases/create" },
-            { label: "Add Expense Entry", href: "/purchases/expense/create", variant: "secondary" },
+            { label: "Create Purchase Bill", href: "/purchases/create", icon: FilePlus },
+            { label: "Add Expense Entry", href: "/purchases/expense/create", variant: "secondary", icon: Wallet },
           ]}
         />
 

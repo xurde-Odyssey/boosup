@@ -1,8 +1,11 @@
-import Link from "next/link";
 import { ActionNotice } from "@/components/shared/ActionNotice";
+import { Button } from "@/components/shared/Button";
+import { Card } from "@/components/shared/Card";
 import { Header } from "@/components/dashboard/Header";
 import { Sidebar } from "@/components/dashboard/Sidebar";
+import { Input } from "@/components/shared/Input";
 import { ReportToolbar } from "@/components/shared/ReportToolbar";
+import { Select } from "@/components/shared/Select";
 import { upsertVendor } from "@/app/actions";
 import { getSupabaseClient } from "@/lib/supabase/server";
 
@@ -40,7 +43,7 @@ export default async function CreateVendorPage({
         {notice && <ActionNotice message={notice} />}
         <ReportToolbar actionPath={editingVendor ? `/vendors/create?edit=${editingVendor.id}` : "/vendors/create"} />
 
-        <section className="max-w-2xl rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+        <Card className="max-w-2xl p-6">
           <div className="mb-6">
             <h3 className="text-lg font-bold text-slate-900">
               {editingVendor ? "Update Supplier Profile" : "Create Supplier Profile"}
@@ -54,53 +57,48 @@ export default async function CreateVendorPage({
 
             <div>
               <label className="mb-2 block text-sm font-semibold text-slate-700">Supplier Code</label>
-              <input
+              <Input
                 name="vendor_code"
                 required
                 defaultValue={editingVendor?.vendor_code ?? ""}
                 placeholder="VND-001"
-                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-blue-500 focus:bg-white"
               />
             </div>
 
             <div>
               <label className="mb-2 block text-sm font-semibold text-slate-700">Supplier Name</label>
-              <input
+              <Input
                 name="name"
                 required
                 defaultValue={editingVendor?.name ?? ""}
                 placeholder="Enter supplier name"
-                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-blue-500 focus:bg-white"
               />
             </div>
 
             <div>
               <label className="mb-2 block text-sm font-semibold text-slate-700">Contact Person</label>
-              <input
+              <Input
                 name="contact_person"
                 defaultValue={editingVendor?.contact_person ?? ""}
                 placeholder="Enter contact person"
-                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-blue-500 focus:bg-white"
               />
             </div>
 
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <input
+              <Input
                 name="phone"
                 defaultValue={editingVendor?.phone ?? ""}
                 placeholder="Phone number"
-                className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-blue-500 focus:bg-white"
               />
-              <select
+              <Select
                 name="payment_terms"
                 defaultValue={editingVendor?.payment_terms ?? "Cash"}
-                className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-blue-500 focus:bg-white"
               >
                 <option value="Cash">Cash</option>
                 <option value="15 Days Credit">15 Days Credit</option>
                 <option value="30 Days Credit">30 Days Credit</option>
                 <option value="Advance + Credit">Advance + Credit</option>
-              </select>
+              </Select>
             </div>
 
             <textarea
@@ -111,15 +109,14 @@ export default async function CreateVendorPage({
               className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-blue-500 focus:bg-white"
             />
 
-            <select
+            <Select
               name="status"
               defaultValue={editingVendor?.status ?? "ACTIVE"}
-              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-blue-500 focus:bg-white"
             >
               <option value="ACTIVE">ACTIVE</option>
               <option value="ON HOLD">ON HOLD</option>
               <option value="INACTIVE">INACTIVE</option>
-            </select>
+            </Select>
 
             <textarea
               name="notes"
@@ -130,21 +127,18 @@ export default async function CreateVendorPage({
             />
 
             <div className="flex gap-3">
-              <button
+              <Button
                 type="submit"
-                className="flex-1 rounded-xl bg-blue-600 px-5 py-3 font-semibold text-white"
+                className="flex-1"
               >
                 {editingVendor ? "Update Supplier" : "Save Supplier Profile"}
-              </button>
-              <Link
-                href="/vendors"
-                className="inline-flex items-center justify-center rounded-xl border border-slate-200 px-5 py-3 font-semibold text-slate-700"
-              >
+              </Button>
+              <Button href="/vendors" variant="secondary">
                 Cancel
-              </Link>
+              </Button>
             </div>
           </form>
-        </section>
+        </Card>
       </main>
     </div>
   );

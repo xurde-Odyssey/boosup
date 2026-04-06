@@ -3,12 +3,16 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { FileText, Pencil, Printer, RefreshCcw, Trash2 } from "lucide-react";
 import { deleteSale } from "@/app/actions";
+import { Button } from "@/components/shared/Button";
 import { ConfirmActionForm } from "@/components/shared/ConfirmActionForm";
 import { EmptyState } from "@/components/shared/EmptyState";
+import { Input } from "@/components/shared/Input";
+import { Select } from "@/components/shared/Select";
 import { PaymentStatusBadge } from "@/components/shared/StatusBadge";
+import { TableWrapper } from "@/components/shared/TableWrapper";
 import { cn } from "@/lib/utils";
-import { FileText, Pencil, Printer, RefreshCcw, Trash2 } from "lucide-react";
 
 type Invoice = {
   id: string;
@@ -41,25 +45,6 @@ export function InvoicesTable({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [searchValue, setSearchValue] = useState(search);
-  const [statusValue, setStatusValue] = useState(status);
-  const [sortValue, setSortValue] = useState(sort);
-  const [perPageValue, setPerPageValue] = useState(String(perPage));
-
-  useEffect(() => {
-    setSearchValue(search);
-  }, [search]);
-
-  useEffect(() => {
-    setStatusValue(status);
-  }, [status]);
-
-  useEffect(() => {
-    setSortValue(sort);
-  }, [sort]);
-
-  useEffect(() => {
-    setPerPageValue(String(perPage));
-  }, [perPage]);
 
   const updateParams = useCallback(
     (next: {
@@ -79,21 +64,11 @@ export function InvoicesTable({
         }
       };
 
-      if ("q" in next) {
-        setOrDelete("q", next.q);
-      }
-      if ("status" in next) {
-        setOrDelete("status", next.status, "ALL");
-      }
-      if ("sort" in next) {
-        setOrDelete("sort", next.sort, "date_desc");
-      }
-      if ("perPage" in next) {
-        setOrDelete("perPage", next.perPage, "10");
-      }
-      if (next.resetPage) {
-        params.delete("page");
-      }
+      if ("q" in next) setOrDelete("q", next.q);
+      if ("status" in next) setOrDelete("status", next.status, "ALL");
+      if ("sort" in next) setOrDelete("sort", next.sort, "date_desc");
+      if ("perPage" in next) setOrDelete("perPage", next.perPage, "10");
+      if (next.resetPage) params.delete("page");
 
       const query = params.toString();
       router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
@@ -112,102 +87,89 @@ export function InvoicesTable({
   }, [search, searchValue, updateParams]);
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
-      <div className="flex items-center justify-between border-b border-slate-50 p-6">
-        <div>
-          <h3 className="text-lg font-bold text-slate-900">Recent Invoices</h3>
-          <p className="mt-1 text-xs text-slate-500">Live sales records from Supabase</p>
-        </div>
-        <div className="rounded-xl bg-slate-50 px-3 py-2 text-sm font-medium text-slate-600">
-          {invoices.length} invoices
-        </div>
-      </div>
-
-      <div className="border-b border-slate-50 p-6">
-        <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-3">
+    <TableWrapper
+      title="Recent Invoices"
+      description="Live sales records from Supabase"
+      countLabel={`${invoices.length} invoices`}
+      filters={
+        <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-3 dark:border-slate-700 dark:bg-slate-900/40">
           <div className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1.7fr)_220px_220px_220px]">
             <div>
               <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-600">
                 Search
               </label>
-              <input
+              <Input
                 type="text"
                 value={searchValue}
                 onChange={(event) => setSearchValue(event.target.value)}
                 placeholder="Invoice no or customer name"
-                className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-blue-500"
+                className="bg-white"
               />
             </div>
             <div>
               <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-600">
                 Status
               </label>
-              <select
-                value={statusValue}
+              <Select
+                value={status}
                 onChange={(event) => {
                   const value = event.target.value;
-                  setStatusValue(value);
                   updateParams({ status: value, resetPage: true });
                 }}
-                className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-blue-500"
+                className="bg-white"
               >
                 <option value="ALL">All</option>
                 <option value="PAID">Paid</option>
                 <option value="PARTIAL">Partial</option>
                 <option value="PENDING">Pending</option>
                 <option value="OVERDUE">Overdue</option>
-              </select>
+              </Select>
             </div>
             <div>
               <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-600">
                 Sort
               </label>
-              <select
-                value={sortValue}
+              <Select
+                value={sort}
                 onChange={(event) => {
                   const value = event.target.value;
-                  setSortValue(value);
                   updateParams({ sort: value, resetPage: true });
                 }}
-                className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-blue-500"
+                className="bg-white"
               >
                 <option value="date_desc">Latest</option>
                 <option value="name_asc">Name</option>
                 <option value="amount_desc">Amount High-Low</option>
                 <option value="amount_asc">Amount Low-High</option>
                 <option value="status_asc">Status</option>
-              </select>
+              </Select>
             </div>
             <div>
               <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-600">
                 Per Page
               </label>
-              <select
-                value={perPageValue}
+              <Select
+                value={String(perPage)}
                 onChange={(event) => {
                   const value = event.target.value;
-                  setPerPageValue(value);
                   updateParams({ perPage: value, resetPage: true });
                 }}
-                className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-blue-500"
+                className="bg-white"
               >
                 <option value="10">10</option>
                 <option value="25">25</option>
                 <option value="50">50</option>
-              </select>
+              </Select>
             </div>
           </div>
           <div className="mt-3 flex items-center gap-3">
-            <Link
-              href={pathname}
-              className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-700"
-            >
+            <Button href={pathname} variant="secondary">
               Reset
-            </Link>
+            </Button>
           </div>
         </div>
-      </div>
-
+      }
+    >
       <div className="overflow-x-auto">
         <table className="w-full text-left">
           <thead>
@@ -230,7 +192,7 @@ export function InvoicesTable({
                   index % 2 === 0 ? "bg-white" : "bg-slate-50/20"
                 }`}
               >
-                <td className="px-6 py-3.5 text-sm font-bold text-slate-900">
+                <td className="px-6 py-4 text-sm font-bold text-slate-900">
                   <Link
                     href={`/sales/create?edit=${invoice.id}`}
                     className="transition-colors hover:text-blue-600"
@@ -239,7 +201,7 @@ export function InvoicesTable({
                     {invoice.invoiceNumber}
                   </Link>
                 </td>
-                <td className="px-6 py-3.5">
+                <td className="px-6 py-4">
                   <div className="flex items-center gap-2.5">
                     <div
                       className={cn(
@@ -259,20 +221,14 @@ export function InvoicesTable({
                     </Link>
                   </div>
                 </td>
-                <td className="px-6 py-3.5 text-sm font-bold text-slate-900">
-                  {invoice.totalAmount}
-                </td>
-                <td className="px-6 py-3.5 text-sm font-bold text-green-700">
-                  {invoice.paidAmount}
-                </td>
-                <td className="px-6 py-3.5 text-sm font-bold text-amber-700">
-                  {invoice.remainingAmount}
-                </td>
-                <td className="px-6 py-3.5">
+                <td className="px-6 py-4 text-sm font-bold text-slate-900">{invoice.totalAmount}</td>
+                <td className="px-6 py-4 text-sm font-bold text-green-700">{invoice.paidAmount}</td>
+                <td className="px-6 py-4 text-sm font-bold text-amber-700">{invoice.remainingAmount}</td>
+                <td className="px-6 py-4">
                   <PaymentStatusBadge status={invoice.status} />
                 </td>
-                <td className="px-6 py-3.5 text-sm text-slate-500">{invoice.date}</td>
-                <td className="px-6 py-3.5">
+                <td className="px-6 py-4 text-sm text-slate-500">{invoice.date}</td>
+                <td className="px-6 py-4">
                   <div className="flex items-center justify-end gap-1">
                     <Link
                       href={`/sales/create?edit=${invoice.id}`}
@@ -320,9 +276,9 @@ export function InvoicesTable({
                 <td colSpan={8} className="px-6 py-10">
                   <EmptyState
                     icon={FileText}
-                    title="No sales invoices yet"
-                    description="Your invoice list will start filling as soon as the first sale is saved."
-                    actionLabel="Create Sales"
+                    title="No sales records found"
+                    description="Start by creating a sales invoice or adjust your filters to see records here."
+                    actionLabel="Create Sales Invoice"
                     actionHref="/sales/create"
                   />
                 </td>
@@ -331,6 +287,6 @@ export function InvoicesTable({
           </tbody>
         </table>
       </div>
-    </div>
+    </TableWrapper>
   );
 }

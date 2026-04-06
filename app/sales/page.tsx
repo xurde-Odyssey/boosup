@@ -2,9 +2,9 @@ import {
   AlertCircle,
   CircleDollarSign,
   Clock,
-  FilePlus2,
+  FilePlus,
   HandCoins,
-  LayoutList,
+  ReceiptText,
   TrendingUp,
 } from "lucide-react";
 import { Header } from "@/components/dashboard/Header";
@@ -283,12 +283,12 @@ export default async function SalesPage({
         />
         <PageActionStrip
           actions={[
-            { label: "Create Sales Bill", href: "/sales/create", icon: FilePlus2 },
+            { label: "Create Sales Bill", href: "/sales/create", icon: FilePlus },
             {
               label: "Recorded Bills",
               href: "/sales/view",
               variant: "secondary",
-              icon: LayoutList,
+              icon: ReceiptText,
             },
           ]}
         />
