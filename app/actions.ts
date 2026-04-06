@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { bsToAd } from "@/lib/nepali-date";
+import { recalculateStaffLedgerSnapshots } from "@/lib/staff-payroll";
 import { getSupabaseClient } from "@/lib/supabase/server";
 
 const readText = (formData: FormData, key: string) =>
@@ -64,6 +65,124 @@ const resolveGregorianDate = (formData: FormData, adKey: string, bsKey: string) 
   return bsToAd(readText(formData, bsKey));
 };
 
+const resolveStaffSalaryFormPath = (id: string, staffId: string) =>
+  id ? `/staff/payment/create?edit=${id}` : `/staff/payment/create${staffId ? `?staff=${staffId}` : ""}`;
+
+const syncStaffSalaryLedgers = async (supabase: Awaited<ReturnType<typeof getSupabaseClient>>, staffId: string) => {
+  if (!staffId) return;
+
+  const [ledgersResponse, transactionsResponse] = await Promise.all([
+    supabase
+      .from("staff_salary_ledgers")
+      .select(
+        "id, staff_id, month, year, base_salary, working_days, leave_days, total_advance, salary_paid, total_paid, remaining, carry_forward, status, created_at, updated_at",
+      )
+      .eq("staff_id", staffId),
+    supabase
+      .from("staff_salary_transactions")
+      .select("id, staff_id, ledger_id, transaction_date, type, amount, note, created_at, updated_at")
+      .eq("staff_id", staffId),
+  ]);
+  const ledgers = ledgersResponse.data ?? [];
+  const transactions = transactionsResponse.data ?? [];
+
+  const usedLedgerIds = new Set(transactions.map((transaction) => transaction.ledger_id));
+  const emptyLedgerIds = ledgers
+    .filter((ledger) => !usedLedgerIds.has(ledger.id))
+    .map((ledger) => ledger.id);
+
+  if (emptyLedgerIds.length > 0) {
+    await supabase.from("staff_salary_ledgers").delete().in("id", emptyLedgerIds);
+  }
+
+  const activeLedgers = ledgers.filter((ledger) => usedLedgerIds.has(ledger.id));
+  const snapshots = recalculateStaffLedgerSnapshots(activeLedgers, transactions);
+
+  await Promise.all(
+    snapshots.ledgers.map((ledger) =>
+      supabase
+        .from("staff_salary_ledgers")
+        .update({
+          total_advance: ledger.total_advance,
+          salary_paid: ledger.salary_paid,
+          total_paid: ledger.total_paid,
+          remaining: ledger.remaining,
+          carry_forward: ledger.carry_forward,
+          status: ledger.status,
+        })
+        .eq("id", ledger.id),
+    ),
+  );
+};
+
+const upsertStaffSalaryLedger = async ({
+  supabase,
+  staffId,
+  month,
+  year,
+  baseSalary,
+  workingDays,
+  leaveDays,
+}: {
+  supabase: Awaited<ReturnType<typeof getSupabaseClient>>;
+  staffId: string;
+  month: number;
+  year: number;
+  baseSalary: number;
+  workingDays: number;
+  leaveDays: number;
+}) => {
+  const { data: existingLedger } = await supabase
+    .from("staff_salary_ledgers")
+    .select(
+      "id, staff_id, month, year, base_salary, working_days, leave_days, total_advance, salary_paid, total_paid, remaining, carry_forward, status, created_at, updated_at",
+    )
+    .eq("staff_id", staffId)
+    .eq("month", month)
+    .eq("year", year)
+    .maybeSingle();
+
+  const payload = {
+    staff_id: staffId,
+    month,
+    year,
+    base_salary: baseSalary,
+    working_days: workingDays,
+    leave_days: Math.min(leaveDays, workingDays),
+  };
+
+  if (existingLedger?.id) {
+    const { data: updatedLedger } = await supabase
+      .from("staff_salary_ledgers")
+      .update(payload)
+      .eq("id", existingLedger.id)
+      .select(
+        "id, staff_id, month, year, base_salary, working_days, leave_days, total_advance, salary_paid, total_paid, remaining, carry_forward, status, created_at, updated_at",
+      )
+      .single();
+
+    return updatedLedger ?? existingLedger;
+  }
+
+  const { data: createdLedger } = await supabase
+    .from("staff_salary_ledgers")
+    .insert({
+      ...payload,
+      total_advance: 0,
+      salary_paid: 0,
+      total_paid: 0,
+      remaining: baseSalary,
+      carry_forward: 0,
+      status: "OPEN",
+    })
+    .select(
+      "id, staff_id, month, year, base_salary, working_days, leave_days, total_advance, salary_paid, total_paid, remaining, carry_forward, status, created_at, updated_at",
+    )
+    .single();
+
+  return createdLedger;
+};
+
 export async function logoutAdmin() {
   const supabase = await getSupabaseClient();
   await supabase.auth.signOut();
@@ -77,7 +196,8 @@ export async function upsertProduct(formData: FormData) {
   let productCode = readText(formData, "code");
 
   if (!productCode) {
-    const { data: existingProducts = [] } = await supabase.from("products").select("code");
+    const productsResponse = await supabase.from("products").select("code");
+    const existingProducts = productsResponse.data ?? [];
     productCode = generateNextCode(
       existingProducts.map((product) => product.code),
       "DS",
@@ -180,7 +300,8 @@ export async function upsertStaffProfile(formData: FormData) {
   let staffCode = readText(formData, "staff_code");
 
   if (!staffCode) {
-    const { data: existingStaff = [] } = await supabase.from("staff_profiles").select("staff_code");
+    const staffResponse = await supabase.from("staff_profiles").select("staff_code");
+    const existingStaff = staffResponse.data ?? [];
     staffCode = generateNextCode(
       existingStaff.map((staff) => staff.staff_code),
       "DS-S",
@@ -194,7 +315,6 @@ export async function upsertStaffProfile(formData: FormData) {
     address: readText(formData, "address") || null,
     phone: readText(formData, "phone") || null,
     total_salary: readNumber(formData, "total_salary"),
-    advance_salary: 0,
     status: readText(formData, "status") || "ACTIVE",
   };
 
@@ -221,24 +341,30 @@ export async function upsertStaffSalaryPayment(formData: FormData) {
   const id = readText(formData, "id");
   const actionType = id ? "updated" : "created";
   const staffId = readText(formData, "staff_id");
-  const salaryMonthBs = readText(formData, "salary_month_bs").replace(/[.-]/g, "/");
+  const month = Math.max(Math.min(Math.trunc(readNumber(formData, "month")), 12), 1);
+  const year = Math.max(Math.trunc(readNumber(formData, "year")), 2000);
   const paymentDate = resolveGregorianDate(formData, "payment_date", "payment_date_bs");
   const workingDays = readWholeNumber(formData, "working_days");
   const leaveDays = Math.max(Math.trunc(readNumber(formData, "leave_days")), 0);
-  const monthlySalary = readNumber(formData, "monthly_salary");
-  const advancePayment = readNumber(formData, "advance_payment");
+  const baseSalary = readNumber(formData, "base_salary");
+  const amount = readNumber(formData, "amount");
   const paymentType = readText(formData, "payment_type") || "ADVANCE";
-  const staffFormPath = id
-    ? `/staff/payment/create?edit=${id}`
-    : `/staff/payment/create${staffId ? `?staff=${staffId}` : ""}`;
+  const staffFormPath = resolveStaffSalaryFormPath(id, staffId);
+  const existingTransaction = id
+    ? await supabase
+        .from("staff_salary_transactions")
+        .select("id, staff_id, ledger_id")
+        .eq("id", id)
+        .single()
+    : null;
 
   if (!staffId) {
     redirect(`${staffFormPath}${staffFormPath.includes("?") ? "&" : "?"}notice=Select%20staff%20member`);
   }
 
-  if (!salaryMonthBs) {
+  if (!month || !year) {
     redirect(
-      `${staffFormPath}${staffFormPath.includes("?") ? "&" : "?"}notice=Salary%20month%20is%20required`,
+      `${staffFormPath}${staffFormPath.includes("?") ? "&" : "?"}notice=Month%20and%20year%20are%20required`,
     );
   }
 
@@ -248,34 +374,65 @@ export async function upsertStaffSalaryPayment(formData: FormData) {
     );
   }
 
-  const payload = {
-    staff_id: staffId,
-    salary_month_bs: salaryMonthBs,
-    payment_date: paymentDate,
-    payment_type: paymentType === "SALARY" ? "SALARY" : "ADVANCE",
-    working_days: workingDays,
-    leave_days: Math.min(leaveDays, workingDays),
-    monthly_salary: monthlySalary,
-    advance_payment: advancePayment,
-    notes: readText(formData, "notes") || null,
-  };
-
-  if (id) {
-    await supabase.from("staff_salary_payments").update(payload).eq("id", id);
-  } else {
-    await supabase.from("staff_salary_payments").insert(payload);
+  if (amount <= 0) {
+    redirect(
+      `${staffFormPath}${staffFormPath.includes("?") ? "&" : "?"}notice=Payment%20amount%20must%20be%20greater%20than%20zero`,
+    );
   }
 
-  revalidateAll("/staff");
-  redirectWithNotice("/staff", formData, "Staff salary payment", actionType);
+  const ledger = await upsertStaffSalaryLedger({
+    supabase,
+    staffId,
+    month,
+    year,
+    baseSalary,
+    workingDays,
+    leaveDays,
+  });
+
+  const payload = {
+    staff_id: staffId,
+    ledger_id: ledger?.id,
+    transaction_date: paymentDate,
+    type: paymentType === "SALARY" ? "SALARY" : "ADVANCE",
+    amount,
+    note: readText(formData, "note") || null,
+  };
+
+  if (!payload.ledger_id) {
+    redirectWithMessage(staffFormPath, "Failed to create monthly salary ledger");
+  }
+
+  if (id) {
+    await supabase.from("staff_salary_transactions").update(payload).eq("id", id);
+  } else {
+    await supabase.from("staff_salary_transactions").insert(payload);
+  }
+
+  const previousStaffId = existingTransaction?.data?.staff_id ?? "";
+  if (previousStaffId && previousStaffId !== staffId) {
+    await syncStaffSalaryLedgers(supabase, previousStaffId);
+  }
+  await syncStaffSalaryLedgers(supabase, staffId);
+
+  revalidateAll("/staff", "/staff/payment/create", "/");
+  redirectWithNotice("/staff", formData, "Staff salary transaction", actionType);
 }
 
 export async function deleteStaffSalaryPayment(formData: FormData) {
   const supabase = await getSupabaseClient();
   const id = readText(formData, "id");
-  await supabase.from("staff_salary_payments").delete().eq("id", id);
-  revalidateAll("/staff");
-  redirectWithNotice("/staff", formData, "Staff salary payment", "deleted");
+  const { data: existingTransaction } = await supabase
+    .from("staff_salary_transactions")
+    .select("staff_id")
+    .eq("id", id)
+    .maybeSingle();
+  await supabase.from("staff_salary_transactions").delete().eq("id", id);
+  if (existingTransaction?.staff_id) {
+    await syncStaffSalaryLedgers(supabase, existingTransaction.staff_id);
+  }
+  revalidateAll("/staff", "/staff/payment/create", "/");
+  redirectWithNotice("/staff", formData, "Staff salary transaction", "deleted");
 }
 
 export async function upsertPurchase(formData: FormData) {

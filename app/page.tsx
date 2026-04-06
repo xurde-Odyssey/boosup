@@ -28,7 +28,7 @@ import {
   getAvatarTone,
   getInitials,
 } from "@/lib/presentation";
-import { buildPayrollMonthSummaries } from "@/lib/staff-payroll";
+import { recalculateStaffLedgerSnapshots } from "@/lib/staff-payroll";
 import { getSupabaseClient } from "@/lib/supabase/server";
 import { ADtoBS } from "nepali-date-library";
 
@@ -105,11 +105,57 @@ const isWithinRange = (value: string | null | undefined, from: string, to: strin
   return value >= from && value <= to;
 };
 
+const readNestedDate = (
+  relation:
+    | { sales_date?: string | null; purchase_date?: string | null }
+    | Array<{ sales_date?: string | null; purchase_date?: string | null }>
+    | null
+    | undefined,
+  key: "sales_date" | "purchase_date",
+) => {
+  if (Array.isArray(relation)) {
+    return relation[0]?.[key] ?? null;
+  }
+
+  return relation?.[key] ?? null;
+};
+
+const readVendorName = (
+  relation:
+    | { name?: string | null }
+    | Array<{ name?: string | null }>
+    | null
+    | undefined,
+) => {
+  if (Array.isArray(relation)) {
+    return relation[0]?.name ?? null;
+  }
+
+  return relation?.name ?? null;
+};
+
 const formatReportPeriod = (range: string, from: string, to: string) => {
   if (range === "week") return "This Week";
   if (range === "month") return "This Month";
   if (range === "year") return "This Year";
   return `${formatBsDisplayDate(from)} - ${formatBsDisplayDate(to)}`;
+};
+
+const buildDrillDownHref = (
+  basePath: string,
+  selectedRange: string,
+  fromDate: string,
+  toDate: string,
+  filters: Record<string, string>,
+) => {
+  const searchParams = new URLSearchParams({
+    range: selectedRange,
+    from: fromDate,
+    to: toDate,
+    ...filters,
+  });
+
+  return `${basePath}?${searchParams.toString()}`;
 };
 
 export default async function Home({
@@ -128,11 +174,12 @@ export default async function Home({
   const [
     salesResponse,
     purchasesResponse,
-    staffResponse,
+    staffProfilesResponse,
+    staffLedgersResponse,
+    staffTransactionsResponse,
     expensesResponse,
     salesItemsResponse,
     purchaseItemsResponse,
-    staffSalaryPaymentsResponse,
     salesPaymentsResponse,
     purchasePaymentsResponse,
   ] = await Promise.all([
@@ -148,7 +195,15 @@ export default async function Home({
         "purchase_number, purchase_date, total_amount, paid_amount, credit_amount, payment_status, vendor_name, created_at",
       )
       .order("purchase_date", { ascending: true }),
-    supabase.from("staff_profiles").select("total_salary, advance_salary"),
+    supabase.from("staff_profiles").select("id, name, total_salary"),
+    supabase
+      .from("staff_salary_ledgers")
+      .select(
+        "id, staff_id, month, year, base_salary, working_days, leave_days, total_advance, salary_paid, total_paid, remaining, carry_forward, status, created_at, updated_at",
+      ),
+    supabase
+      .from("staff_salary_transactions")
+      .select("id, staff_id, ledger_id, transaction_date, type, amount, note, created_at, updated_at"),
     supabase.from("purchase_expenses").select("expense_date, expense_title, amount, created_at"),
     supabase
       .from("sales_items")
@@ -157,12 +212,6 @@ export default async function Home({
     supabase
       .from("purchase_items")
       .select("product_name, quantity, amount, purchases(purchase_date)")
-      .order("created_at", { ascending: false }),
-    supabase
-      .from("staff_salary_payments")
-      .select(
-        "staff_id, salary_month_bs, payment_date, payment_type, working_days, leave_days, monthly_salary, monthly_payment, advance_payment, created_at, staff_profiles(name)",
-      )
       .order("created_at", { ascending: false }),
     supabase
       .from("sales_payments")
@@ -180,14 +229,17 @@ export default async function Home({
 
   const sales = salesResponse.data ?? [];
   const purchases = purchasesResponse.data ?? [];
-  const staff = staffResponse.data ?? [];
+  const staffProfiles = staffProfilesResponse.data ?? [];
+  const staffLedgerSnapshots = recalculateStaffLedgerSnapshots(
+    staffLedgersResponse.data ?? [],
+    staffTransactionsResponse.data ?? [],
+  );
   const purchaseExpenses = expensesResponse.data ?? [];
   const salesItems = salesItemsResponse.data ?? [];
   const purchaseItems = purchaseItemsResponse.data ?? [];
-  const staffSalaryPayments = staffSalaryPaymentsResponse.data ?? [];
   const salesPayments = salesPaymentsResponse.data ?? [];
   const purchasePayments = purchasePaymentsResponse.data ?? [];
-  const payrollMonthSummaries = buildPayrollMonthSummaries(staffSalaryPayments);
+  const payrollMonthSummaries = staffLedgerSnapshots.ledgers;
   const filteredSales = sales.filter((sale) => isWithinRange(sale.sales_date, fromDate, toDate));
   const filteredPurchases = purchases.filter((purchase) =>
     isWithinRange(purchase.purchase_date, fromDate, toDate),
@@ -196,19 +248,24 @@ export default async function Home({
     isWithinRange(expense.expense_date, fromDate, toDate),
   );
   const filteredSalesItems = salesItems.filter((item) => {
-    const soldOn = Array.isArray(item.sales)
-      ? item.sales[0]?.sales_date ?? null
-      : item.sales?.sales_date ?? null;
+    const soldOn = readNestedDate(
+      item.sales as { sales_date?: string | null } | Array<{ sales_date?: string | null }> | null,
+      "sales_date",
+    );
     return isWithinRange(soldOn, fromDate, toDate);
   });
   const filteredPurchaseItems = purchaseItems.filter((item) => {
-    const boughtOn = Array.isArray(item.purchases)
-      ? item.purchases[0]?.purchase_date ?? null
-      : item.purchases?.purchase_date ?? null;
+    const boughtOn = readNestedDate(
+      item.purchases as
+        | { purchase_date?: string | null }
+        | Array<{ purchase_date?: string | null }>
+        | null,
+      "purchase_date",
+    );
     return isWithinRange(boughtOn, fromDate, toDate);
   });
-  const filteredStaffSalaryPayments = staffSalaryPayments.filter((payment) =>
-    isWithinRange(payment.payment_date, fromDate, toDate),
+  const filteredStaffSalaryPayments = staffLedgerSnapshots.transactions.filter((transaction) =>
+    isWithinRange(transaction.transaction_date, fromDate, toDate),
   );
   const filteredSalesPayments = salesPayments.filter((payment) =>
     isWithinRange(payment.payment_date, fromDate, toDate),
@@ -250,8 +307,18 @@ export default async function Home({
     purchases: value.purchases,
   }));
 
-  const payroll = staff.reduce((sum, item) => sum + Number(item.total_salary ?? 0), 0);
-  const advances = staff.reduce((sum, item) => sum + Number(item.advance_salary ?? 0), 0);
+  const payroll = payrollMonthSummaries
+    .filter((ledger) => {
+      const ledgerDate = `${ledger.year}-${String(ledger.month).padStart(2, "0")}-01`;
+      return ledgerDate >= fromDate && ledgerDate <= toDate;
+    })
+    .reduce((sum, ledger) => sum + Number(ledger.salary_paid ?? 0), 0);
+  const advances = payrollMonthSummaries
+    .filter((ledger) => {
+      const ledgerDate = `${ledger.year}-${String(ledger.month).padStart(2, "0")}-01`;
+      return ledgerDate >= fromDate && ledgerDate <= toDate;
+    })
+    .reduce((sum, ledger) => sum + Number(ledger.total_advance ?? 0), 0);
   const miscExpenses = filteredExpenses.reduce(
     (sum, item) => sum + Number(item.amount ?? 0),
     0,
@@ -323,9 +390,10 @@ export default async function Home({
     existing.amount += Number(item.amount ?? 0);
     existing.invoiceCount += 1;
 
-    const soldOn = Array.isArray(item.sales)
-      ? item.sales[0]?.sales_date ?? null
-      : item.sales?.sales_date ?? null;
+    const soldOn = readNestedDate(
+      item.sales as { sales_date?: string | null } | Array<{ sales_date?: string | null }> | null,
+      "sales_date",
+    );
     existing.lastSold =
       existing.lastSold && soldOn && existing.lastSold > soldOn ? existing.lastSold : soldOn;
 
@@ -361,9 +429,13 @@ export default async function Home({
     existing.amount += Number(item.amount ?? 0);
     existing.billCount += 1;
 
-    const boughtOn = Array.isArray(item.purchases)
-      ? item.purchases[0]?.purchase_date ?? null
-      : item.purchases?.purchase_date ?? null;
+    const boughtOn = readNestedDate(
+      item.purchases as
+        | { purchase_date?: string | null }
+        | Array<{ purchase_date?: string | null }>
+        | null,
+      "purchase_date",
+    );
     existing.lastBought =
       existing.lastBought && boughtOn && existing.lastBought > boughtOn
         ? existing.lastBought
@@ -391,7 +463,7 @@ export default async function Home({
     (purchase) => purchase.payment_status === "OVERDUE",
   );
   const supplierDues = filteredPurchases.filter((purchase) => Number(purchase.credit_amount ?? 0) > 0);
-  const unpaidSalaryEntries = payrollMonthSummaries.filter((summary) => summary.remaining_salary > 0);
+  const unpaidSalaryEntries = payrollMonthSummaries.filter((summary) => summary.remaining > 0);
   const highExpensesTotal = filteredExpenses.reduce((sum, expense) => sum + Number(expense.amount ?? 0), 0);
   const alerts = [
     overdueSales.length > 0
@@ -420,7 +492,9 @@ export default async function Home({
           value: `${supplierDues.length} bill${supplierDues.length > 1 ? "s" : ""}`,
           description: `${formatCurrency(supplierDues.reduce((sum, purchase) => sum + Number(purchase.credit_amount ?? 0), 0))} remains payable to suppliers.`,
           tone: "blue",
-          href: "/purchases",
+          href: buildDrillDownHref("/purchases", selectedRange, fromDate, toDate, {
+            dues: "1",
+          }),
           actionLabel: "Open Purchases",
         }
       : null,
@@ -430,7 +504,9 @@ export default async function Home({
           value: `${overdueSupplierBills.length} bill${overdueSupplierBills.length > 1 ? "s" : ""}`,
           description: `${formatCurrency(overdueSupplierBills.reduce((sum, purchase) => sum + Number(purchase.credit_amount ?? 0), 0))} is overdue.`,
           tone: "red",
-          href: "/purchases",
+          href: buildDrillDownHref("/purchases", selectedRange, fromDate, toDate, {
+            payment_status: "OVERDUE",
+          }),
           actionLabel: "Follow Up",
         }
       : null,
@@ -438,9 +514,11 @@ export default async function Home({
       ? {
           title: "Unpaid Salary Commitments",
           value: `${unpaidSalaryEntries.length} entr${unpaidSalaryEntries.length > 1 ? "ies" : "y"}`,
-          description: `${formatCurrency(unpaidSalaryEntries.reduce((sum, entry) => sum + Number(entry.remaining_salary ?? 0), 0))} is still pending for staff.`,
+          description: `${formatCurrency(unpaidSalaryEntries.reduce((sum, entry) => sum + Number(entry.remaining ?? 0), 0))} is still pending for staff.`,
           tone: "slate",
-          href: "/staff",
+          href: buildDrillDownHref("/staff", selectedRange, fromDate, toDate, {
+            salary_status: "pending",
+          }),
           actionLabel: "Open Payroll",
         }
       : null,
@@ -450,7 +528,9 @@ export default async function Home({
           value: `${filteredExpenses.length} expense${filteredExpenses.length > 1 ? "s" : ""}`,
           description: `${formatCurrency(highExpensesTotal)} recorded in the selected period.`,
           tone: "amber",
-          href: "/purchases",
+          href: buildDrillDownHref("/purchases", selectedRange, fromDate, toDate, {
+            expense_min: "50000",
+          }),
           actionLabel: "Review Expenses",
         }
       : null,
@@ -503,9 +583,9 @@ export default async function Home({
     })),
     ...filteredPurchasePayments.map((payment) => {
       const purchase = Array.isArray(payment.purchases) ? payment.purchases[0] : payment.purchases;
-      const vendorName = Array.isArray(purchase?.vendors)
-        ? purchase?.vendors[0]?.name
-        : purchase?.vendors?.name;
+      const vendorName = readVendorName(
+        purchase?.vendors as { name?: string | null } | Array<{ name?: string | null }> | null,
+      );
       const totalAmount = Number(purchase?.total_amount ?? 0);
       const paidAmount = Number(purchase?.paid_amount ?? 0);
       const wasFullyPaidByThisPayment =
@@ -532,24 +612,45 @@ export default async function Home({
       tone: "amber",
       icon: CreditCard,
     })),
-    ...filteredStaffSalaryPayments.map((payment) => ({
-      id: `salary-${payment.created_at ?? payment.payment_date}-${payment.salary_month_bs}`,
-      title: payment.payment_type === "SALARY" ? "Staff salary paid" : "Staff advance paid",
-      description: `${Array.isArray(payment.staff_profiles) ? payment.staff_profiles[0]?.name ?? "Staff" : payment.staff_profiles?.name ?? "Staff"} • ${payment.salary_month_bs}`,
-      amount: formatCurrency(
-        payment.payment_type === "SALARY" ? payment.monthly_payment : payment.advance_payment,
-      ),
-      date: formatBsDisplayDate(payment.payment_date),
-      sortKey: payment.created_at ?? payment.payment_date ?? "",
+    ...filteredStaffSalaryPayments.map((payment) => {
+      const staffName =
+        staffProfiles.find((staff) => staff.id === payment.staff_id)?.name ?? "Staff";
+      return {
+      id: `salary-${payment.created_at ?? payment.transaction_date}-${payment.id}`,
+      title: payment.type === "SALARY" ? "Staff salary paid" : "Staff advance paid",
+      description: `${staffName} • ${payment.month_label}`,
+      amount: formatCurrency(payment.amount),
+      date: formatBsDisplayDate(payment.transaction_date),
+      sortKey: payment.created_at ?? payment.transaction_date ?? "",
       tone: "slate",
       icon: Wallet,
-    })),
+    };
+    }),
   ]
     .sort((left, right) => right.sortKey.localeCompare(left.sortKey))
     .slice(0, 10);
   const selectedPeriodLabel = formatReportPeriod(selectedRange, fromDate, toDate);
   const generatedReportDate = formatBsDisplayDate(todayDate);
   const nepaliNow = getNepaliDateTimeParts();
+  const overdueSalesHref = buildDrillDownHref("/sales", selectedRange, fromDate, toDate, {
+    status: "OVERDUE",
+  });
+  const pendingCollectionsHref = buildDrillDownHref(
+    "/sales",
+    selectedRange,
+    fromDate,
+    toDate,
+    { collection: "pending" },
+  );
+  const supplierDuesHref = buildDrillDownHref("/purchases", selectedRange, fromDate, toDate, {
+    dues: "1",
+  });
+  const salaryPendingHref = buildDrillDownHref("/staff", selectedRange, fromDate, toDate, {
+    salary_status: "pending",
+  });
+  const expenseSpikesHref = buildDrillDownHref("/purchases", selectedRange, fromDate, toDate, {
+    expense_min: "50000",
+  });
 
   return (
     <div className="flex min-h-screen bg-slate-50/50">
@@ -654,6 +755,74 @@ export default async function Home({
             iconColor={payables > 0 ? "text-rose-500" : "text-slate-700"}
             emphasis="high"
             className="xl:col-span-3"
+            href={supplierDuesHref}
+          />
+        </div>
+
+        <div className="mb-10 grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-5">
+          <SummaryCard
+            title="Overdue Sales"
+            value={formatCurrency(
+              overdueSales.reduce((sum, sale) => sum + Number(sale.remaining_amount ?? 0), 0),
+            )}
+            trend={`${overdueSales.length} overdue invoice${overdueSales.length === 1 ? "" : "s"}`}
+            trendType="negative"
+            icon={AlertCircle}
+            iconBgColor="bg-rose-50"
+            iconColor="text-rose-500"
+            href={overdueSalesHref}
+          />
+          <SummaryCard
+            title="Pending Collections"
+            value={formatCurrency(
+              pendingCustomerCollections.reduce(
+                (sum, sale) => sum + Number(sale.remaining_amount ?? 0),
+                0,
+              ),
+            )}
+            trend={`${pendingCustomerCollections.length} bill${pendingCustomerCollections.length === 1 ? "" : "s"} awaiting collection`}
+            trendType="neutral"
+            icon={Wallet}
+            iconBgColor="bg-amber-50"
+            iconColor="text-amber-600"
+            href={pendingCollectionsHref}
+          />
+          <SummaryCard
+            title="Supplier Dues"
+            value={formatCurrency(
+              supplierDues.reduce((sum, purchase) => sum + Number(purchase.credit_amount ?? 0), 0),
+            )}
+            trend={`${supplierDues.length} supplier bill${supplierDues.length === 1 ? "" : "s"} unpaid`}
+            trendType="negative"
+            icon={ShoppingCart}
+            iconBgColor="bg-blue-50"
+            iconColor="text-blue-600"
+            href={supplierDuesHref}
+          />
+          <SummaryCard
+            title="Salary Pending"
+            value={formatCurrency(
+              unpaidSalaryEntries.reduce(
+                (sum, entry) => sum + Number(entry.remaining ?? 0),
+                0,
+              ),
+            )}
+            trend={`${unpaidSalaryEntries.length} payroll entr${unpaidSalaryEntries.length === 1 ? "y" : "ies"} pending`}
+            trendType="neutral"
+            icon={ReceiptText}
+            iconBgColor="bg-slate-100"
+            iconColor="text-slate-700"
+            href={salaryPendingHref}
+          />
+          <SummaryCard
+            title="Expense Spikes"
+            value={formatCurrency(highExpensesTotal)}
+            trend={`${filteredExpenses.length} expense${filteredExpenses.length === 1 ? "" : "s"} in range`}
+            trendType={highExpensesTotal >= 50000 ? "negative" : "neutral"}
+            icon={CreditCard}
+            iconBgColor="bg-amber-50"
+            iconColor="text-amber-700"
+            href={expenseSpikesHref}
           />
         </div>
 

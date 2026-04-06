@@ -101,6 +101,46 @@ create table if not exists public.staff_salary_payments (
   updated_at timestamptz not null default timezone('utc', now())
 );
 
+create table if not exists public.staff_salary_ledgers (
+  id uuid primary key default gen_random_uuid(),
+  staff_id uuid not null references public.staff_profiles(id) on delete cascade,
+  month integer not null check (month between 1 and 12),
+  year integer not null check (year >= 2000),
+  base_salary numeric(12, 2) not null default 0 check (base_salary >= 0),
+  working_days integer not null default 30 check (working_days > 0),
+  leave_days integer not null default 0 check (leave_days >= 0),
+  total_advance numeric(12, 2) not null default 0 check (total_advance >= 0),
+  salary_paid numeric(12, 2) not null default 0 check (salary_paid >= 0),
+  total_paid numeric(12, 2) not null default 0 check (total_paid >= 0),
+  remaining numeric(12, 2) not null default 0 check (remaining >= 0),
+  carry_forward numeric(12, 2) not null default 0 check (carry_forward >= 0),
+  status text not null default 'OPEN' check (status in ('OPEN', 'CLOSED')),
+  created_at timestamptz not null default timezone('utc', now()),
+  updated_at timestamptz not null default timezone('utc', now()),
+  unique (staff_id, month, year)
+);
+
+create table if not exists public.staff_salary_transactions (
+  id uuid primary key default gen_random_uuid(),
+  staff_id uuid not null references public.staff_profiles(id) on delete cascade,
+  ledger_id uuid not null references public.staff_salary_ledgers(id) on delete cascade,
+  transaction_date date not null default current_date,
+  type text not null default 'ADVANCE' check (type in ('ADVANCE', 'SALARY')),
+  amount numeric(12, 2) not null check (amount > 0),
+  note text,
+  created_at timestamptz not null default timezone('utc', now()),
+  updated_at timestamptz not null default timezone('utc', now())
+);
+
+create index if not exists idx_staff_salary_ledgers_staff_period
+  on public.staff_salary_ledgers(staff_id, year, month);
+
+create index if not exists idx_staff_salary_transactions_staff_date
+  on public.staff_salary_transactions(staff_id, transaction_date);
+
+create index if not exists idx_staff_salary_transactions_ledger_id
+  on public.staff_salary_transactions(ledger_id);
+
 alter table public.staff_salary_payments
   add column if not exists payment_type text not null default 'ADVANCE';
 
@@ -289,6 +329,8 @@ alter table public.vendors enable row level security;
 alter table public.company_settings enable row level security;
 alter table public.staff_profiles enable row level security;
 alter table public.staff_salary_payments enable row level security;
+alter table public.staff_salary_ledgers enable row level security;
+alter table public.staff_salary_transactions enable row level security;
 alter table public.sales enable row level security;
 alter table public.sales_items enable row level security;
 alter table public.sales_payments enable row level security;
@@ -458,6 +500,72 @@ drop policy if exists "anon can delete staff salary payments" on public.staff_sa
 drop policy if exists "authenticated can delete staff salary payments" on public.staff_salary_payments;
 create policy "authenticated can delete staff salary payments"
 on public.staff_salary_payments
+for delete
+to authenticated
+using (true);
+
+drop policy if exists "anon can read staff salary ledgers" on public.staff_salary_ledgers;
+drop policy if exists "authenticated can read staff salary ledgers" on public.staff_salary_ledgers;
+create policy "authenticated can read staff salary ledgers"
+on public.staff_salary_ledgers
+for select
+to authenticated
+using (true);
+
+drop policy if exists "anon can insert staff salary ledgers" on public.staff_salary_ledgers;
+drop policy if exists "authenticated can insert staff salary ledgers" on public.staff_salary_ledgers;
+create policy "authenticated can insert staff salary ledgers"
+on public.staff_salary_ledgers
+for insert
+to authenticated
+with check (true);
+
+drop policy if exists "anon can update staff salary ledgers" on public.staff_salary_ledgers;
+drop policy if exists "authenticated can update staff salary ledgers" on public.staff_salary_ledgers;
+create policy "authenticated can update staff salary ledgers"
+on public.staff_salary_ledgers
+for update
+to authenticated
+using (true)
+with check (true);
+
+drop policy if exists "anon can delete staff salary ledgers" on public.staff_salary_ledgers;
+drop policy if exists "authenticated can delete staff salary ledgers" on public.staff_salary_ledgers;
+create policy "authenticated can delete staff salary ledgers"
+on public.staff_salary_ledgers
+for delete
+to authenticated
+using (true);
+
+drop policy if exists "anon can read staff salary transactions" on public.staff_salary_transactions;
+drop policy if exists "authenticated can read staff salary transactions" on public.staff_salary_transactions;
+create policy "authenticated can read staff salary transactions"
+on public.staff_salary_transactions
+for select
+to authenticated
+using (true);
+
+drop policy if exists "anon can insert staff salary transactions" on public.staff_salary_transactions;
+drop policy if exists "authenticated can insert staff salary transactions" on public.staff_salary_transactions;
+create policy "authenticated can insert staff salary transactions"
+on public.staff_salary_transactions
+for insert
+to authenticated
+with check (true);
+
+drop policy if exists "anon can update staff salary transactions" on public.staff_salary_transactions;
+drop policy if exists "authenticated can update staff salary transactions" on public.staff_salary_transactions;
+create policy "authenticated can update staff salary transactions"
+on public.staff_salary_transactions
+for update
+to authenticated
+using (true)
+with check (true);
+
+drop policy if exists "anon can delete staff salary transactions" on public.staff_salary_transactions;
+drop policy if exists "authenticated can delete staff salary transactions" on public.staff_salary_transactions;
+create policy "authenticated can delete staff salary transactions"
+on public.staff_salary_transactions
 for delete
 to authenticated
 using (true);
@@ -708,19 +816,32 @@ from public.purchases;
 
 create or replace view public.staff_salary_summary as
 select
-  count(*) as total_staff,
-  coalesce(sum(total_salary), 0)::numeric(12, 2) as total_salary_amount,
-  coalesce(sum(advance_salary), 0)::numeric(12, 2) as total_advance_amount,
-  coalesce(sum(remaining_salary), 0)::numeric(12, 2) as total_remaining_amount
-from public.staff_profiles;
+  (select count(*) from public.staff_profiles)::bigint as total_staff,
+  (
+    select coalesce(sum(total_salary), 0)::numeric(12, 2)
+    from public.staff_profiles
+    where status = 'ACTIVE'
+  ) as total_salary_amount,
+  (
+    select coalesce(sum(total_advance), 0)::numeric(12, 2)
+    from public.staff_salary_ledgers
+    where status = 'OPEN'
+  ) as total_advance_amount,
+  (
+    select coalesce(sum(remaining), 0)::numeric(12, 2)
+    from public.staff_salary_ledgers
+    where status = 'OPEN'
+  ) as total_remaining_amount;
 
 create or replace view public.staff_payment_summary as
 select
   count(*) as total_salary_entries,
-  coalesce(sum(monthly_payment), 0)::numeric(12, 2) as total_monthly_payment,
-  coalesce(sum(advance_payment), 0)::numeric(12, 2) as total_advance_payment,
-  coalesce(sum(remaining_payment), 0)::numeric(12, 2) as total_remaining_payment
-from public.staff_salary_payments;
+  coalesce(sum(case when type = 'SALARY' then amount else 0 end), 0)::numeric(12, 2) as total_monthly_payment,
+  coalesce(sum(case when type = 'ADVANCE' then amount else 0 end), 0)::numeric(12, 2) as total_advance_payment,
+  coalesce(sum(ledger.remaining), 0)::numeric(12, 2) as total_remaining_payment
+from public.staff_salary_transactions transaction
+left join public.staff_salary_ledgers ledger
+  on ledger.id = transaction.ledger_id;
 
 drop trigger if exists products_set_updated_at on public.products;
 create trigger products_set_updated_at
@@ -749,6 +870,18 @@ execute function public.set_updated_at();
 drop trigger if exists staff_salary_payments_set_updated_at on public.staff_salary_payments;
 create trigger staff_salary_payments_set_updated_at
 before update on public.staff_salary_payments
+for each row
+execute function public.set_updated_at();
+
+drop trigger if exists staff_salary_ledgers_set_updated_at on public.staff_salary_ledgers;
+create trigger staff_salary_ledgers_set_updated_at
+before update on public.staff_salary_ledgers
+for each row
+execute function public.set_updated_at();
+
+drop trigger if exists staff_salary_transactions_set_updated_at on public.staff_salary_transactions;
+create trigger staff_salary_transactions_set_updated_at
+before update on public.staff_salary_transactions
 for each row
 execute function public.set_updated_at();
 
