@@ -36,6 +36,49 @@ const parsePage = (value: string | string[] | undefined) => {
 const PURCHASES_PAGE_SIZE = 8;
 const EXPENSES_PAGE_SIZE = 8;
 const PAYMENTS_PAGE_SIZE = 8;
+const getTodayDate = () =>
+  new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Kathmandu",
+  }).format(new Date());
+
+const getDateRange = (range: string, today: string) => {
+  const current = new Date(`${today}T00:00:00`);
+
+  if (range === "week") {
+    const day = current.getDay();
+    const diff = day === 0 ? 6 : day - 1;
+    const start = new Date(current);
+    start.setDate(current.getDate() - diff);
+    return {
+      from: start.toISOString().slice(0, 10),
+      to: today,
+    };
+  }
+
+  if (range === "year") {
+    return {
+      from: `${current.getFullYear()}-01-01`,
+      to: today,
+    };
+  }
+
+  if (range === "custom") {
+    return {
+      from: today,
+      to: today,
+    };
+  }
+
+  return {
+    from: `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, "0")}-01`,
+    to: today,
+  };
+};
+
+const isWithinRange = (value: string | null | undefined, from: string, to: string) => {
+  if (!value) return false;
+  return value >= from && value <= to;
+};
 
 export default async function PurchasesPage({
   searchParams,
@@ -45,6 +88,14 @@ export default async function PurchasesPage({
   const supabase = await getSupabaseClient();
   const params = await searchParams;
   const notice = typeof params.notice === "string" ? params.notice : "";
+  const selectedRange = typeof params.range === "string" ? params.range : "year";
+  const todayDate = getTodayDate();
+  const defaultRange = getDateRange(selectedRange, todayDate);
+  const fromDate = typeof params.from === "string" && params.from ? params.from : defaultRange.from;
+  const toDate = typeof params.to === "string" && params.to ? params.to : defaultRange.to;
+  const duesOnly = typeof params.dues === "string" && params.dues === "1";
+  const paymentStatus = typeof params.payment_status === "string" ? params.payment_status : "ALL";
+  const expenseMin = typeof params.expense_min === "string" ? Number(params.expense_min) : 0;
   const purchasesPage = parsePage(params.purchasesPage);
   const expensesPage = parsePage(params.expensesPage);
   const paymentsPage = parsePage(params.paymentsPage);
@@ -53,7 +104,7 @@ export default async function PurchasesPage({
     supabase
       .from("purchases")
       .select(
-        "id, purchase_number, purchase_date, payment_type, total_amount, paid_amount, credit_amount, notes, vendor_id, vendor_name, vendors(name), purchase_items(product_id, product_name, quantity, rate)",
+        "id, purchase_number, purchase_date, payment_status, payment_type, total_amount, paid_amount, credit_amount, notes, vendor_id, vendor_name, vendors(name), purchase_items(product_id, product_name, quantity, rate)",
       )
       .order("created_at", { ascending: false }),
     supabase
@@ -69,9 +120,22 @@ export default async function PurchasesPage({
       .limit(10),
   ]);
 
-  const purchases = purchasesResponse.data ?? [];
-  const expenses = expensesResponse.data ?? [];
-  const purchasePayments = paymentsResponse.data ?? [];
+  const allPurchases = (purchasesResponse.data ?? []).filter((purchase) =>
+    isWithinRange(purchase.purchase_date, fromDate, toDate),
+  );
+  const purchases = allPurchases.filter((purchase) => {
+    if (duesOnly && Number(purchase.credit_amount ?? 0) <= 0) return false;
+    if (paymentStatus !== "ALL" && purchase.payment_status !== paymentStatus) return false;
+    return true;
+  });
+  const expenses = (expensesResponse.data ?? []).filter(
+    (expense) =>
+      isWithinRange(expense.expense_date, fromDate, toDate) &&
+      Number(expense.amount ?? 0) >= expenseMin,
+  );
+  const purchasePayments = (paymentsResponse.data ?? []).filter((payment) =>
+    isWithinRange(payment.payment_date, fromDate, toDate),
+  );
   const purchasesTotalPages = Math.max(Math.ceil(purchases.length / PURCHASES_PAGE_SIZE), 1);
   const expensesTotalPages = Math.max(Math.ceil(expenses.length / EXPENSES_PAGE_SIZE), 1);
   const paymentsTotalPages = Math.max(Math.ceil(purchasePayments.length / PAYMENTS_PAGE_SIZE), 1);
@@ -118,7 +182,7 @@ export default async function PurchasesPage({
           description="Track supplier profiles, purchase totals, and outstanding credit."
         />
         <QueryNoticeToast message={notice} />
-        <ReportToolbar actionPath="/purchases" />
+        <ReportToolbar actionPath="/purchases" selectedRange={selectedRange} fromDate={fromDate} toDate={toDate} />
         <PageActionStrip
           actions={[
             { label: "Create Purchase Bill", href: "/purchases/create" },
@@ -135,6 +199,7 @@ export default async function PurchasesPage({
             icon={ShoppingCart}
             iconBgColor="bg-blue-50"
             iconColor="text-blue-600"
+            href={`/purchases?range=${selectedRange}&from=${fromDate}&to=${toDate}`}
           />
           <SummaryCard
             title="Total Credit"
@@ -144,6 +209,7 @@ export default async function PurchasesPage({
             icon={CreditCard}
             iconBgColor="bg-red-50"
             iconColor="text-red-600"
+            href={`/purchases?range=${selectedRange}&from=${fromDate}&to=${toDate}&dues=1`}
           />
           <SummaryCard
             title="Total Paid"
@@ -153,6 +219,7 @@ export default async function PurchasesPage({
             icon={BadgeDollarSign}
             iconBgColor="bg-green-50"
             iconColor="text-green-600"
+            href={`/purchases?range=${selectedRange}&from=${fromDate}&to=${toDate}`}
           />
           <SummaryCard
             title="Misc Expenses"
@@ -162,6 +229,7 @@ export default async function PurchasesPage({
             icon={BadgeDollarSign}
             iconBgColor="bg-slate-100"
             iconColor="text-slate-700"
+            href={`/purchases?range=${selectedRange}&from=${fromDate}&to=${toDate}&expense_min=50000`}
           />
         </div>
 

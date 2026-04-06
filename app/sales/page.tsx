@@ -91,6 +91,7 @@ export default async function SalesPage({
   const search = typeof params.q === "string" ? params.q.trim() : "";
   const sort = typeof params.sort === "string" ? params.sort : "date_desc";
   const status = typeof params.status === "string" ? params.status : "ALL";
+  const collection = typeof params.collection === "string" ? params.collection : "";
   const selectedRange = typeof params.range === "string" ? params.range : "year";
   const todayDate = getTodayDate();
   const defaultRange = getDateRange(selectedRange, todayDate);
@@ -122,10 +123,14 @@ export default async function SalesPage({
         return haystack.includes(search.toLowerCase());
       })
     : rangedSales;
-  const filteredSales =
+  const statusFilteredSales =
     status === "ALL"
       ? searchedSales
       : searchedSales.filter((sale) => sale.payment_status === status);
+  const filteredSales =
+    collection === "pending"
+      ? statusFilteredSales.filter((sale) => Number(sale.remaining_amount ?? 0) > 0)
+      : statusFilteredSales;
 
   const sales = [...filteredSales].sort((left, right) => {
     if (sort === "name_asc") {

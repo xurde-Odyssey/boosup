@@ -1,4 +1,5 @@
 import React from 'react';
+import Link from "next/link";
 import { LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -12,6 +13,7 @@ interface SummaryCardProps {
     iconColor: string;
     emphasis?: 'high' | 'normal';
     className?: string;
+    href?: string;
 }
 
 export function SummaryCard({
@@ -23,7 +25,8 @@ export function SummaryCard({
     iconBgColor,
     iconColor,
     emphasis = 'normal',
-    className
+    className,
+    href
 }: SummaryCardProps) {
     const toneClasses =
         trendType === 'positive'
@@ -32,9 +35,10 @@ export function SummaryCard({
               ? "border-rose-200/80 bg-gradient-to-br from-rose-50/80 via-white to-white dark:border-rose-900/60 dark:from-rose-950/50 dark:via-slate-900 dark:to-slate-900"
               : "border-slate-200 bg-gradient-to-br from-slate-50/80 via-white to-white dark:border-slate-800 dark:from-slate-900 dark:via-slate-900 dark:to-slate-950";
 
-    return (
+    const cardContent = (
         <div className={cn(
             "rounded-3xl border shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md dark:shadow-slate-950/30",
+            href && "cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60",
             toneClasses,
             emphasis === 'high' ? "p-7" : "p-6",
             className
@@ -80,4 +84,14 @@ export function SummaryCard({
             </div>
         </div>
     );
+
+    if (href) {
+        return (
+            <Link href={href} className="block">
+                {cardContent}
+            </Link>
+        );
+    }
+
+    return cardContent;
 }
