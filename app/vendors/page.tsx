@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { BadgeDollarSign, CreditCard, Pencil, RefreshCcw, Trash2, Truck, Wallet } from "lucide-react";
+import { BadgeDollarSign, CreditCard, HandCoins, Pencil, RefreshCcw, Trash2, Truck, Wallet } from "lucide-react";
 import { deleteVendor } from "@/app/actions";
 import { Header } from "@/components/dashboard/Header";
 import { Sidebar } from "@/components/dashboard/Sidebar";
@@ -12,6 +12,8 @@ import { PaginationControls } from "@/components/shared/PaginationControls";
 import { ReportToolbar } from "@/components/shared/ReportToolbar";
 import { SectionCard } from "@/components/shared/SectionCard";
 import { StatusBadge } from "@/components/shared/StatusBadge";
+import { VendorPrintPreview } from "@/components/vendors/VendorPrintPreview";
+import { getCompanySettings } from "@/lib/company-settings-server";
 import { formatBsDisplayDate } from "@/lib/nepali-date";
 import { formatCurrency } from "@/lib/presentation";
 import { getSupabaseClient } from "@/lib/supabase/server";
@@ -31,12 +33,13 @@ export default async function VendorsPage({
   searchParams: SearchParams;
 }) {
   const supabase = await getSupabaseClient();
+  const company = await getCompanySettings();
   const params = await searchParams;
   const notice = typeof params.notice === "string" ? params.notice : "";
   const vendorPayablesPage = parsePage(params.vendorPayablesPage);
   const vendorProfilesPage = parsePage(params.vendorProfilesPage);
 
-  const [vendorsResponse, purchasesResponse] = await Promise.all([
+  const [vendorsResponse, purchasesResponse, paymentsResponse] = await Promise.all([
     supabase
       .from("vendors")
       .select("id, vendor_code, name, contact_person, phone, address, payment_terms, status, notes")
@@ -47,10 +50,15 @@ export default async function VendorsPage({
         "id, purchase_date, total_amount, paid_amount, credit_amount, vendor_id, purchase_items(quantity)",
       )
       .order("purchase_date", { ascending: false }),
+    supabase
+      .from("purchase_payments")
+      .select("id, payment_date, amount, payment_method, purchase_id, purchases(vendor_id, purchase_number)")
+      .order("payment_date", { ascending: false }),
   ]);
 
   const vendors = vendorsResponse.data ?? [];
   const purchases = purchasesResponse.data ?? [];
+  const payments = paymentsResponse.data ?? [];
 
   const activeVendors = vendors.filter((vendor) => vendor.status === "ACTIVE").length;
   const vendorPayables = vendors
@@ -197,45 +205,107 @@ export default async function VendorsPage({
                     <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">Bills</th>
                     <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">Items Bought</th>
                     <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">Last Purchase</th>
+                    <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-50">
-                  {visibleVendorPayables.map((vendor, index) => (
-                    <tr
-                      key={vendor.id}
-                      className={`transition-colors hover:bg-blue-50/40 ${
-                        index % 2 === 0 ? "bg-white" : "bg-slate-50/40"
-                      }`}
-                    >
-                      <td className="px-6 py-4">
-                        <Link
-                          href={`/vendors/${vendor.id}`}
-                          className="text-sm font-semibold text-slate-900 hover:text-blue-600"
-                          title={`Open supplier profile for ${vendor.name}`}
-                        >
-                          {vendor.name}
-                        </Link>
-                        <div className="text-xs text-slate-500">{vendor.vendorCode}</div>
-                      </td>
-                      <td className="px-6 py-4 text-sm font-semibold text-slate-900">
-                        {formatCurrency(vendor.totalAmount)}
-                      </td>
-                      <td className="px-6 py-4 text-sm font-bold text-green-700">
-                        {formatCurrency(vendor.totalPaidAmount)}
-                      </td>
-                      <td className="px-6 py-4 text-sm font-bold text-amber-700">
-                        {formatCurrency(vendor.totalCreditAmount)}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-slate-600">{vendor.billCount}</td>
-                      <td className="px-6 py-4 text-sm text-slate-600">{vendor.totalItemsBought}</td>
-                      <td className="px-6 py-4 text-sm text-slate-600">
-                        {formatBsDisplayDate(vendor.lastPurchaseDate)}
-                      </td>
-                    </tr>
-                  ))}
+                  {visibleVendorPayables.map((vendor, index) => {
+                    const vendorProfile = vendors.find((entry) => entry.id === vendor.id);
+                    const vendorPayments = payments
+                      .filter((payment) => {
+                        const purchase = Array.isArray(payment.purchases) ? payment.purchases[0] : payment.purchases;
+                        return purchase?.vendor_id === vendor.id;
+                      })
+                      .map((payment) => {
+                        const purchase = Array.isArray(payment.purchases) ? payment.purchases[0] : payment.purchases;
+                        return {
+                          id: payment.id,
+                          payment_date: payment.payment_date,
+                          amount: Number(payment.amount ?? 0),
+                          payment_method: payment.payment_method,
+                          purchases: purchase ? { purchase_number: purchase.purchase_number ?? null } : null,
+                        };
+                      });
+
+                    return (
+                      <tr
+                        key={vendor.id}
+                        className={`transition-colors hover:bg-blue-50/40 ${
+                          index % 2 === 0 ? "bg-white" : "bg-slate-50/40"
+                        }`}
+                      >
+                        <td className="px-6 py-4">
+                          <Link
+                            href={`/vendors/${vendor.id}`}
+                            className="text-sm font-semibold text-slate-900 hover:text-blue-600"
+                            title={`Open supplier profile for ${vendor.name}`}
+                          >
+                            {vendor.name}
+                          </Link>
+                          <div className="text-xs text-slate-500">{vendor.vendorCode}</div>
+                        </td>
+                        <td className="px-6 py-4 text-sm font-semibold text-slate-900">
+                          {formatCurrency(vendor.totalAmount)}
+                        </td>
+                        <td className="px-6 py-4 text-sm font-bold text-green-700">
+                          {formatCurrency(vendor.totalPaidAmount)}
+                        </td>
+                        <td className="px-6 py-4 text-sm font-bold text-amber-700">
+                          {formatCurrency(vendor.totalCreditAmount)}
+                        </td>
+                        <td className="px-6 py-4 text-sm text-slate-600">{vendor.billCount}</td>
+                        <td className="px-6 py-4 text-sm text-slate-600">{vendor.totalItemsBought}</td>
+                        <td className="px-6 py-4 text-sm text-slate-600">
+                          {formatBsDisplayDate(vendor.lastPurchaseDate)}
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex items-center justify-end gap-1">
+                            <div>
+                              <Link
+                                href={`/vendors/${vendor.id}?action=pay`}
+                                className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 transition-all hover:bg-slate-900 hover:text-white"
+                                title={`Add supplier payment for ${vendor.name}`}
+                              >
+                                <HandCoins className="h-4 w-4" />
+                              </Link>
+                            </div>
+                            <div>
+                              <Link
+                                href={`/vendors/create?edit=${vendor.id}`}
+                                className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 transition-all hover:bg-slate-900 hover:text-white"
+                                title={`Edit supplier ${vendor.name}`}
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Link>
+                            </div>
+                            {vendorProfile ? (
+                              <VendorPrintPreview
+                                company={company}
+                                vendor={{
+                                  name: vendorProfile.name,
+                                  vendor_code: vendorProfile.vendor_code,
+                                  contact_person: vendorProfile.contact_person,
+                                  phone: vendorProfile.phone,
+                                  address: vendorProfile.address,
+                                  totalPurchase: vendor.totalAmount,
+                                  totalPaid: vendor.totalPaidAmount,
+                                  totalPayable: vendor.totalCreditAmount,
+                                  totalBills: vendor.billCount,
+                                  lastPurchaseDate: vendor.lastPurchaseDate,
+                                  payments: vendorPayments,
+                                }}
+                                label={`Print supplier statement for ${vendor.name}`}
+                                iconOnly
+                              />
+                            ) : null}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
                   {vendorPayables.length === 0 && (
                     <tr>
-                      <td colSpan={7} className="px-6 py-10">
+                      <td colSpan={8} className="px-6 py-10">
                         <EmptyState
                           icon={Wallet}
                           title="No supplier payables yet"

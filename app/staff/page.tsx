@@ -3,8 +3,10 @@ import {
   Banknote,
   CalendarClock,
   CreditCard,
+  Filter,
   HandCoins,
   LayoutList,
+  Search,
   Pencil,
   ReceiptText,
   UserPlus,
@@ -13,6 +15,7 @@ import {
 } from "lucide-react";
 import { Header } from "@/components/dashboard/Header";
 import { Sidebar } from "@/components/dashboard/Sidebar";
+import { AutoSubmitSelect } from "@/components/shared/AutoSubmitSelect";
 import { SummaryCard } from "@/components/dashboard/SummaryCard";
 import { Button } from "@/components/shared/Button";
 import { EmptyState } from "@/components/shared/EmptyState";
@@ -94,6 +97,9 @@ export default async function StaffPage({
   const toDate = typeof params.to === "string" && params.to ? params.to : defaultRange.to;
   const salaryStatus = typeof params.salary_status === "string" ? params.salary_status : "ALL";
   const selectedStaffId = typeof params.staff === "string" ? params.staff : "";
+  const staffSearch = typeof params.staff_q === "string" ? params.staff_q.trim() : "";
+  const staffFilter = typeof params.staff_filter === "string" ? params.staff_filter : "ALL";
+  const activeTab = typeof params.tab === "string" ? params.tab : "overview";
 
   const [staffProfilesResponse, ledgersResponse, transactionsResponse] = await Promise.all([
     supabase
@@ -126,32 +132,61 @@ export default async function StaffPage({
       ? visibleLedgers.filter((ledger) => ledger.remaining > 0)
       : visibleLedgers;
   const visibleStaffIds = new Set(filteredLedgers.map((ledger) => ledger.staff_id));
-  const visibleStaffProfiles =
+  const rangeAwareStaffProfiles =
     salaryStatus === "pending"
       ? staffProfiles.filter((staff) => visibleStaffIds.has(staff.id))
       : staffProfiles;
-  const activeStaffId = selectedStaffId || visibleStaffProfiles[0]?.id || "";
-  const activeStaff = visibleStaffProfiles.find((staff) => staff.id === activeStaffId) ?? null;
+  const staffSummaryMap = new Map(
+    staffProfiles.map((staff) => {
+      const staffLedgers = filteredLedgers
+        .filter((ledger) => ledger.staff_id === staff.id)
+        .sort((left, right) => right.period_key.localeCompare(left.period_key));
+      const staffTransactions = visibleTransactions.filter((transaction) => transaction.staff_id === staff.id);
+      const totalAdvanceAmount = staffLedgers.reduce((sum, ledger) => sum + ledger.total_advance, 0);
+      const totalSalaryAmount = staffLedgers.reduce((sum, ledger) => sum + ledger.salary_paid, 0);
+      const totalRemainingAmount = staffLedgers.reduce((sum, ledger) => sum + ledger.remaining, 0);
+
+      return [
+        staff.id,
+        {
+          ledgers: staffLedgers,
+          transactions: staffTransactions,
+          totalAdvanceAmount,
+          totalSalaryAmount,
+          totalRemainingAmount,
+          hasAdvance: totalAdvanceAmount > 0,
+          isPaid: staffLedgers.length > 0 && totalRemainingAmount <= 0,
+          isPending: totalRemainingAmount > 0,
+        },
+      ];
+    }),
+  );
+  const statusFilteredStaffProfiles = rangeAwareStaffProfiles.filter((staff) => {
+    const summary = staffSummaryMap.get(staff.id);
+
+    if (staffFilter === "PENDING") return Boolean(summary?.isPending);
+    if (staffFilter === "ADVANCE") return Boolean(summary?.hasAdvance);
+    if (staffFilter === "PAID") return Boolean(summary?.isPaid);
+    if (staffFilter === "INACTIVE") return staff.status === "INACTIVE";
+
+    return true;
+  });
+  const searchedStaffProfiles = staffSearch
+    ? statusFilteredStaffProfiles.filter((staff) => {
+        const haystack = `${staff.name} ${staff.staff_code}`.toLowerCase();
+        return haystack.includes(staffSearch.toLowerCase());
+      })
+    : statusFilteredStaffProfiles;
+  const activeStaffId = selectedStaffId || searchedStaffProfiles[0]?.id || "";
+  const activeStaff = searchedStaffProfiles.find((staff) => staff.id === activeStaffId) ?? null;
   const activeStaffLedgers = filteredLedgers
     .filter((ledger) => ledger.staff_id === activeStaffId)
     .sort((left, right) => right.period_key.localeCompare(left.period_key));
   const activeStaffTransactions = visibleTransactions.filter(
     (transaction) => transaction.staff_id === activeStaffId,
   );
-  const activeAdvanceTotal = activeStaffLedgers.reduce(
-    (sum, ledger) => sum + ledger.total_advance,
-    0,
-  );
-  const activeSalaryPaidTotal = activeStaffLedgers.reduce(
-    (sum, ledger) => sum + ledger.salary_paid,
-    0,
-  );
-  const activeRemainingTotal = activeStaffLedgers.reduce(
-    (sum, ledger) => sum + ledger.remaining,
-    0,
-  );
-  const activeCarryForward = activeStaffLedgers[0]?.carry_forward ?? 0;
-  const latestTransaction = activeStaffTransactions[0] ?? null;
+  const currentLedger = activeStaffLedgers[0] ?? null;
+  const overviewTransactions = activeStaffTransactions.slice(0, 5);
 
   const totalAdvance = filteredLedgers.reduce((sum, ledger) => sum + ledger.total_advance, 0);
   const totalSalaryPaid = filteredLedgers.reduce((sum, ledger) => sum + ledger.salary_paid, 0);
@@ -162,6 +197,36 @@ export default async function StaffPage({
   ).size;
 
   const baseStaffHref = `/staff?range=${selectedRange}&from=${fromDate}&to=${toDate}`;
+  const buildStaffPageHref = (extra: Record<string, string>) => {
+    const searchParams = new URLSearchParams({
+      range: selectedRange,
+      from: fromDate,
+      to: toDate,
+    });
+
+    if (salaryStatus !== "ALL") searchParams.set("salary_status", salaryStatus);
+    if (activeStaffId) searchParams.set("staff", activeStaffId);
+    if (staffSearch) searchParams.set("staff_q", staffSearch);
+    if (staffFilter !== "ALL") searchParams.set("staff_filter", staffFilter);
+
+    Object.entries(extra).forEach(([key, value]) => {
+      if (value) searchParams.set(key, value);
+    });
+
+    return `/staff?${searchParams.toString()}`;
+  };
+  const staffFilterOptions = [
+    { value: "ALL", label: "All" },
+    { value: "PENDING", label: "Pending Salary" },
+    { value: "ADVANCE", label: "Advance Taken" },
+    { value: "PAID", label: "Paid" },
+    { value: "INACTIVE", label: "Inactive" },
+  ];
+  const staffTabs = [
+    { value: "overview", label: "Overview" },
+    { value: "ledger", label: "Ledger" },
+    { value: "transactions", label: "Transactions" },
+  ];
 
   return (
     <div className="flex min-h-screen bg-slate-50/50">
@@ -246,15 +311,62 @@ export default async function StaffPage({
               <p className="mt-1 text-xs text-slate-500">
                 Select a staff member to view their monthly salary ledger and transactions.
               </p>
+              <form action="/staff" method="get" className="mt-4 space-y-3">
+                <input type="hidden" name="range" value={selectedRange} />
+                <input type="hidden" name="from" value={fromDate} />
+                <input type="hidden" name="to" value={toDate} />
+                {salaryStatus !== "ALL" ? <input type="hidden" name="salary_status" value={salaryStatus} /> : null}
+                {activeStaffId ? <input type="hidden" name="staff" value={activeStaffId} /> : null}
+                {activeTab !== "overview" ? <input type="hidden" name="tab" value={activeTab} /> : null}
+                {staffFilter !== "ALL" ? <input type="hidden" name="staff_filter" value={staffFilter} /> : null}
+                <div className="relative">
+                  <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type="text"
+                    name="staff_q"
+                    defaultValue={staffSearch}
+                    placeholder="Search staff name or code"
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 py-3 pl-11 pr-4 text-sm outline-none focus:border-blue-500 focus:bg-white"
+                  />
+                </div>
+              </form>
+              <form action="/staff" method="get" className="mt-3">
+                <input type="hidden" name="range" value={selectedRange} />
+                <input type="hidden" name="from" value={fromDate} />
+                <input type="hidden" name="to" value={toDate} />
+                {salaryStatus !== "ALL" ? <input type="hidden" name="salary_status" value={salaryStatus} /> : null}
+                {activeStaffId ? <input type="hidden" name="staff" value={activeStaffId} /> : null}
+                {activeTab !== "overview" ? <input type="hidden" name="tab" value={activeTab} /> : null}
+                {staffSearch ? <input type="hidden" name="staff_q" value={staffSearch} /> : null}
+                <label className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-500">
+                  <Filter className="h-3.5 w-3.5" />
+                  Staff Filter
+                </label>
+                <AutoSubmitSelect
+                  name="staff_filter"
+                  defaultValue={staffFilter}
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition focus:border-blue-500 focus:bg-white"
+                >
+                  {staffFilterOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </AutoSubmitSelect>
+              </form>
             </div>
             <div className="divide-y divide-slate-50">
-              {visibleStaffProfiles.map((staff, index) => {
+              {searchedStaffProfiles.map((staff, index) => {
                 const isActive = staff.id === activeStaffId;
+                const staffSummary = staffSummaryMap.get(staff.id);
 
                 return (
                   <Link
                     key={staff.id}
-                    href={`${baseStaffHref}${salaryStatus === "pending" ? "&salary_status=pending" : ""}&staff=${staff.id}`}
+                    href={`${buildStaffPageHref({
+                      staff: staff.id,
+                      tab: activeTab === "overview" ? "" : activeTab,
+                    })}`}
                     className={`block px-6 py-4 transition-colors hover:bg-blue-50/40 ${
                       isActive
                         ? "border-l-4 border-blue-600 bg-blue-50/50"
@@ -263,8 +375,32 @@ export default async function StaffPage({
                           : "bg-slate-50/40"
                     }`}
                   >
-                    <div className="text-sm font-semibold text-slate-900">{staff.name}</div>
-                    <div className="mt-1 text-xs text-slate-500">{staff.staff_code}</div>
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="text-sm font-semibold text-slate-900">{staff.name}</div>
+                        <div className="mt-1 text-xs text-slate-500">{staff.staff_code}</div>
+                      </div>
+                      <div className={`mt-1 h-2.5 w-2.5 rounded-full ${
+                        staff.status === "ACTIVE" ? "bg-emerald-400" : "bg-slate-300"
+                      }`} />
+                    </div>
+                    <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+                      {staffSummary?.isPending ? (
+                        <span className="rounded-full bg-red-50 px-2.5 py-1 font-semibold text-red-600">
+                          {formatCurrency(staffSummary.totalRemainingAmount)} due
+                        </span>
+                      ) : null}
+                      {staffSummary?.hasAdvance ? (
+                        <span className="rounded-full bg-amber-50 px-2.5 py-1 font-semibold text-amber-700">
+                          Advance taken
+                        </span>
+                      ) : null}
+                      {staffSummary?.isPaid ? (
+                        <span className="rounded-full bg-emerald-50 px-2.5 py-1 font-semibold text-emerald-700">
+                          Paid
+                        </span>
+                      ) : null}
+                    </div>
                     <div className="mt-2 text-sm text-slate-600">
                       Base Salary: {formatCurrency(staff.total_salary)}
                     </div>
@@ -272,12 +408,12 @@ export default async function StaffPage({
                 );
               })}
 
-              {visibleStaffProfiles.length === 0 && (
+              {searchedStaffProfiles.length === 0 && (
                 <div className="p-6">
                   <EmptyState
                     icon={UserRound}
-                    title="No staff ledgers found"
-                    description="Create staff profiles and start recording salary transactions to build the monthly ledger."
+                    title="No staff found"
+                    description="Try a different search or filter, or create a new staff profile."
                     actionLabel="Create Staff Profile"
                     actionHref="/staff/create"
                   />
@@ -296,6 +432,16 @@ export default async function StaffPage({
                   <p className="mt-1 text-sm text-slate-500">
                     Track salary, advances, and carry forward for this staff.
                   </p>
+                  {activeStaff ? (
+                    <div className="mt-2 flex flex-wrap gap-2 text-xs text-slate-500">
+                      <span className="rounded-full bg-slate-100 px-2.5 py-1 font-semibold text-slate-600">
+                        {activeStaff.staff_code}
+                      </span>
+                      <span className="rounded-full bg-slate-100 px-2.5 py-1 font-semibold text-slate-600">
+                        {activeStaff.status}
+                      </span>
+                    </div>
+                  ) : null}
                 </div>
                 {activeStaff ? (
                   <div className="flex flex-wrap gap-2">
@@ -325,48 +471,51 @@ export default async function StaffPage({
 
               {activeStaff ? (
                 <div className="space-y-4">
-                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
                     <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
-                      <div className="text-xs font-bold uppercase tracking-wider text-slate-400">Base Salary</div>
+                      <div className="text-xs font-bold uppercase tracking-wider text-slate-400">Monthly Salary</div>
                       <div className="mt-2 font-semibold text-slate-900">
                         {formatCurrency(activeStaff.total_salary)}
                       </div>
                     </div>
-                    <div className="rounded-2xl border border-red-100 bg-red-50/70 p-4">
-                      <div className="text-xs font-bold uppercase tracking-wider text-red-500">Total Advance</div>
-                      <div className="mt-2 font-semibold text-red-700">
-                        {formatCurrency(activeAdvanceTotal)}
-                      </div>
-                    </div>
                     <div className="rounded-2xl border border-blue-100 bg-blue-50/70 p-4">
-                      <div className="text-xs font-bold uppercase tracking-wider text-blue-500">Salary Paid</div>
+                      <div className="text-xs font-bold uppercase tracking-wider text-blue-500">Payable Salary</div>
                       <div className="mt-2 font-semibold text-blue-700">
-                        {formatCurrency(activeSalaryPaidTotal)}
+                        {formatCurrency(currentLedger?.payable_amount ?? 0)}
                       </div>
                     </div>
-                    <div className="rounded-2xl border border-amber-100 bg-amber-50/70 p-4">
-                      <div className="text-xs font-bold uppercase tracking-wider text-amber-500">Remaining</div>
-                      <div className="mt-2 font-semibold text-amber-700">
-                        {formatCurrency(activeRemainingTotal)}
+                    <div className="rounded-2xl border border-emerald-100 bg-emerald-50/70 p-4">
+                      <div className="text-xs font-bold uppercase tracking-wider text-emerald-500">Paid So Far</div>
+                      <div className="mt-2 font-semibold text-blue-700">
+                        {formatCurrency(currentLedger?.total_paid ?? 0)}
                       </div>
                     </div>
                     <div className="rounded-2xl border border-rose-100 bg-rose-50/70 p-4">
-                      <div className="text-xs font-bold uppercase tracking-wider text-rose-500">Carry Forward</div>
+                      <div className="text-xs font-bold uppercase tracking-wider text-rose-500">Balance Due</div>
                       <div className="mt-2 font-semibold text-rose-700">
-                        {formatCurrency(activeCarryForward)}
+                        {formatCurrency(currentLedger?.remaining ?? 0)}
                       </div>
                     </div>
                   </div>
 
-                  <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
-                    <div className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                      Latest Salary Activity
-                    </div>
-                    <div className="mt-2 text-sm text-slate-600">
-                      {latestTransaction
-                        ? `${latestTransaction.type === "SALARY" ? "Salary payment" : "Advance"} of ${formatCurrency(latestTransaction.amount)} on ${formatBsDisplayDate(latestTransaction.transaction_date)} for ${latestTransaction.month_label}`
-                        : "No salary transaction has been recorded yet."}
-                    </div>
+                  <div className="flex flex-wrap gap-2 border-b border-slate-100 pb-2">
+                    {staffTabs.map((tab) => {
+                      const isActiveTab = activeTab === tab.value;
+
+                      return (
+                        <Link
+                          key={tab.value}
+                          href={buildStaffPageHref({ tab: tab.value === "overview" ? "" : tab.value })}
+                          className={`rounded-full px-3 py-2 text-sm font-semibold transition ${
+                            isActiveTab
+                              ? "bg-blue-600 text-white"
+                              : "text-slate-500 hover:bg-slate-100 hover:text-slate-900"
+                          }`}
+                        >
+                          {tab.label}
+                        </Link>
+                      );
+                    })}
                   </div>
                 </div>
               ) : (
@@ -380,6 +529,99 @@ export default async function StaffPage({
               )}
             </section>
 
+            {activeTab === "overview" ? (
+              <>
+                <section className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
+                  <div className="border-b border-slate-50 p-6">
+                    <div className="flex items-center justify-between gap-4">
+                      <div>
+                        <h3 className="text-lg font-bold text-slate-900">This Month Summary</h3>
+                        <p className="mt-1 text-xs text-slate-500">
+                          Snapshot of the current staff ledger period.
+                        </p>
+                      </div>
+                      {currentLedger ? (
+                        <div className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
+                          {currentLedger.month_label}
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 gap-4 p-6 md:grid-cols-4">
+                    <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
+                      <div className="text-xs font-bold uppercase tracking-wider text-slate-400">Total Salary</div>
+                      <div className="mt-2 text-lg font-bold text-slate-900">
+                        {formatCurrency(currentLedger?.base_salary ?? 0)}
+                      </div>
+                    </div>
+                    <div className="rounded-2xl border border-amber-100 bg-amber-50/70 p-4">
+                      <div className="text-xs font-bold uppercase tracking-wider text-amber-500">Advance</div>
+                      <div className="mt-2 text-lg font-bold text-amber-700">
+                        {formatCurrency(currentLedger?.total_advance ?? 0)}
+                      </div>
+                    </div>
+                    <div className="rounded-2xl border border-blue-100 bg-blue-50/70 p-4">
+                      <div className="text-xs font-bold uppercase tracking-wider text-blue-500">Total Paid</div>
+                      <div className="mt-2 text-lg font-bold text-blue-700">
+                        {formatCurrency(currentLedger?.total_paid ?? 0)}
+                      </div>
+                    </div>
+                    <div className="rounded-2xl border border-rose-100 bg-rose-50/70 p-4">
+                      <div className="text-xs font-bold uppercase tracking-wider text-rose-500">Balance Due</div>
+                      <div className="mt-2 text-lg font-bold text-rose-700">
+                        {formatCurrency(currentLedger?.remaining ?? 0)}
+                      </div>
+                    </div>
+                  </div>
+                </section>
+
+                <section className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
+                  <div className="border-b border-slate-50 p-6">
+                    <div className="flex items-center justify-between gap-4">
+                      <div>
+                        <h3 className="text-lg font-bold text-slate-900">Recent Activity</h3>
+                        <p className="mt-1 text-xs text-slate-500">
+                          Latest staff salary activity in the selected range.
+                        </p>
+                      </div>
+                      {activeStaffTransactions.length > 0 ? (
+                        <Link
+                          href={buildStaffPageHref({ tab: "transactions" })}
+                          className="text-sm font-semibold text-blue-600 hover:text-blue-700"
+                        >
+                          View All
+                        </Link>
+                      ) : null}
+                    </div>
+                  </div>
+                  <div className="divide-y divide-slate-50">
+                    {overviewTransactions.length > 0 ? (
+                      overviewTransactions.map((transaction) => (
+                        <div key={transaction.id} className="flex items-center justify-between gap-4 px-6 py-4">
+                          <div>
+                            <div className="text-sm font-semibold text-slate-900">
+                              {transaction.type === "SALARY" ? "Salary payment" : "Advance payment"}
+                            </div>
+                            <div className="mt-1 text-xs text-slate-500">
+                              {formatBsDisplayDate(transaction.transaction_date)} • {transaction.month_label}
+                            </div>
+                          </div>
+                          <div className="text-sm font-semibold text-blue-700">
+                            {formatCurrency(transaction.amount)}
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="px-6 py-10 text-center text-sm text-slate-500">
+                        No salary transactions recorded for this staff member in the selected range.
+                      </div>
+                    )}
+                  </div>
+                </section>
+              </>
+            ) : null}
+
+            {activeTab === "ledger" ? (
             <section className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
               <div className="border-b border-slate-50 p-6">
                 <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
@@ -456,18 +698,18 @@ export default async function StaffPage({
                           {ledger.status}
                         </td>
                         <td className="px-6 py-4 text-right">
-                          <div className="inline-flex gap-3 text-sm">
+                          <div className="inline-flex flex-wrap justify-end gap-2">
                             <Link
                               href={`/staff/payment/create?staff=${ledger.staff_id}&type=ADVANCE&month=${ledger.month}&year=${ledger.year}`}
-                              className="font-semibold text-amber-600 hover:text-amber-700"
+                              className="inline-flex items-center rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 text-sm font-semibold text-amber-700 transition hover:bg-amber-100"
                             >
                               Add Advance
                             </Link>
                             <Link
                               href={`/staff/payment/create?staff=${ledger.staff_id}&type=SALARY&month=${ledger.month}&year=${ledger.year}`}
-                              className="font-semibold text-blue-600 hover:text-blue-700"
+                              className="inline-flex items-center rounded-lg bg-blue-600 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-blue-700"
                             >
-                              Add Salary
+                              Pay
                             </Link>
                           </div>
                         </td>
@@ -505,7 +747,9 @@ export default async function StaffPage({
                 </table>
               </div>
             </section>
+            ) : null}
 
+            {activeTab === "transactions" ? (
             <section
               id="staff-transactions"
               className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm"
@@ -577,6 +821,7 @@ export default async function StaffPage({
                 </table>
               </div>
             </section>
+            ) : null}
           </div>
         </div>
       </main>

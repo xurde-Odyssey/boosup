@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { ReactNode } from "react";
 import { useCallback, useEffect, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { FileText, Pencil, Printer, RefreshCcw, Trash2 } from "lucide-react";
@@ -26,6 +27,32 @@ type Invoice = {
   initials: string;
   initialsBg: string;
   initialsColor: string;
+};
+
+const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+const highlightText = (text: string, query: string): ReactNode => {
+  const normalizedQuery = query.trim();
+  if (!normalizedQuery) {
+    return text;
+  }
+
+  const matcher = new RegExp(`(${escapeRegExp(normalizedQuery)})`, "ig");
+  const parts = text.split(matcher);
+
+  if (parts.length === 1) {
+    return text;
+  }
+
+  return parts.map((part, index) =>
+    part.toLowerCase() === normalizedQuery.toLowerCase() ? (
+      <span key={`${part}-${index}`} className="rounded bg-blue-100 px-1 text-blue-900">
+        {part}
+      </span>
+    ) : (
+      <span key={`${part}-${index}`}>{part}</span>
+    ),
+  );
 };
 
 export function InvoicesTable({
@@ -198,7 +225,7 @@ export function InvoicesTable({
                     className="transition-colors hover:text-blue-600"
                     title={`Open sales invoice ${invoice.invoiceNumber}`}
                   >
-                    {invoice.invoiceNumber}
+                    {highlightText(invoice.invoiceNumber, search)}
                   </Link>
                 </td>
                 <td className="px-6 py-4">
@@ -217,7 +244,7 @@ export function InvoicesTable({
                       className="text-sm font-semibold text-slate-900 transition-colors group-hover:text-blue-600"
                       title={`Open customer ledger for ${invoice.customer}`}
                     >
-                      {invoice.customer}
+                      {highlightText(invoice.customer, search)}
                     </Link>
                   </div>
                 </td>

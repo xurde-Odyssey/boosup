@@ -276,6 +276,25 @@ create table if not exists public.purchase_payments (
   created_at timestamptz not null default timezone('utc', now())
 );
 
+create table if not exists public.supplier_payments (
+  id uuid primary key default gen_random_uuid(),
+  vendor_id uuid not null references public.vendors(id) on delete cascade,
+  payment_date date not null default current_date,
+  amount numeric(12, 2) not null check (amount > 0),
+  payment_method text not null default 'Cash' check (payment_method in ('Cash', 'Mobile')),
+  note text,
+  created_at timestamptz not null default timezone('utc', now()),
+  updated_at timestamptz not null default timezone('utc', now())
+);
+
+create table if not exists public.supplier_payment_allocations (
+  id uuid primary key default gen_random_uuid(),
+  supplier_payment_id uuid not null references public.supplier_payments(id) on delete cascade,
+  purchase_id uuid not null references public.purchases(id) on delete cascade,
+  amount numeric(12, 2) not null check (amount > 0),
+  created_at timestamptz not null default timezone('utc', now())
+);
+
 create index if not exists idx_purchases_vendor_id
   on public.purchases(vendor_id);
 
@@ -284,6 +303,18 @@ create index if not exists idx_purchases_vendor_id_id
 
 create index if not exists idx_purchase_payments_purchase_id
   on public.purchase_payments(purchase_id);
+
+create index if not exists idx_supplier_payments_vendor_id
+  on public.supplier_payments(vendor_id);
+
+create index if not exists idx_supplier_payments_vendor_id_payment_date
+  on public.supplier_payments(vendor_id, payment_date desc);
+
+create index if not exists idx_supplier_payment_allocations_supplier_payment_id
+  on public.supplier_payment_allocations(supplier_payment_id);
+
+create index if not exists idx_supplier_payment_allocations_purchase_id
+  on public.supplier_payment_allocations(purchase_id);
 
 create or replace function public.get_vendor_purchase_summary(p_vendor_id uuid)
 returns table (
@@ -338,6 +369,8 @@ alter table public.purchases enable row level security;
 alter table public.purchase_items enable row level security;
 alter table public.purchase_expenses enable row level security;
 alter table public.purchase_payments enable row level security;
+alter table public.supplier_payments enable row level security;
+alter table public.supplier_payment_allocations enable row level security;
 
 drop policy if exists "anon can read products" on public.products;
 drop policy if exists "authenticated can read products" on public.products;
@@ -768,6 +801,72 @@ for delete
 to authenticated
 using (true);
 
+drop policy if exists "anon can read supplier payments" on public.supplier_payments;
+drop policy if exists "authenticated can read supplier payments" on public.supplier_payments;
+create policy "authenticated can read supplier payments"
+on public.supplier_payments
+for select
+to authenticated
+using (true);
+
+drop policy if exists "anon can insert supplier payments" on public.supplier_payments;
+drop policy if exists "authenticated can insert supplier payments" on public.supplier_payments;
+create policy "authenticated can insert supplier payments"
+on public.supplier_payments
+for insert
+to authenticated
+with check (true);
+
+drop policy if exists "anon can update supplier payments" on public.supplier_payments;
+drop policy if exists "authenticated can update supplier payments" on public.supplier_payments;
+create policy "authenticated can update supplier payments"
+on public.supplier_payments
+for update
+to authenticated
+using (true)
+with check (true);
+
+drop policy if exists "anon can delete supplier payments" on public.supplier_payments;
+drop policy if exists "authenticated can delete supplier payments" on public.supplier_payments;
+create policy "authenticated can delete supplier payments"
+on public.supplier_payments
+for delete
+to authenticated
+using (true);
+
+drop policy if exists "anon can read supplier payment allocations" on public.supplier_payment_allocations;
+drop policy if exists "authenticated can read supplier payment allocations" on public.supplier_payment_allocations;
+create policy "authenticated can read supplier payment allocations"
+on public.supplier_payment_allocations
+for select
+to authenticated
+using (true);
+
+drop policy if exists "anon can insert supplier payment allocations" on public.supplier_payment_allocations;
+drop policy if exists "authenticated can insert supplier payment allocations" on public.supplier_payment_allocations;
+create policy "authenticated can insert supplier payment allocations"
+on public.supplier_payment_allocations
+for insert
+to authenticated
+with check (true);
+
+drop policy if exists "anon can update supplier payment allocations" on public.supplier_payment_allocations;
+drop policy if exists "authenticated can update supplier payment allocations" on public.supplier_payment_allocations;
+create policy "authenticated can update supplier payment allocations"
+on public.supplier_payment_allocations
+for update
+to authenticated
+using (true)
+with check (true);
+
+drop policy if exists "anon can delete supplier payment allocations" on public.supplier_payment_allocations;
+drop policy if exists "authenticated can delete supplier payment allocations" on public.supplier_payment_allocations;
+create policy "authenticated can delete supplier payment allocations"
+on public.supplier_payment_allocations
+for delete
+to authenticated
+using (true);
+
 drop policy if exists "anon can read purchase expenses" on public.purchase_expenses;
 drop policy if exists "authenticated can read purchase expenses" on public.purchase_expenses;
 create policy "authenticated can read purchase expenses"
@@ -900,5 +999,11 @@ execute function public.set_updated_at();
 drop trigger if exists purchase_expenses_set_updated_at on public.purchase_expenses;
 create trigger purchase_expenses_set_updated_at
 before update on public.purchase_expenses
+for each row
+execute function public.set_updated_at();
+
+drop trigger if exists supplier_payments_set_updated_at on public.supplier_payments;
+create trigger supplier_payments_set_updated_at
+before update on public.supplier_payments
 for each row
 execute function public.set_updated_at();
