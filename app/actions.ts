@@ -183,6 +183,28 @@ const upsertStaffSalaryLedger = async ({
   return createdLedger;
 };
 
+const resolvePurchasePaymentStatus = ({
+  totalAmount,
+  paidAmount,
+  previousStatus,
+}: {
+  totalAmount: number;
+  paidAmount: number;
+  previousStatus: string | null | undefined;
+}) => {
+  const remainingAmount = Math.max(totalAmount - paidAmount, 0);
+
+  if (remainingAmount <= 0) {
+    return "PAID";
+  }
+
+  if (paidAmount > 0) {
+    return previousStatus === "OVERDUE" ? "OVERDUE" : "PARTIAL";
+  }
+
+  return previousStatus === "OVERDUE" ? "OVERDUE" : "PENDING";
+};
+
 export async function logoutAdmin() {
   const supabase = await getSupabaseClient();
   await supabase.auth.signOut();
@@ -264,6 +286,188 @@ export async function deleteVendor(formData: FormData) {
   await supabase.from("vendors").delete().eq("id", id);
   revalidateAll("/purchases", "/vendors");
   redirectWithNotice("/vendors", formData, "Supplier", "deleted");
+}
+
+export async function createSupplierPayment(formData: FormData) {
+  const supabase = await getSupabaseClient();
+  const vendorId = readText(formData, "vendor_id");
+  const paymentAmount = readNumber(formData, "amount");
+  const paymentMethod = readText(formData, "payment_method") || "Cash";
+  const paymentDate = resolveGregorianDate(formData, "payment_date", "payment_date_bs");
+  const note = readText(formData, "note") || null;
+  const redirectPath = vendorId ? `/vendors/${vendorId}` : "/vendors";
+
+  if (!vendorId) {
+    redirectWithMessage("/vendors", "Supplier is required");
+  }
+
+  if (!paymentDate) {
+    redirectWithMessage(redirectPath, "Valid payment date is required");
+  }
+
+  if (paymentAmount <= 0) {
+    redirectWithMessage(redirectPath, "Enter a valid supplier payment amount");
+  }
+
+  const { data: unpaidPurchases, error: purchasesError } = await supabase
+    .from("purchases")
+    .select(
+      "id, purchase_number, purchase_date, total_amount, paid_amount, credit_amount, payment_status, payment_method",
+    )
+    .eq("vendor_id", vendorId)
+    .in("payment_status", ["PENDING", "PARTIAL", "OVERDUE"])
+    .order("purchase_date", { ascending: true })
+    .order("created_at", { ascending: true });
+
+  if (purchasesError) {
+    redirectWithMessage(redirectPath, purchasesError.message || "Failed to load supplier bills");
+  }
+
+  const payablePurchases = (unpaidPurchases ?? [])
+    .map((purchase) => {
+      const totalAmount = Number(purchase.total_amount ?? 0);
+      const paidAmount = Number(purchase.paid_amount ?? 0);
+      const remainingAmount = Math.max(
+        Number(purchase.credit_amount ?? totalAmount - paidAmount),
+        0,
+      );
+
+      return {
+        ...purchase,
+        totalAmount,
+        paidAmount,
+        remainingAmount,
+      };
+    })
+    .filter((purchase) => purchase.remainingAmount > 0);
+
+  if (payablePurchases.length === 0) {
+    redirectWithMessage(redirectPath, "No unpaid purchase bills available for this supplier");
+  }
+
+  const totalOutstanding = payablePurchases.reduce(
+    (sum, purchase) => sum + purchase.remainingAmount,
+    0,
+  );
+
+  if (paymentAmount > totalOutstanding) {
+    redirectWithMessage(
+      redirectPath,
+      `Payment exceeds supplier pending balance of ${totalOutstanding.toFixed(2)}`,
+    );
+  }
+
+  let remainingToAllocate = paymentAmount;
+  const allocations = payablePurchases
+    .map((purchase) => {
+      if (remainingToAllocate <= 0) {
+        return null;
+      }
+
+      const allocatedAmount = Math.min(remainingToAllocate, purchase.remainingAmount);
+      remainingToAllocate -= allocatedAmount;
+
+      return {
+        purchase,
+        allocatedAmount,
+      };
+    })
+    .filter(
+      (
+        allocation,
+      ): allocation is {
+        purchase: (typeof payablePurchases)[number];
+        allocatedAmount: number;
+      } => Boolean(allocation && allocation.allocatedAmount > 0),
+    );
+
+  if (allocations.length === 0) {
+    redirectWithMessage(redirectPath, "Unable to allocate this payment to supplier bills");
+  }
+
+  const { data: supplierPayment, error: supplierPaymentError } = await supabase
+    .from("supplier_payments")
+    .insert({
+      vendor_id: vendorId,
+      payment_date: paymentDate,
+      amount: paymentAmount,
+      payment_method: paymentMethod,
+      note,
+    })
+    .select("id")
+    .single();
+
+  if (supplierPaymentError || !supplierPayment?.id) {
+    redirectWithMessage(
+      redirectPath,
+      supplierPaymentError?.message || "Failed to save supplier payment",
+    );
+  }
+
+  const { error: allocationInsertError } = await supabase
+    .from("supplier_payment_allocations")
+    .insert(
+      allocations.map((allocation) => ({
+        supplier_payment_id: supplierPayment.id,
+        purchase_id: allocation.purchase.id,
+        amount: allocation.allocatedAmount,
+      })),
+    );
+
+  if (allocationInsertError) {
+    redirectWithMessage(
+      redirectPath,
+      allocationInsertError.message || "Failed to save supplier payment allocations",
+    );
+  }
+
+  for (const allocation of allocations) {
+    const nextPaidAmount = Math.min(
+      allocation.purchase.paidAmount + allocation.allocatedAmount,
+      allocation.purchase.totalAmount,
+    );
+    const nextStatus = resolvePurchasePaymentStatus({
+      totalAmount: allocation.purchase.totalAmount,
+      paidAmount: nextPaidAmount,
+      previousStatus: allocation.purchase.payment_status,
+    });
+
+    const { error: purchaseUpdateError } = await supabase
+      .from("purchases")
+      .update({
+        paid_amount: nextPaidAmount,
+        payment_status: nextStatus,
+        payment_type: nextStatus === "PAID" ? "Cash" : "Credit",
+        payment_method: paymentMethod,
+      })
+      .eq("id", allocation.purchase.id);
+
+    if (purchaseUpdateError) {
+      redirectWithMessage(
+        redirectPath,
+        purchaseUpdateError.message || "Failed to update supplier bill balance",
+      );
+    }
+
+    const paymentNote = note ? `${note} (supplier payment allocation)` : "Supplier payment allocation";
+    const { error: purchasePaymentError } = await supabase.from("purchase_payments").insert({
+      purchase_id: allocation.purchase.id,
+      payment_date: paymentDate,
+      amount: allocation.allocatedAmount,
+      payment_method: paymentMethod,
+      notes: paymentNote,
+    });
+
+    if (purchasePaymentError) {
+      redirectWithMessage(
+        redirectPath,
+        purchasePaymentError.message || "Failed to record allocated purchase payment",
+      );
+    }
+  }
+
+  revalidateAll("/purchases", "/vendors", redirectPath);
+  redirectWithNotice(redirectPath, formData, "Supplier payment", "created");
 }
 
 export async function upsertCompanySettings(formData: FormData) {

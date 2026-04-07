@@ -45,11 +45,13 @@ export function VendorPrintPreview({
   label = "Print Supplier Statement",
   className,
   company = DEFAULT_COMPANY_SETTINGS,
+  iconOnly = false,
 }: {
   vendor: PrintableVendor;
   label?: string;
   className?: string;
   company?: CompanySettings;
+  iconOnly?: boolean;
 }) {
   const isMounted = useSyncExternalStore(
     () => () => {},
@@ -77,13 +79,17 @@ export function VendorPrintPreview({
       <button
         type="button"
         onClick={handlePrint}
+        title={label}
+        aria-label={label}
         className={cn(
-          "inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-slate-800",
+          iconOnly
+            ? "group relative inline-flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 transition-all hover:bg-slate-900 hover:text-white"
+            : "inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-slate-800",
           className ?? "",
         )}
       >
         <Printer className="h-4 w-4" />
-        {label}
+        {!iconOnly ? label : null}
       </button>
 
       {isMounted &&

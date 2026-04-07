@@ -4,6 +4,7 @@ import {
   BadgeDollarSign,
   CreditCard,
   PackageSearch,
+  Pencil,
   ReceiptText,
   Truck,
 } from "lucide-react";
@@ -11,6 +12,7 @@ import { Header } from "@/components/dashboard/Header";
 import { Sidebar } from "@/components/dashboard/Sidebar";
 import { SummaryCard } from "@/components/dashboard/SummaryCard";
 import { ReportToolbar } from "@/components/shared/ReportToolbar";
+import { SupplierPaymentModal } from "@/components/vendors/SupplierPaymentModal";
 import { VendorPrintPreview } from "@/components/vendors/VendorPrintPreview";
 import { getCompanySettings } from "@/lib/company-settings-server";
 import { formatBsDisplayDate } from "@/lib/nepali-date";
@@ -18,17 +20,31 @@ import { formatCurrency } from "@/lib/presentation";
 import { getSupabaseClient } from "@/lib/supabase/server";
 
 type Params = Promise<{ id: string }>;
+type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
 export default async function VendorLedgerPage({
   params,
+  searchParams,
 }: {
   params: Params;
+  searchParams: SearchParams;
 }) {
   const { id } = await params;
+  const query = await searchParams;
   const supabase = await getSupabaseClient();
   const company = await getCompanySettings();
+  const todayDate = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Kathmandu",
+  }).format(new Date());
+  const openPaymentModal = (Array.isArray(query.action) ? query.action[0] : query.action) === "pay";
 
-  const [vendorResponse, purchasesResponse, paymentsResponse, summaryResponse] = await Promise.all([
+  const [
+    vendorResponse,
+    purchasesResponse,
+    paymentsResponse,
+    supplierPaymentsResponse,
+    summaryResponse,
+  ] = await Promise.all([
     supabase
       .from("vendors")
       .select("id, vendor_code, name, contact_person, phone, address, payment_terms, status, notes")
@@ -43,8 +59,15 @@ export default async function VendorLedgerPage({
       .order("purchase_date", { ascending: false }),
     supabase
       .from("purchase_payments")
-      .select("id, payment_date, amount, payment_method, purchase_id, purchases!inner(vendor_id, purchase_number)")
+      .select("id, payment_date, amount, payment_method, notes, purchase_id, purchases!inner(vendor_id, purchase_number)")
       .eq("purchases.vendor_id", id)
+      .order("payment_date", { ascending: false }),
+    supabase
+      .from("supplier_payments")
+      .select(
+        "id, payment_date, amount, payment_method, note, created_at, supplier_payment_allocations(id, amount, purchase_id, purchases(purchase_number, purchase_date))",
+      )
+      .eq("vendor_id", id)
       .order("payment_date", { ascending: false }),
     supabase.rpc("get_vendor_purchase_summary", { p_vendor_id: id }),
   ]);
@@ -52,6 +75,7 @@ export default async function VendorLedgerPage({
   const vendor = vendorResponse.data;
   const purchases = purchasesResponse.data ?? [];
   const payments = paymentsResponse.data ?? [];
+  const supplierPayments = supplierPaymentsResponse.data ?? [];
   const paymentsByPurchase = new Map<string, typeof payments>();
   payments.forEach((payment) => {
     const purchaseId = payment.purchase_id;
@@ -112,6 +136,19 @@ export default async function VendorLedgerPage({
     if (!latest) return purchase.purchase_date;
     return purchase.purchase_date > latest ? purchase.purchase_date : latest;
   }, null);
+  const supplierPaymentRows = supplierPayments.map((payment) => ({
+    ...payment,
+    supplier_payment_allocations: (payment.supplier_payment_allocations ?? [])
+      .map((allocation) => ({
+        ...allocation,
+        purchase: Array.isArray(allocation.purchases) ? allocation.purchases[0] : allocation.purchases,
+      }))
+      .sort((left, right) => {
+        const leftDate = left.purchase?.purchase_date ?? "";
+        const rightDate = right.purchase?.purchase_date ?? "";
+        return leftDate.localeCompare(rightDate);
+      }),
+  }));
 
   return (
     <div className="flex min-h-screen bg-slate-50/50">
@@ -254,12 +291,22 @@ export default async function VendorLedgerPage({
                   <div className="text-xs font-bold uppercase tracking-wider text-slate-400">Notes</div>
                   <div className="mt-1 text-slate-700">{vendor.notes ?? "-"}</div>
                 </div>
-                <Link
-                  href={`/vendors/create?edit=${vendor.id}`}
-                  className="inline-flex items-center justify-center rounded-xl border border-slate-200 px-4 py-2 font-semibold text-slate-700 transition-colors hover:bg-slate-50"
-                >
-                  Edit Supplier Profile
-                </Link>
+                <div className="space-y-3 pt-2">
+                  <SupplierPaymentModal
+                    vendorId={vendor.id}
+                    vendorName={vendor.name}
+                    defaultDate={todayDate}
+                    totalPayable={totalPayable}
+                    autoOpen={openPaymentModal}
+                  />
+                  <Link
+                    href={`/vendors/create?edit=${vendor.id}`}
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 px-4 py-2 font-semibold text-slate-700 transition-colors hover:bg-slate-50"
+                  >
+                    <Pencil className="h-4 w-4" />
+                    Edit Supplier Profile
+                  </Link>
+                </div>
                 <VendorPrintPreview
                   company={company}
                   vendor={{
@@ -392,8 +439,79 @@ export default async function VendorLedgerPage({
 
         <section className="mt-6 overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
           <div className="border-b border-slate-50 p-6">
-            <h3 className="text-lg font-bold text-slate-900">Payment History</h3>
-            <p className="mt-1 text-xs text-slate-500">All payment transactions recorded for this supplier.</p>
+            <h3 className="text-lg font-bold text-slate-900">Supplier Payment History</h3>
+            <p className="mt-1 text-xs text-slate-500">
+              One payment entry per supplier payment, including how it was allocated across bills.
+            </p>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left">
+              <thead>
+                <tr className="bg-slate-50/50 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                  <th className="px-6 py-4">Date</th>
+                  <th className="px-6 py-4">Method</th>
+                  <th className="px-6 py-4">Amount</th>
+                  <th className="px-6 py-4">Note</th>
+                  <th className="px-6 py-4">Allocations</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-50">
+                {supplierPaymentRows.map((payment) => (
+                  <tr key={payment.id} className="transition-colors hover:bg-slate-50/50">
+                    <td className="px-6 py-4 text-sm text-slate-600">
+                      {formatBsDisplayDate(payment.payment_date)}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-slate-600">
+                      {payment.payment_method}
+                    </td>
+                    <td className="px-6 py-4 text-sm font-semibold text-green-600">
+                      {formatCurrency(payment.amount)}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-slate-600">
+                      {payment.note || "-"}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-slate-600">
+                      <div className="space-y-2">
+                        {payment.supplier_payment_allocations.length > 0 ? (
+                          payment.supplier_payment_allocations.map((allocation) => (
+                            <div
+                              key={allocation.id}
+                              className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-2"
+                            >
+                              <div className="font-semibold text-slate-900">
+                                {allocation.purchase?.purchase_number ?? "Bill"}
+                              </div>
+                              <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500">
+                                <span>{formatBsDisplayDate(allocation.purchase?.purchase_date ?? null)}</span>
+                                <span>{formatCurrency(allocation.amount)}</span>
+                              </div>
+                            </div>
+                          ))
+                        ) : (
+                          <span>No allocations recorded.</span>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+                {supplierPaymentRows.length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="px-6 py-10 text-center text-sm text-slate-500">
+                      No supplier-level payments recorded for this supplier yet.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section className="mt-6 overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
+          <div className="border-b border-slate-50 p-6">
+            <h3 className="text-lg font-bold text-slate-900">Bill Payment History</h3>
+            <p className="mt-1 text-xs text-slate-500">
+              Manual bill payments and supplier-level allocations recorded against individual purchase bills.
+            </p>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-left">
@@ -403,6 +521,7 @@ export default async function VendorLedgerPage({
                   <th className="px-6 py-4">Bill</th>
                   <th className="px-6 py-4">Method</th>
                   <th className="px-6 py-4">Amount</th>
+                  <th className="px-6 py-4">Note</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
@@ -420,12 +539,15 @@ export default async function VendorLedgerPage({
                     <td className="px-6 py-4 text-sm font-semibold text-green-600">
                       {formatCurrency(payment.amount)}
                     </td>
+                    <td className="px-6 py-4 text-sm text-slate-600">
+                      {payment.notes || "-"}
+                    </td>
                   </tr>
                 ))}
                 {payments.length === 0 && (
                   <tr>
-                    <td colSpan={4} className="px-6 py-10 text-center text-sm text-slate-500">
-                      No payments recorded for this supplier yet.
+                    <td colSpan={5} className="px-6 py-10 text-center text-sm text-slate-500">
+                      No bill payments recorded for this supplier yet.
                     </td>
                   </tr>
                 )}

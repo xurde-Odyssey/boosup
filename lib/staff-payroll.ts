@@ -1,16 +1,16 @@
 export const STAFF_MONTH_OPTIONS = [
-  { value: 1, label: "January" },
-  { value: 2, label: "February" },
-  { value: 3, label: "March" },
-  { value: 4, label: "April" },
-  { value: 5, label: "May" },
-  { value: 6, label: "June" },
-  { value: 7, label: "July" },
-  { value: 8, label: "August" },
-  { value: 9, label: "September" },
-  { value: 10, label: "October" },
-  { value: 11, label: "November" },
-  { value: 12, label: "December" },
+  { value: 1, label: "Baisakh" },
+  { value: 2, label: "Jestha" },
+  { value: 3, label: "Asar" },
+  { value: 4, label: "Shrawan" },
+  { value: 5, label: "Bhadra" },
+  { value: 6, label: "Ashwin" },
+  { value: 7, label: "Kartik" },
+  { value: 8, label: "Mangsir" },
+  { value: 9, label: "Poush" },
+  { value: 10, label: "Magh" },
+  { value: 11, label: "Falgun" },
+  { value: 12, label: "Chaitra" },
 ] as const;
 
 export type StaffLedgerRecord = {

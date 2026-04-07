@@ -1,15 +1,11 @@
 import {
   CalendarClock,
   CircleDollarSign,
-  CreditCard,
   FilePlus,
   HandCoins,
-  ReceiptText,
   ShoppingCart,
   TrendingUp,
-  Wallet,
 } from "lucide-react";
-import { ActivityCard } from "@/components/dashboard/ActivityCard";
 import { AlertsCard } from "@/components/dashboard/AlertsCard";
 import { ChartCard } from "@/components/dashboard/ChartCard";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
@@ -123,20 +119,6 @@ const readNestedDate = (
   return relation?.[key] ?? null;
 };
 
-const readVendorName = (
-  relation:
-    | { name?: string | null }
-    | Array<{ name?: string | null }>
-    | null
-    | undefined,
-) => {
-  if (Array.isArray(relation)) {
-    return relation[0]?.name ?? null;
-  }
-
-  return relation?.name ?? null;
-};
-
 const formatReportPeriod = (range: string, from: string, to: string) => {
   if (range === "week") return "This Week";
   if (range === "month") return "This Month";
@@ -183,8 +165,6 @@ export default async function Home({
     expensesResponse,
     salesItemsResponse,
     purchaseItemsResponse,
-    salesPaymentsResponse,
-    purchasePaymentsResponse,
   ] = await Promise.all([
     supabase
       .from("sales")
@@ -216,18 +196,6 @@ export default async function Home({
       .from("purchase_items")
       .select("product_name, quantity, amount, purchases(purchase_date)")
       .order("created_at", { ascending: false }),
-    supabase
-      .from("sales_payments")
-      .select(
-        "id, payment_date, amount, created_at, sales(id, invoice_number, customer_name, grand_total, amount_received, payment_status)",
-      )
-      .order("created_at", { ascending: false }),
-    supabase
-      .from("purchase_payments")
-      .select(
-        "id, payment_date, amount, created_at, payment_method, purchases(id, purchase_number, total_amount, paid_amount, credit_amount, payment_status, vendor_name, vendors(name))",
-      )
-      .order("created_at", { ascending: false }),
   ]);
 
   const sales = salesResponse.data ?? [];
@@ -240,8 +208,6 @@ export default async function Home({
   const purchaseExpenses = expensesResponse.data ?? [];
   const salesItems = salesItemsResponse.data ?? [];
   const purchaseItems = purchaseItemsResponse.data ?? [];
-  const salesPayments = salesPaymentsResponse.data ?? [];
-  const purchasePayments = purchasePaymentsResponse.data ?? [];
   const payrollMonthSummaries = staffLedgerSnapshots.ledgers;
   const filteredSales = sales.filter((sale) => isWithinRange(sale.sales_date, fromDate, toDate));
   const filteredPurchases = purchases.filter((purchase) =>
@@ -269,12 +235,6 @@ export default async function Home({
   });
   const filteredStaffSalaryPayments = staffLedgerSnapshots.transactions.filter((transaction) =>
     isWithinRange(transaction.transaction_date, fromDate, toDate),
-  );
-  const filteredSalesPayments = salesPayments.filter((payment) =>
-    isWithinRange(payment.payment_date, fromDate, toDate),
-  );
-  const filteredPurchasePayments = purchasePayments.filter((payment) =>
-    isWithinRange(payment.payment_date, fromDate, toDate),
   );
 
   const totalSales = filteredSales.reduce((sum, sale) => sum + Number(sale.grand_total ?? 0), 0);
@@ -545,93 +505,6 @@ export default async function Home({
     href: string;
     actionLabel: string;
   }>;
-  const recentActivity = [
-    ...filteredSales.map((sale) => ({
-      id: `sale-${sale.invoice_number}-${sale.created_at ?? sale.sales_date}`,
-      title: "Sales bill created",
-      description: `${sale.invoice_number} • ${sale.customer_name}`,
-      amount: formatCurrency(sale.grand_total),
-      date: formatBsDisplayDate(sale.sales_date),
-      sortKey: sale.created_at ?? sale.sales_date ?? "",
-      tone: "green",
-      icon: ReceiptText,
-    })),
-    ...filteredSalesPayments.map((payment) => {
-      const sale = Array.isArray(payment.sales) ? payment.sales[0] : payment.sales;
-      const totalAmount = Number(sale?.grand_total ?? 0);
-      const amountReceived = Number(sale?.amount_received ?? 0);
-      const wasFullyPaidByThisPayment =
-        amountReceived >= totalAmount && amountReceived - Number(payment.amount ?? 0) < totalAmount;
-
-      return {
-        id: `sales-payment-${payment.id}`,
-        title: wasFullyPaidByThisPayment ? "Sales bill fully paid" : "Sales payment received",
-        description: `${sale?.invoice_number ?? "Sales bill"} • ${sale?.customer_name ?? "Customer"}`,
-        amount: formatCurrency(payment.amount),
-        date: formatBsDisplayDate(payment.payment_date),
-        sortKey: payment.created_at ?? payment.payment_date ?? "",
-        tone: wasFullyPaidByThisPayment ? "emerald" : "green",
-        icon: Wallet,
-      };
-    }),
-    ...filteredPurchases.map((purchase) => ({
-      id: `purchase-${purchase.purchase_number}-${purchase.created_at ?? purchase.purchase_date}`,
-      title: "Purchase bill created",
-      description: `${purchase.purchase_number} • ${purchase.vendor_name ?? "Supplier"}`,
-      amount: formatCurrency(purchase.total_amount),
-      date: formatBsDisplayDate(purchase.purchase_date),
-      sortKey: purchase.created_at ?? purchase.purchase_date ?? "",
-      tone: "blue",
-      icon: ShoppingCart,
-    })),
-    ...filteredPurchasePayments.map((payment) => {
-      const purchase = Array.isArray(payment.purchases) ? payment.purchases[0] : payment.purchases;
-      const vendorName = readVendorName(
-        purchase?.vendors as { name?: string | null } | Array<{ name?: string | null }> | null,
-      );
-      const totalAmount = Number(purchase?.total_amount ?? 0);
-      const paidAmount = Number(purchase?.paid_amount ?? 0);
-      const wasFullyPaidByThisPayment =
-        paidAmount >= totalAmount && paidAmount - Number(payment.amount ?? 0) < totalAmount;
-
-      return {
-        id: `purchase-payment-${payment.id}`,
-        title: wasFullyPaidByThisPayment ? "Purchase bill fully paid" : "Purchase payment made",
-        description: `${purchase?.purchase_number ?? "Purchase bill"} • ${vendorName ?? purchase?.vendor_name ?? "Supplier"}`,
-        amount: formatCurrency(payment.amount),
-        date: formatBsDisplayDate(payment.payment_date),
-        sortKey: payment.created_at ?? payment.payment_date ?? "",
-        tone: wasFullyPaidByThisPayment ? "blue" : "slate",
-        icon: CircleDollarSign,
-      };
-    }),
-    ...filteredExpenses.map((expense) => ({
-      id: `expense-${expense.expense_title}-${expense.created_at ?? expense.expense_date}`,
-      title: "Expense added",
-      description: expense.expense_title || "Purchase expense",
-      amount: formatCurrency(expense.amount),
-      date: formatBsDisplayDate(expense.expense_date),
-      sortKey: expense.created_at ?? expense.expense_date ?? "",
-      tone: "amber",
-      icon: CreditCard,
-    })),
-    ...filteredStaffSalaryPayments.map((payment) => {
-      const staffName =
-        staffProfiles.find((staff) => staff.id === payment.staff_id)?.name ?? "Staff";
-      return {
-        id: `salary-${payment.created_at ?? payment.transaction_date}-${payment.id}`,
-        title: payment.type === "SALARY" ? "Staff salary paid" : "Staff advance paid",
-        description: `${staffName} • ${payment.month_label}`,
-        amount: formatCurrency(payment.amount),
-        date: formatBsDisplayDate(payment.transaction_date),
-        sortKey: payment.created_at ?? payment.transaction_date ?? "",
-        tone: "slate",
-        icon: Wallet,
-      };
-    }),
-  ]
-    .sort((left, right) => right.sortKey.localeCompare(left.sortKey))
-    .slice(0, 10);
   const overviewCustomerRows = customers.map((customer) => ({
     id: customer.name,
     name: customer.name,
@@ -851,49 +724,6 @@ export default async function Home({
         >
           <ExpenseBreakdownChart data={expenseData} total={formatCurrency(expenseTotal)} compact />
         </ChartCard>
-      </DashboardGrid>
-
-      <DashboardGrid className="mb-8">
-        <ActivityCard
-          items={recentActivity.map((activity) => ({
-            ...activity,
-            isoDate: activity.sortKey || todayDate,
-          }))}
-          todayDate={todayDate}
-        />
-        <div className="xl:col-span-7">
-          <TableCard
-            title="Operational Summary"
-            subtitle="Quick scan of key balances and open commitments."
-            rows={[
-              {
-                id: "payables",
-                label: "Outstanding Payables",
-                value: formatCurrency(payables),
-                detail: "Open purchase credit",
-              },
-              {
-                id: "overdue",
-                label: "Overdue Sales",
-                value: formatCurrency(
-                  overdueSales.reduce((sum, sale) => sum + Number(sale.remaining_amount ?? 0), 0),
-                ),
-                detail: `${overdueSales.length} overdue invoices`,
-              },
-              {
-                id: "expense-spike",
-                label: "Expense Spikes",
-                value: formatCurrency(highExpensesTotal),
-                detail: `${filteredExpenses.length} expense records`,
-              },
-            ]}
-            columns={[
-              { key: "label", label: "Item", className: "font-semibold text-slate-900" },
-              { key: "value", label: "Value", className: "font-bold text-slate-900" },
-              { key: "detail", label: "Detail" },
-            ]}
-          />
-        </div>
       </DashboardGrid>
 
       <Tabs defaultValue="overview">

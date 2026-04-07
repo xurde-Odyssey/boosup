@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { upsertStaffSalaryPayment } from "@/app/actions";
 import { NepaliDateInput } from "@/components/shared/NepaliDateInput";
-import { adToBs, bsToAd, formatBsDisplayDate } from "@/lib/nepali-date";
+import { adToBs, bsToAd, formatBsDisplayDate, getBsDateParts } from "@/lib/nepali-date";
 import { formatCurrency } from "@/lib/presentation";
 import {
   getLedgerPeriodKey,
@@ -64,10 +64,15 @@ export function StaffSalaryPaymentForm({
   ledgers: StaffLedgerRecord[];
   transactions: StaffSalaryTransactionRecord[];
 }) {
-  const today = new Date(defaultDate);
+  const defaultBsDate = adToBs(defaultDate);
+  const defaultBsParts = getBsDateParts(defaultBsDate);
   const [staffId, setStaffId] = useState(editingTransaction?.staff_id ?? "");
-  const [month, setMonth] = useState(String(editingTransaction?.month ?? today.getMonth() + 1));
-  const [year, setYear] = useState(String(editingTransaction?.year ?? today.getFullYear()));
+  const [month, setMonth] = useState(
+    String(editingTransaction?.month ?? defaultBsParts.month ?? 1),
+  );
+  const [year, setYear] = useState(
+    String(editingTransaction?.year ?? defaultBsParts.year ?? 2080),
+  );
   const [paymentDateBs, setPaymentDateBs] = useState(
     adToBs(editingTransaction?.transaction_date ?? defaultDate),
   );
@@ -222,7 +227,7 @@ export function StaffSalaryPaymentForm({
 
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
           <div>
-            <label className="mb-2 block text-sm font-semibold text-slate-700">Month</label>
+            <label className="mb-2 block text-sm font-semibold text-slate-700">Month (BS)</label>
             <select
               name="month"
               value={month}
@@ -237,20 +242,28 @@ export function StaffSalaryPaymentForm({
             </select>
           </div>
           <div>
-            <label className="mb-2 block text-sm font-semibold text-slate-700">Year</label>
+            <label className="mb-2 block text-sm font-semibold text-slate-700">Year (BS)</label>
             <input
               name="year"
               type="number"
               min="2000"
               step="1"
               value={year}
-              onChange={(event) => setYear(toWholeNumber(event.target.value, today.getFullYear()))}
+              onChange={(event) => setYear(toWholeNumber(event.target.value, defaultBsParts.year || 2080))}
               className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-blue-500 focus:bg-white"
             />
           </div>
           <div>
             <label className="mb-2 block text-sm font-semibold text-slate-700">Payment Date (BS)</label>
-            <NepaliDateInput value={paymentDateBs} onChange={setPaymentDateBs} />
+            <NepaliDateInput
+              value={paymentDateBs}
+              onChange={(nextValue) => {
+                setPaymentDateBs(nextValue);
+                const nextParts = getBsDateParts(nextValue);
+                if (nextParts.month) setMonth(String(nextParts.month));
+                if (nextParts.year) setYear(String(nextParts.year));
+              }}
+            />
           </div>
         </div>
 

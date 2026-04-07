@@ -2,6 +2,7 @@ import { Header } from "@/components/dashboard/Header";
 import { Sidebar } from "@/components/dashboard/Sidebar";
 import { StaffSalaryPaymentForm } from "@/components/staff/StaffSalaryPaymentForm";
 import { QueryNoticeToast } from "@/components/shared/QueryNoticeToast";
+import { adToBs, getBsDateParts } from "@/lib/nepali-date";
 import { getSupabaseClient } from "@/lib/supabase/server";
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
@@ -22,9 +23,10 @@ export default async function CreateStaffPaymentPage({
   const preselectedStaffId = typeof params.staff === "string" ? params.staff : "";
   const notice = typeof params.notice === "string" ? params.notice : "";
   const todayDate = getTodayDate();
-  const today = new Date(`${todayDate}T00:00:00`);
-  const defaultYear = today.getFullYear();
-  const defaultMonth = today.getMonth() + 1;
+  const todayBs = adToBs(todayDate);
+  const todayBsParts = getBsDateParts(todayBs);
+  const defaultYear = todayBsParts.year || 2080;
+  const defaultMonth = todayBsParts.month || 1;
   const preselectedMonth = typeof params.month === "string" ? Number(params.month) : defaultMonth;
   const preselectedYear = typeof params.year === "string" ? Number(params.year) : defaultYear;
 

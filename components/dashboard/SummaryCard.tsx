@@ -1,5 +1,6 @@
 import React from 'react';
 import Link from "next/link";
+import { ReactNode } from "react";
 import { LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Card } from "@/components/shared/Card";
@@ -15,6 +16,7 @@ interface SummaryCardProps {
     emphasis?: 'high' | 'normal';
     className?: string;
     href?: string;
+    footer?: ReactNode;
 }
 
 export function SummaryCard({
@@ -27,7 +29,8 @@ export function SummaryCard({
     iconColor,
     emphasis = 'normal',
     className,
-    href
+    href,
+    footer,
 }: SummaryCardProps) {
     const toneClasses =
         trendType === 'positive'
@@ -70,11 +73,14 @@ export function SummaryCard({
             </div>
 
             <div className="flex items-end justify-between gap-4">
-                <div className={cn(
-                    "font-black tracking-tight text-slate-950 dark:text-slate-50",
-                    emphasis === 'high' ? "text-4xl" : "text-3xl"
-                )}>
-                    {value}
+                <div className="min-w-0">
+                    <div className={cn(
+                        "font-black tracking-tight text-slate-950 dark:text-slate-50",
+                        emphasis === 'high' ? "text-4xl" : "text-3xl"
+                    )}>
+                        {value}
+                    </div>
+                    {footer ? <div className="mt-4">{footer}</div> : null}
                 </div>
                 <div className={cn(
                     "h-12 w-1.5 rounded-full",
