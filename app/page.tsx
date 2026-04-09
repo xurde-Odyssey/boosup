@@ -140,12 +140,16 @@ export default async function Home({
       .select(
         "invoice_number, customer_name, sales_date, grand_total, amount_received, remaining_amount, payment_status, created_at",
       )
+      .gte("sales_date", fromDate)
+      .lte("sales_date", toDate)
       .order("sales_date", { ascending: true }),
     supabase
       .from("purchases")
       .select(
         "purchase_number, purchase_date, total_amount, paid_amount, credit_amount, payment_status, vendor_name, created_at",
       )
+      .gte("purchase_date", fromDate)
+      .lte("purchase_date", toDate)
       .order("purchase_date", { ascending: true }),
     supabase.from("staff_profiles").select("id, name, total_salary"),
     supabase
@@ -156,7 +160,11 @@ export default async function Home({
     supabase
       .from("staff_salary_transactions")
       .select("id, staff_id, ledger_id, transaction_date, type, amount, note, created_at, updated_at"),
-    supabase.from("purchase_expenses").select("expense_date, expense_title, amount, created_at"),
+    supabase
+      .from("purchase_expenses")
+      .select("expense_date, expense_title, amount, created_at")
+      .gte("expense_date", fromDate)
+      .lte("expense_date", toDate),
     supabase
       .from("sales_items")
       .select("product_name, quantity, amount, sales(sales_date)")

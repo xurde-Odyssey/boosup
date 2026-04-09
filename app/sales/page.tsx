@@ -347,7 +347,7 @@ export default async function SalesPage({
         </div>
 
         <div className="mb-8 grid grid-cols-1 gap-6 xl:grid-cols-12">
-          <div className="xl:col-span-8">
+          <div className="min-w-0 xl:col-span-8">
             <SalesTrendChart data={salesTrendData} />
           </div>
           <div className="xl:col-span-4">

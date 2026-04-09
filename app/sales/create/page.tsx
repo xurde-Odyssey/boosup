@@ -6,6 +6,7 @@ import { PageActionStrip } from "@/components/shared/PageActionStrip";
 import { SalesForm } from "@/components/sales/SalesForm";
 import { QueryNoticeToast } from "@/components/shared/QueryNoticeToast";
 import { getCompanySettings } from "@/lib/company-settings-server";
+import { getMessages } from "@/lib/i18n";
 import { getServerLocale } from "@/lib/i18n-server";
 import { formatBsDisplayDate } from "@/lib/nepali-date";
 import { formatCurrency } from "@/lib/presentation";
@@ -27,6 +28,8 @@ export default async function CreateSalesPage({
   const company = await getCompanySettings();
   const params = await searchParams;
   const locale = await getServerLocale(params.lang);
+  const messages = getMessages(locale);
+  const salesMessages = messages.salesEntry;
   const editId = typeof params.edit === "string" ? params.edit : "";
   const shouldPrint = typeof params.print === "string" && params.print === "1";
   const notice = typeof params.notice === "string" ? params.notice : "";
@@ -112,18 +115,18 @@ export default async function CreateSalesPage({
 
       <main className="flex-1 overflow-y-auto p-8">
         <Header
-          title={editingSale ? "Update Sales" : "Create New Sales"}
-          description="Enter and persist a sales record in Supabase."
-          primaryActionLabel={editingSale ? "Update Sales" : "Save Sales"}
+          title={editingSale ? salesMessages.pageEditTitle : salesMessages.pageCreateTitle}
+          description={salesMessages.pageDescription}
+          primaryActionLabel={editingSale ? salesMessages.updateAction : salesMessages.saveAction}
         />
         <QueryNoticeToast message={notice} />
         <PageActionStrip
           actions={[
-            { label: "Back To Sales", href: "/sales", variant: "secondary", icon: ArrowLeft },
+            { label: salesMessages.backToSales, href: "/sales", variant: "secondary", icon: ArrowLeft },
             ...(editingSale
               ? [
                   {
-                    label: "Recorded Bills",
+                    label: messages.salesPage.recordedBills,
                     href: "/sales/view",
                     variant: "secondary" as const,
                     icon: ScrollText,
@@ -140,9 +143,9 @@ export default async function CreateSalesPage({
                 <FilePlus2 className="h-5 w-5" />
               </div>
               <div>
-                <h3 className="text-lg font-bold text-slate-900">Sales Entry</h3>
+                <h3 className="text-lg font-bold text-slate-900">{salesMessages.entryTitle}</h3>
                 <p className="text-sm text-slate-500">
-                  Multi-item sales form linked to Supabase.
+                  {salesMessages.entrySubtitle}
                 </p>
               </div>
             </div>
@@ -152,6 +155,7 @@ export default async function CreateSalesPage({
               defaultDate={todayDate}
               products={products}
               editingSale={editingSale}
+              locale={locale}
             />
           </section>
 
@@ -162,14 +166,14 @@ export default async function CreateSalesPage({
                   <ReceiptText className="h-5 w-5" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold text-slate-900">Sales Summary</h3>
-                  <p className="text-sm text-slate-500">Current values for the selected record.</p>
+                  <h3 className="text-lg font-bold text-slate-900">{salesMessages.summaryTitle}</h3>
+                  <p className="text-sm text-slate-500">{salesMessages.summarySubtitle}</p>
                 </div>
               </div>
               <div className="space-y-3 text-sm">
                 <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
                   <div className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                    Invoice Snapshot
+                    {salesMessages.invoiceSnapshot}
                   </div>
                   <div className="mt-3 space-y-3">
                     <div className="flex items-center justify-between">
@@ -188,11 +192,11 @@ export default async function CreateSalesPage({
                 </div>
                 <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
                   <div className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                    Collection Snapshot
+                    {salesMessages.collectionSnapshot}
                   </div>
                   <div className="mt-3 space-y-3">
                     <div className="flex items-center justify-between">
-                      <span className="text-slate-500">Previously Received Amount</span>
+                      <span className="text-slate-500">{salesMessages.previouslyReceivedAmount}</span>
                       <span className="font-semibold text-green-700">
                         {formatCurrency(totalReceived)}
                       </span>
@@ -204,7 +208,7 @@ export default async function CreateSalesPage({
                       </span>
                     </div>
                     <div className="flex items-center justify-between border-t border-slate-200 pt-3">
-                      <span className="font-semibold text-slate-900">Grand Total</span>
+                      <span className="font-semibold text-slate-900">{salesMessages.grandTotal}</span>
                       <span className="text-lg font-bold text-blue-600">
                         {formatCurrency(grandTotal)}
                       </span>

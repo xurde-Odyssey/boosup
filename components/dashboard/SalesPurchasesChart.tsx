@@ -31,8 +31,8 @@ export function SalesPurchasesChart({
     <div
       className={cn(
         compact
-          ? "h-[320px]"
-          : "h-[400px] rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm shadow-slate-200/50",
+          ? "h-[320px] min-h-[320px] min-w-0"
+          : "min-w-0 rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm shadow-slate-200/50",
         className,
       )}
     >
@@ -44,7 +44,7 @@ export function SalesPurchasesChart({
           </div>
         </div>
       ) : null}
-      <div className={compact ? "h-full w-full" : "h-[300px] w-full"}>
+      <div className={compact ? "h-full min-h-[320px] w-full min-w-0" : "h-[300px] min-h-[300px] w-full min-w-0"}>
         {data.length > 0 ? (
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>

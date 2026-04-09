@@ -6,6 +6,7 @@ import { FieldHint } from "@/components/shared/FieldHint";
 import { FormSectionHeader } from "@/components/shared/FormSectionHeader";
 import { NepaliDateInput } from "@/components/shared/NepaliDateInput";
 import { FormStickyActions } from "@/components/shared/FormStickyActions";
+import { type AppLocale, getMessages, getStatusLabel } from "@/lib/i18n";
 import { adToBs, bsToAd } from "@/lib/nepali-date";
 import { formatCurrency } from "@/lib/presentation";
 
@@ -83,12 +84,16 @@ export function PurchaseForm({
   editingPurchase,
   purchasePayments,
   defaultDate,
+  locale = "en",
 }: {
   vendors: VendorOption[];
   editingPurchase: EditingPurchase | null;
   purchasePayments: PurchasePayment[];
   defaultDate: string;
+  locale?: AppLocale;
 }) {
+  const messages = getMessages(locale);
+  const purchaseMessages = messages.purchaseEntry;
   const purchaseItem = editingPurchase?.purchase_items?.[0] ?? null;
   const [purchaseNumber, setPurchaseNumber] = useState(editingPurchase?.purchase_number ?? "");
   const [purchaseDateBs, setPurchaseDateBs] = useState(
@@ -119,8 +124,8 @@ export function PurchaseForm({
   const remainingAmount = Math.max(itemAmount - nextPaidAmount, 0);
   const activeVendorLabel =
     vendorId
-      ? vendors.find((vendor) => vendor.id === vendorId)?.name ?? "Saved supplier"
-      : vendorName || "No supplier selected";
+      ? vendors.find((vendor) => vendor.id === vendorId)?.name ?? purchaseMessages.savedSupplierFallback
+      : vendorName || purchaseMessages.noSupplierSelected;
   const initialFinancialSnapshot = useMemo(
     () =>
       editingPurchase && editingPurchase.payment_status === "PAID"
@@ -173,10 +178,10 @@ export function PurchaseForm({
       <section className="rounded-[24px] border border-slate-200 bg-white p-6 shadow-sm">
         <div className="mb-6">
           <h3 className="text-lg font-bold text-slate-900">
-            {editingPurchase ? "Update Purchase" : "Create Purchase"}
+            {editingPurchase ? purchaseMessages.sectionEditTitle : purchaseMessages.sectionCreateTitle}
           </h3>
           <p className="text-sm text-slate-500">
-            Purchase record with typed raw material item details.
+            {purchaseMessages.sectionSubtitle}
           </p>
         </div>
 
@@ -189,7 +194,7 @@ export function PurchaseForm({
             if (initialFinancialSnapshot === currentFinancialSnapshot) return;
 
             const shouldContinue = window.confirm(
-              "This purchase bill is already fully settled. Updating these financial details may affect payment history, supplier dues, and summary reports. Do you want to continue?",
+              purchaseMessages.settledConfirm,
             );
 
             if (!shouldContinue) {
@@ -203,24 +208,21 @@ export function PurchaseForm({
 
           {isEditingSettledBill ? (
             <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-              <div className="font-semibold">This bill is already fully settled.</div>
-              <div className="mt-1">
-                Changing financial details may affect payment history, supplier balances, and
-                summary reports.
-              </div>
+              <div className="font-semibold">{purchaseMessages.settledWarningTitle}</div>
+              <div className="mt-1">{purchaseMessages.settledWarningBody}</div>
             </div>
           ) : null}
 
           <div className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
             <FormSectionHeader
-              eyebrow="Party"
-              title="Supplier and bill details"
-              description="Capture who supplied the goods and when the bill was issued."
+              eyebrow={purchaseMessages.partyEyebrow}
+              title={purchaseMessages.partyTitle}
+              description={purchaseMessages.partyDescription}
             />
             <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2">
               <div>
                 <label className="mb-2 block text-sm font-semibold text-slate-700">
-                  Purchase Number
+                  {purchaseMessages.purchaseNumber}
                 </label>
                 <input
                   name="purchase_number"
@@ -231,19 +233,19 @@ export function PurchaseForm({
                   placeholder="PUR-2026-001"
                   className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-blue-500"
                 />
-                <FieldHint>Keep the bill number aligned with the supplier invoice when possible.</FieldHint>
+                <FieldHint>{purchaseMessages.purchaseNumberHint}</FieldHint>
               </div>
               <div>
                 <label className="mb-2 block text-sm font-semibold text-slate-700">
-                  Purchase Date (BS)
+                  {purchaseMessages.purchaseDateBs}
                 </label>
                 <NepaliDateInput value={purchaseDateBs} onChange={setPurchaseDateBs} />
                 <input type="hidden" name="purchase_date_bs" value={purchaseDateBs} />
-                <FieldHint>Enter Bikram Sambat date. The app saves Gregorian date internally.</FieldHint>
+                <FieldHint>{purchaseMessages.bsDateHint}</FieldHint>
               </div>
               <div>
                 <label className="mb-2 block text-sm font-semibold text-slate-700">
-                  Saved Supplier
+                  {purchaseMessages.savedSupplier}
                 </label>
                 <select
                   name="vendor_id"
@@ -251,24 +253,24 @@ export function PurchaseForm({
                   onChange={(event) => setVendorId(event.target.value)}
                   className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-blue-500"
                 >
-                  <option value="">Select saved supplier</option>
+                  <option value="">{purchaseMessages.selectSavedSupplier}</option>
                   {vendors.map((vendor) => (
                     <option key={vendor.id} value={vendor.id}>
                       {vendor.name}
                     </option>
                   ))}
                 </select>
-                <FieldHint>Choose a saved supplier or type a one-time supplier name below.</FieldHint>
+                <FieldHint>{purchaseMessages.savedSupplierHint}</FieldHint>
               </div>
               <div>
                 <label className="mb-2 block text-sm font-semibold text-slate-700">
-                  One-Time Supplier Name
+                  {purchaseMessages.oneTimeSupplierName}
                 </label>
                 <input
                   name="vendor_name"
                   value={vendorName}
                   onChange={(event) => setVendorName(event.target.value)}
-                  placeholder="Type supplier name if no profile exists"
+                  placeholder={purchaseMessages.oneTimeSupplierPlaceholder}
                   className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-blue-500"
                 />
               </div>
@@ -277,25 +279,27 @@ export function PurchaseForm({
 
           <div className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
             <FormSectionHeader
-              eyebrow="Items"
-              title="Raw material details"
-              description="Type the purchased material exactly as it appears on the bill."
+              eyebrow={purchaseMessages.itemsEyebrow}
+              title={purchaseMessages.itemsTitle}
+              description={purchaseMessages.itemsDescription}
             />
             <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-[minmax(0,1.4fr)_140px_160px]">
               <div>
                 <label className="mb-2 block text-sm font-semibold text-slate-700">
-                  Raw Material Name
+                  {purchaseMessages.rawMaterialName}
                 </label>
                 <input
                   name="product_name"
                   value={productName}
                   onChange={(event) => setProductName(event.target.value)}
-                  placeholder="Type raw material or imported goods name"
+                  placeholder={purchaseMessages.rawMaterialPlaceholder}
                   className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-blue-500"
                 />
               </div>
               <div>
-                <label className="mb-2 block text-sm font-semibold text-slate-700">Quantity</label>
+                <label className="mb-2 block text-sm font-semibold text-slate-700">
+                  {purchaseMessages.quantity}
+                </label>
                 <input
                   name="quantity"
                   type="number"
@@ -308,7 +312,9 @@ export function PurchaseForm({
                 />
               </div>
               <div>
-                <label className="mb-2 block text-sm font-semibold text-slate-700">Rate</label>
+                <label className="mb-2 block text-sm font-semibold text-slate-700">
+                  {purchaseMessages.rate}
+                </label>
                 <input
                   name="rate"
                   type="number"
@@ -316,7 +322,7 @@ export function PurchaseForm({
                   step="0.01"
                   value={rate}
                   onChange={(event) => setRate(event.target.value)}
-                  placeholder="Enter rate in Rs."
+                  placeholder={purchaseMessages.ratePlaceholder}
                   className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-blue-500"
                 />
               </div>
@@ -326,13 +332,13 @@ export function PurchaseForm({
               <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
                 <div>
                   <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-slate-400">
-                    Material Amount
+                    {purchaseMessages.materialAmount}
                   </div>
                   <div className="mt-1 font-semibold text-slate-900">{formatCurrency(itemAmount)}</div>
                 </div>
                 <div>
                   <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-slate-400">
-                    Quantity x Rate
+                    {purchaseMessages.quantityTimesRate}
                   </div>
                   <div className="mt-1 font-semibold text-slate-900">
                     {quantity || "0"} x {formatCurrency(rate)}
@@ -340,7 +346,7 @@ export function PurchaseForm({
                 </div>
                 <div>
                   <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-slate-400">
-                    Active Supplier
+                    {purchaseMessages.activeSupplier}
                   </div>
                   <div className="mt-1 font-semibold text-slate-900">{activeVendorLabel}</div>
                 </div>
@@ -350,16 +356,16 @@ export function PurchaseForm({
 
           <div className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
             <FormSectionHeader
-              eyebrow="Payment"
-              title="Bill settlement"
-              description="Track what was already paid, what is being paid now, and the remaining balance."
+              eyebrow={purchaseMessages.paymentEyebrow}
+              title={purchaseMessages.paymentTitle}
+              description={purchaseMessages.paymentDescription}
             />
             <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
               <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 md:col-span-2 xl:col-span-3">
                 <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
                   <div>
                     <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-slate-400">
-                      Bill Amount
+                      {purchaseMessages.billAmount}
                     </div>
                     <div className="mt-1 text-lg font-bold text-slate-900">
                       {formatCurrency(itemAmount)}
@@ -367,7 +373,7 @@ export function PurchaseForm({
                   </div>
                   <div>
                     <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-slate-400">
-                      Previously Paid
+                      {purchaseMessages.previouslyPaid}
                     </div>
                     <div className="mt-1 text-lg font-bold text-green-700">
                       {formatCurrency(previousPaidAmount)}
@@ -375,7 +381,7 @@ export function PurchaseForm({
                   </div>
                   <div>
                     <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-slate-400">
-                      Remaining Balance
+                      {purchaseMessages.remainingAmount}
                     </div>
                     <div className="mt-1 text-lg font-bold text-amber-700">
                       {formatCurrency(remainingAmount)}
@@ -385,7 +391,7 @@ export function PurchaseForm({
               </div>
               <div>
                 <label className="mb-2 block text-sm font-semibold text-slate-700">
-                  Payment Status
+                  {purchaseMessages.paymentStatus}
                 </label>
                 <select
                   name="payment_status"
@@ -393,16 +399,16 @@ export function PurchaseForm({
                   onChange={(event) => setPaymentStatus(event.target.value)}
                   className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-blue-500"
                 >
-                  <option value="PAID">Paid</option>
-                  <option value="PARTIAL">Partial</option>
-                  <option value="OVERDUE">Overdue</option>
-                  <option value="PENDING">Pending</option>
+                  <option value="PAID">{getStatusLabel("PAID", locale)}</option>
+                  <option value="PARTIAL">{getStatusLabel("PARTIAL", locale)}</option>
+                  <option value="OVERDUE">{getStatusLabel("OVERDUE", locale)}</option>
+                  <option value="PENDING">{getStatusLabel("PENDING", locale)}</option>
                 </select>
               </div>
               {showPaymentMethod ? (
                 <div>
                   <label className="mb-2 block text-sm font-semibold text-slate-700">
-                    Payment Method
+                    {purchaseMessages.paymentMethod}
                   </label>
                   <select
                     name="payment_method"
@@ -410,8 +416,8 @@ export function PurchaseForm({
                     onChange={(event) => setPaymentMethod(event.target.value)}
                     className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-blue-500"
                   >
-                    <option value="Cash">Cash</option>
-                    <option value="Mobile">Mobile</option>
+                    <option value="Cash">{purchaseMessages.cash}</option>
+                    <option value="Mobile">{purchaseMessages.mobile}</option>
                   </select>
                 </div>
               ) : (
@@ -419,7 +425,7 @@ export function PurchaseForm({
               )}
               <div>
                 <label className="mb-2 block text-sm font-semibold text-slate-700">
-                  Payment Date
+                  {purchaseMessages.paymentDate}
                 </label>
                 <NepaliDateInput value={paymentDateBs} onChange={setPaymentDateBs} />
                 <input type="hidden" name="payment_date_bs" value={paymentDateBs} />
@@ -427,7 +433,7 @@ export function PurchaseForm({
               </div>
               <div>
                 <label className="mb-2 block text-sm font-semibold text-slate-700">
-                  Previously Paid Amount
+                  {purchaseMessages.previousPaidAmount}
                 </label>
                 <input
                   type="text"
@@ -438,7 +444,7 @@ export function PurchaseForm({
               </div>
               <div>
                 <label className="mb-2 block text-sm font-semibold text-slate-700">
-                  Amount Paid Now
+                  {purchaseMessages.amountPaidNow}
                 </label>
                 <input
                   name="payment_now"
@@ -447,13 +453,13 @@ export function PurchaseForm({
                   step="0.01"
                   value={paymentNow}
                   onChange={(event) => setPaymentNow(event.target.value)}
-                  placeholder="Enter new payment amount"
+                  placeholder={purchaseMessages.amountPaidNowPlaceholder}
                   className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-blue-500"
                 />
               </div>
               <div>
                 <label className="mb-2 block text-sm font-semibold text-slate-700">
-                  Remaining Amount
+                  {purchaseMessages.remainingAmount}
                 </label>
                 <input
                   type="text"
@@ -467,9 +473,9 @@ export function PurchaseForm({
 
           <div className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
             <FormSectionHeader
-              eyebrow="Notes"
-              title="Reference notes"
-              description="Optional internal notes for transport, bill remarks, or payment follow-up."
+              eyebrow={purchaseMessages.notesEyebrow}
+              title={purchaseMessages.notesTitle}
+              description={purchaseMessages.notesDescription}
             />
             <div className="mt-5">
               <textarea
@@ -477,16 +483,16 @@ export function PurchaseForm({
                 rows={3}
                 value={notes}
                 onChange={(event) => setNotes(event.target.value)}
-                placeholder="Optional purchase note"
+                placeholder={purchaseMessages.notesPlaceholder}
                 className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-blue-500"
               />
             </div>
           </div>
 
           <FormStickyActions
-            submitLabel={editingPurchase ? "Update Purchase" : "Save Purchase"}
+            submitLabel={editingPurchase ? purchaseMessages.updateAction : purchaseMessages.saveAction}
             cancelHref="/purchases"
-            helperText="Payments and remaining balance stay visible while you finish the bill."
+            helperText={purchaseMessages.stickyHelper}
           />
         </form>
       </section>
@@ -494,45 +500,45 @@ export function PurchaseForm({
       <aside className="space-y-6">
         <section className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
           <div className="text-[11px] font-bold uppercase tracking-[0.24em] text-slate-400">
-            Live Summary
+            {purchaseMessages.liveSummary}
           </div>
-          <h3 className="mt-2 text-lg font-bold text-slate-900">Purchase Snapshot</h3>
-          <p className="mt-1 text-sm text-slate-500">Live values based on the current form input.</p>
+          <h3 className="mt-2 text-lg font-bold text-slate-900">{purchaseMessages.snapshotTitle}</h3>
+          <p className="mt-1 text-sm text-slate-500">{purchaseMessages.snapshotSubtitle}</p>
 
           <div className="mt-5 space-y-4">
             <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
               <div className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                Supplier
+                {purchaseMessages.supplier}
               </div>
               <div className="mt-2 text-base font-semibold text-slate-900">{activeVendorLabel}</div>
             </div>
             <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
               <div className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                Raw Material
+                {purchaseMessages.rawMaterial}
               </div>
               <div className="mt-2 text-base font-semibold text-slate-900">
-                {productName || "No material entered"}
+                {productName || purchaseMessages.noMaterialEntered}
               </div>
             </div>
             <div className="space-y-3 rounded-2xl border border-slate-100 bg-slate-50 p-4 text-sm">
               <div className="flex items-center justify-between">
-                <span className="text-slate-500">Item Amount</span>
+                <span className="text-slate-500">{purchaseMessages.materialAmount}</span>
                 <span className="font-semibold text-slate-900">{formatCurrency(itemAmount)}</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-slate-500">Previously Paid</span>
+                <span className="text-slate-500">{purchaseMessages.previouslyPaid}</span>
                 <span className="font-semibold text-green-700">
                   {formatCurrency(previousPaidAmount)}
                 </span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-slate-500">Paying Now</span>
+                <span className="text-slate-500">{purchaseMessages.payingNow}</span>
                 <span className="font-semibold text-blue-600">
                   {formatCurrency(normalizedPaymentNow)}
                 </span>
               </div>
               <div className="flex items-center justify-between border-t border-slate-200 pt-3">
-                <span className="font-semibold text-slate-900">Remaining Balance</span>
+                <span className="font-semibold text-slate-900">{purchaseMessages.remainingAmount}</span>
                 <span className="text-lg font-bold text-amber-700">
                   {formatCurrency(remainingAmount)}
                 </span>
@@ -544,18 +550,16 @@ export function PurchaseForm({
         {editingPurchase && (
           <section className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
             <div className="border-b border-slate-50 p-6">
-              <h3 className="text-lg font-bold text-slate-900">Purchase Payment History</h3>
-              <p className="mt-1 text-xs text-slate-500">
-                All partial and full payments recorded for this purchase bill.
-              </p>
+              <h3 className="text-lg font-bold text-slate-900">{purchaseMessages.paymentHistoryTitle}</h3>
+              <p className="mt-1 text-xs text-slate-500">{purchaseMessages.paymentHistorySubtitle}</p>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-left">
                 <thead>
                   <tr className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                    <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">Payment Date</th>
-                    <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">Method</th>
-                    <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">Amount</th>
+                    <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">{purchaseMessages.paymentDate}</th>
+                    <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">{messages.print.method}</th>
+                    <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">{messages.print.amount}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-50">
@@ -576,7 +580,7 @@ export function PurchaseForm({
                   {purchasePayments.length === 0 && (
                     <tr>
                       <td colSpan={3} className="px-6 py-10 text-center text-sm text-slate-500">
-                        No payments recorded for this purchase yet.
+                        {purchaseMessages.noPaymentsYet}
                       </td>
                     </tr>
                   )}

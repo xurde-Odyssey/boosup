@@ -64,7 +64,7 @@ export function ThemeToggle() {
     <button
       type="button"
       onClick={toggleTheme}
-      className="inline-flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-3 py-2 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900/90 dark:hover:bg-slate-800"
+      className="inline-flex h-[var(--ui-button-h-lg)] items-center rounded-[var(--ui-radius-button)] border border-[color:var(--ui-border-strong)] bg-white px-4 shadow-sm transition-all duration-200 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900/90 dark:hover:bg-slate-800"
       aria-pressed={isDark}
       title={isDark ? "Switch to light mode" : "Switch to dark mode"}
     >
@@ -91,14 +91,6 @@ export function ThemeToggle() {
               isDark ? "text-cyan-300" : "text-slate-400"
             }`}
           />
-        </div>
-      </div>
-      <div className="text-left">
-        <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500">
-          Theme
-        </div>
-        <div className="text-sm font-semibold text-slate-700 dark:text-slate-100">
-          {isDark ? "Dark Mode" : "Light Mode"}
         </div>
       </div>
     </button>

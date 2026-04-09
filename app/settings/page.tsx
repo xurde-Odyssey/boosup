@@ -10,6 +10,8 @@ import { Sidebar } from "@/components/dashboard/Sidebar";
 import { QueryNoticeToast } from "@/components/shared/QueryNoticeToast";
 import { SystemPreferencesPanel } from "@/components/settings/SystemPreferencesPanel";
 import { buildCompanySettings } from "@/lib/company-settings";
+import { getMessages } from "@/lib/i18n";
+import { getServerLocale } from "@/lib/i18n-server";
 import { getSupabaseClient } from "@/lib/supabase/server";
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
@@ -21,6 +23,9 @@ export default async function SettingsPage({
 }) {
   const supabase = await getSupabaseClient();
   const params = await searchParams;
+  const locale = await getServerLocale(params.lang);
+  const messages = getMessages(locale);
+  const settingsMessages = messages.settingsPage;
   const notice = typeof params.notice === "string" ? params.notice : "";
 
   const settingsResponse = await supabase
@@ -38,8 +43,8 @@ export default async function SettingsPage({
 
       <main className="flex-1 overflow-y-auto p-8">
         <Header
-          title="Settings"
-          description="Simple business identity and system preference settings."
+          title={settingsMessages.title}
+          description={settingsMessages.subtitle}
         />
         <QueryNoticeToast message={notice} />
 
@@ -49,10 +54,9 @@ export default async function SettingsPage({
               <Settings2 className="h-6 w-6" />
             </div>
             <div>
-              <h3 className="text-xl font-bold">Simple Settings</h3>
+              <h3 className="text-xl font-bold">{settingsMessages.heroTitle}</h3>
               <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-300">
-                Keep only the details you actually use here: business identity for invoices and
-                reports, and a few light system preferences for daily operation.
+                {settingsMessages.heroDescription}
               </p>
             </div>
           </div>
@@ -68,11 +72,13 @@ export default async function SettingsPage({
                   </div>
                   <div className="min-w-0">
                     <div className="text-[11px] font-bold uppercase tracking-[0.24em] text-slate-400">
-                      Settings Area
+                      {settingsMessages.areaLabel}
                     </div>
-                    <h3 className="mt-2 text-lg font-bold text-slate-900">Company Profile</h3>
+                    <h3 className="mt-2 text-lg font-bold text-slate-900">
+                      {settingsMessages.companyProfileTitle}
+                    </h3>
                     <p className="mt-2 text-sm leading-6 text-slate-500">
-                      Keep the business identity used across invoices and reports in one place.
+                      {settingsMessages.companyProfileDescription}
                     </p>
                   </div>
                 </div>
@@ -88,70 +94,70 @@ export default async function SettingsPage({
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                   <div className="md:col-span-2">
                     <label className="mb-2 block text-sm font-semibold text-slate-700">
-                      Business Name
+                      {settingsMessages.businessName}
                     </label>
                     <input
                       name="business_name"
                       required
                       defaultValue={companySettings.businessName}
-                      placeholder="Enter business name"
+                      placeholder={settingsMessages.businessNamePlaceholder}
                       className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-blue-500 focus:bg-white"
                     />
                   </div>
 
                   <div className="md:col-span-2">
                     <label className="mb-2 block text-sm font-semibold text-slate-700">
-                      Address
+                      {settingsMessages.address}
                     </label>
                     <textarea
                       name="address"
                       rows={3}
                       defaultValue={companySettings.address}
-                      placeholder="Enter business address"
+                      placeholder={settingsMessages.addressPlaceholder}
                       className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-blue-500 focus:bg-white"
                     />
                   </div>
 
                   <div>
                     <label className="mb-2 block text-sm font-semibold text-slate-700">
-                      Phone
+                      {settingsMessages.phone}
                     </label>
                     <input
                       name="phone"
                       defaultValue={companySettings.phone}
-                      placeholder="Enter phone number"
+                      placeholder={settingsMessages.phonePlaceholder}
                       className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-blue-500 focus:bg-white"
                     />
                   </div>
 
                   <div>
                     <label className="mb-2 block text-sm font-semibold text-slate-700">
-                      Email
+                      {settingsMessages.email}
                     </label>
                     <input
                       name="email"
                       type="email"
                       defaultValue={companySettings.email}
-                      placeholder="Enter business email"
+                      placeholder={settingsMessages.emailPlaceholder}
                       className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-blue-500 focus:bg-white"
                     />
                   </div>
 
                   <div className="md:col-span-2">
                     <label className="mb-2 block text-sm font-semibold text-slate-700">
-                      Website
+                      {settingsMessages.website}
                     </label>
                     <input
                       name="website"
                       defaultValue={companySettings.website}
-                      placeholder="Enter website"
+                      placeholder={settingsMessages.websitePlaceholder}
                       className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-blue-500 focus:bg-white"
                     />
                   </div>
 
                   <div>
                     <label className="mb-2 block text-sm font-semibold text-slate-700">
-                      Logo Path
+                      {settingsMessages.logoPath}
                     </label>
                     <input
                       name="logo_path"
@@ -159,14 +165,12 @@ export default async function SettingsPage({
                       placeholder="/logos/logo.png"
                       className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-blue-500 focus:bg-white"
                     />
-                    <p className="mt-2 text-xs text-slate-500">
-                      Use a public path like <span className="font-semibold">/logos/logo.png</span>.
-                    </p>
+                    <p className="mt-2 text-xs text-slate-500">{settingsMessages.logoPathHint}</p>
                   </div>
 
                   <div>
                     <label className="mb-2 block text-sm font-semibold text-slate-700">
-                      Favicon Path
+                      {settingsMessages.faviconPath}
                     </label>
                     <input
                       name="favicon_path"
@@ -175,7 +179,7 @@ export default async function SettingsPage({
                       className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-blue-500 focus:bg-white"
                     />
                     <p className="mt-2 text-xs text-slate-500">
-                      Used for the browser icon and system branding.
+                      {settingsMessages.faviconPathHint}
                     </p>
                   </div>
                 </div>
@@ -185,7 +189,7 @@ export default async function SettingsPage({
                     type="submit"
                     className="inline-flex items-center justify-center rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-blue-700"
                   >
-                    Save Company Profile
+                    {settingsMessages.saveCompanyProfile}
                   </button>
                 </div>
               </form>
@@ -199,11 +203,13 @@ export default async function SettingsPage({
               </div>
               <div className="min-w-0">
                 <div className="text-[11px] font-bold uppercase tracking-[0.24em] text-slate-400">
-                  Settings Area
+                  {settingsMessages.areaLabel}
                 </div>
-                <h3 className="mt-2 text-lg font-bold text-slate-900">System Preferences</h3>
+                <h3 className="mt-2 text-lg font-bold text-slate-900">
+                  {settingsMessages.systemPreferencesTitle}
+                </h3>
                 <p className="mt-2 text-sm leading-6 text-slate-500">
-                  Keep these simple and easy to access.
+                  {settingsMessages.systemPreferencesDescription}
                 </p>
               </div>
             </div>
