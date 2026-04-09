@@ -2,6 +2,11 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 
+const hasSupabaseSessionCookie = (request: NextRequest) =>
+  request.cookies
+    .getAll()
+    .some(({ name }) => name.startsWith("sb-") && name.includes("auth-token"));
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -13,6 +18,24 @@ export async function middleware(request: NextRequest) {
   });
 
   if (!supabaseUrl || !supabasePublishableKey) {
+    return response;
+  }
+
+  const isLoginPage = pathname === "/login";
+  const hasSessionCookie = hasSupabaseSessionCookie(request);
+
+  if (process.env.NODE_ENV === "development") {
+    if (
+      !isLoginPage &&
+      !hasSessionCookie &&
+      !pathname.startsWith("/_next") &&
+      !pathname.startsWith("/favicon.ico")
+    ) {
+      const loginUrl = new URL("/login", request.url);
+      loginUrl.searchParams.set("next", pathname);
+      return NextResponse.redirect(loginUrl);
+    }
+
     return response;
   }
 
@@ -29,11 +52,18 @@ export async function middleware(request: NextRequest) {
     },
   });
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  let user = null;
+
+  try {
+    const {
+      data: { user: resolvedUser },
+    } = await supabase.auth.getUser();
+    user = resolvedUser;
+  } catch (error) {
+    console.error("Supabase auth lookup failed in middleware:", error);
+  }
+
   const isAuthenticated = Boolean(user);
-  const isLoginPage = pathname === "/login";
 
   if (isLoginPage && isAuthenticated) {
     return NextResponse.redirect(new URL("/", request.url));

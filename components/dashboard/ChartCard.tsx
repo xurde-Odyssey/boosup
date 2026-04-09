@@ -18,9 +18,9 @@ export function ChartCard({
   className?: string;
 }) {
   return (
-    <Card className={className}>
+    <Card className={["min-w-0", className].filter(Boolean).join(" ")}>
       <SectionHeader title={title} description={subtitle} actions={summary} />
-      <div className="p-6 pt-5">
+      <div className="min-w-0 p-6 pt-5">
         {children}
         {insight ? (
           <div className="mt-5 rounded-2xl bg-slate-50/80 px-4 py-3 text-sm text-slate-600 ring-1 ring-slate-100 dark:bg-slate-900/40 dark:ring-slate-800/70">

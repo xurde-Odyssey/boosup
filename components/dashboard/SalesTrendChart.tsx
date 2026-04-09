@@ -17,12 +17,12 @@ type ChartPoint = {
 
 export function SalesTrendChart({ data }: { data: ChartPoint[] }) {
   return (
-    <div className="h-[400px] rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+    <div className="min-w-0 rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
       <div className="mb-6">
         <h3 className="text-lg font-bold text-slate-900">Sales Amount Trend</h3>
         <p className="text-sm text-slate-500">Daily sales amount for the selected range</p>
       </div>
-      <div className="h-[300px] w-full">
+      <div className="h-[300px] min-h-[300px] w-full min-w-0">
         {data.length > 0 ? (
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>

@@ -2,6 +2,8 @@ import { Header } from "@/components/dashboard/Header";
 import { Sidebar } from "@/components/dashboard/Sidebar";
 import { PurchaseForm } from "@/components/purchases/PurchaseForm";
 import { QueryNoticeToast } from "@/components/shared/QueryNoticeToast";
+import { getMessages } from "@/lib/i18n";
+import { getServerLocale } from "@/lib/i18n-server";
 import { getSupabaseClient } from "@/lib/supabase/server";
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
@@ -18,6 +20,9 @@ export default async function CreatePurchasePage({
 }) {
   const supabase = await getSupabaseClient();
   const params = await searchParams;
+  const locale = await getServerLocale(params.lang);
+  const messages = getMessages(locale);
+  const purchaseMessages = messages.purchaseEntry;
   const editId = typeof params.edit === "string" ? params.edit : "";
   const notice = typeof params.notice === "string" ? params.notice : "";
   const todayDate = getTodayDate();
@@ -55,9 +60,9 @@ export default async function CreatePurchasePage({
 
       <main className="flex-1 overflow-y-auto p-8">
         <Header
-          title={editingPurchase ? "Update Purchase" : "Create Purchase"}
-          description="Create and update purchase entries in a dedicated screen."
-          primaryActionLabel="Back To Purchases"
+          title={editingPurchase ? purchaseMessages.pageEditTitle : purchaseMessages.pageCreateTitle}
+          description={purchaseMessages.pageDescription}
+          primaryActionLabel={purchaseMessages.backToPurchases}
           primaryActionHref="/purchases"
         />
 
@@ -68,6 +73,7 @@ export default async function CreatePurchasePage({
           editingPurchase={editingPurchase}
           purchasePayments={purchasePayments}
           defaultDate={todayDate}
+          locale={locale}
         />
       </main>
     </div>
