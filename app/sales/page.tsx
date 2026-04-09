@@ -19,6 +19,8 @@ import { PaginationControls } from "@/components/shared/PaginationControls";
 import { QueryNoticeToast } from "@/components/shared/QueryNoticeToast";
 import { ReportToolbar } from "@/components/shared/ReportToolbar";
 import { getCompanySettings } from "@/lib/company-settings-server";
+import { getMessages } from "@/lib/i18n";
+import { getServerLocale } from "@/lib/i18n-server";
 import { formatBsDisplayDate } from "@/lib/nepali-date";
 import { formatCurrency, getAvatarTone, getInitials } from "@/lib/presentation";
 import { getSupabaseClient } from "@/lib/supabase/server";
@@ -87,6 +89,8 @@ export default async function SalesPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const params = await searchParams;
+  const locale = await getServerLocale(params.lang);
+  const messages = getMessages(locale);
   const notice = typeof params.notice === "string" ? params.notice : "";
   const search = typeof params.q === "string" ? params.q.trim() : "";
   const sort = typeof params.sort === "string" ? params.sort : "date_desc";
@@ -256,8 +260,8 @@ export default async function SalesPage({
 
       <main className="flex-1 overflow-y-auto p-8">
         <Header
-          title="Sales Invoices Overview"
-          description="Detailed view of all your sales transactions and invoice statuses."
+          title={messages.salesPage.title}
+          description={messages.salesPage.subtitle}
         />
         <QueryNoticeToast message={notice} />
         <ReportToolbar
@@ -282,10 +286,11 @@ export default async function SalesPage({
           }
         />
         <PageActionStrip
+          locale={locale}
           actions={[
-            { label: "Create Sales Bill", href: "/sales/create", icon: FilePlus },
+            { label: messages.salesPage.createSalesBill, href: "/sales/create", icon: FilePlus },
             {
-              label: "Recorded Bills",
+              label: messages.salesPage.recordedBills,
               href: "/sales/view",
               variant: "secondary",
               icon: ReceiptText,
@@ -357,6 +362,7 @@ export default async function SalesPage({
             sort={sort}
             status={status}
             perPage={perPage}
+            locale={locale}
           />
           <PaginationControls
             basePath="/sales"

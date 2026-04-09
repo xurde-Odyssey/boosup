@@ -55,3 +55,10 @@
   - Database
       - Supabase integration is wired
       - schema and RLS policies are included in supabase/schema.sql
+
+  Testing
+
+  - unit and business-logic tests use Vitest
+  - end-to-end workflow tests use Playwright
+  - run `npm run test:unit`, `npm run test:e2e`, or `npm test`
+  - setup notes live in tests/README.md

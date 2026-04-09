@@ -11,8 +11,9 @@ import { ConfirmActionForm } from "@/components/shared/ConfirmActionForm";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { Input } from "@/components/shared/Input";
 import { Select } from "@/components/shared/Select";
-import { PaymentStatusBadge } from "@/components/shared/StatusBadge";
+import { LocalizedPaymentStatusBadge } from "@/components/shared/StatusBadge";
 import { TableWrapper } from "@/components/shared/TableWrapper";
+import type { AppLocale } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
 type Invoice = {
@@ -61,12 +62,14 @@ export function InvoicesTable({
   sort,
   status,
   perPage,
+  locale = "en",
 }: {
   invoices: Invoice[];
   search: string;
   sort: string;
   status: string;
   perPage: number;
+  locale?: AppLocale;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -252,7 +255,7 @@ export function InvoicesTable({
                 <td className="px-6 py-4 text-sm font-bold text-green-700">{invoice.paidAmount}</td>
                 <td className="px-6 py-4 text-sm font-bold text-amber-700">{invoice.remainingAmount}</td>
                 <td className="px-6 py-4">
-                  <PaymentStatusBadge status={invoice.status} />
+                  <LocalizedPaymentStatusBadge status={invoice.status} locale={locale} />
                 </td>
                 <td className="px-6 py-4 text-sm text-slate-500">{invoice.date}</td>
                 <td className="px-6 py-4">

@@ -1,5 +1,40 @@
 import { ADtoBS, BStoAD } from "nepali-date-library";
 
+export const getNepalTodayAd = (now = new Date()) =>
+  new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Kathmandu",
+  }).format(now);
+
+export const getNepalDateTimeParts = (now = new Date()) => {
+  const adToday = getNepalTodayAd(now);
+
+  try {
+    return {
+      adDate: adToday,
+      bsDate: ADtoBS(adToday).replace(/-/g, "/"),
+      time: new Intl.DateTimeFormat("en-US", {
+        timeZone: "Asia/Kathmandu",
+        hour: "numeric",
+        minute: "2-digit",
+        hour12: true,
+      }).format(now),
+      timezone: "GMT+5:45",
+    };
+  } catch {
+    return {
+      adDate: adToday,
+      bsDate: adToday,
+      time: new Intl.DateTimeFormat("en-US", {
+        timeZone: "Asia/Kathmandu",
+        hour: "numeric",
+        minute: "2-digit",
+        hour12: true,
+      }).format(now),
+      timezone: "GMT+5:45",
+    };
+  }
+};
+
 export const normalizeBsDate = (value: string) =>
   value.trim().replace(/[./]/g, "-").replace(/-+/g, "-");
 

@@ -18,10 +18,14 @@ import { Tab, TabList, TabPanel, Tabs } from "@/components/dashboard/Tabs";
 import { TableCard } from "@/components/dashboard/TableCard";
 import { DashboardReportPrintButton } from "@/components/dashboard/DashboardReportPrintButton";
 import { Button } from "@/components/shared/Button";
+import { LanguageSwitcher } from "@/components/shared/LanguageSwitcher";
 import { ReportToolbar } from "@/components/shared/ReportToolbar";
 import { ThemeToggle } from "@/components/shared/ThemeToggle";
 import { getCompanySettings } from "@/lib/company-settings-server";
-import { formatBsDisplayDate } from "@/lib/nepali-date";
+import { calculateDashboardSummaryTotals } from "@/lib/financial";
+import { getMessages } from "@/lib/i18n";
+import { getServerLocale } from "@/lib/i18n-server";
+import { formatBsDisplayDate, getNepalDateTimeParts, getNepalTodayAd } from "@/lib/nepali-date";
 import {
   formatCurrency,
   getAvatarTone,
@@ -29,48 +33,11 @@ import {
 } from "@/lib/presentation";
 import { recalculateStaffLedgerSnapshots } from "@/lib/staff-payroll";
 import { getSupabaseClient } from "@/lib/supabase/server";
-import { ADtoBS } from "nepali-date-library";
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
 const monthKey = (value: string | null) =>
   value ? new Date(value).toLocaleDateString("en-US", { month: "short" }).toUpperCase() : "";
-
-const getTodayDate = () =>
-  new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Asia/Kathmandu",
-  }).format(new Date());
-
-const getNepaliDateTimeParts = () => {
-  const now = new Date();
-  const adToday = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Asia/Kathmandu",
-  }).format(now);
-
-  try {
-    return {
-      date: ADtoBS(adToday).replace(/-/g, "/"),
-      time: new Intl.DateTimeFormat("en-US", {
-        timeZone: "Asia/Kathmandu",
-        hour: "numeric",
-        minute: "2-digit",
-        hour12: true,
-      }).format(now),
-      timezone: "GMT+5:45",
-    };
-  } catch {
-    return {
-      date: adToday,
-      time: new Intl.DateTimeFormat("en-US", {
-        timeZone: "Asia/Kathmandu",
-        hour: "numeric",
-        minute: "2-digit",
-        hour12: true,
-      }).format(now),
-      timezone: "GMT+5:45",
-    };
-  }
-};
 
 const getDateRange = (range: string, today: string) => {
   const current = new Date(`${today}T00:00:00`);
@@ -149,9 +116,11 @@ export default async function Home({
   searchParams: SearchParams;
 }) {
   const params = await searchParams;
+  const locale = await getServerLocale(params.lang);
+  const messages = getMessages(locale);
   const supabase = await getSupabaseClient();
   const company = await getCompanySettings();
-  const todayDate = getTodayDate();
+  const todayDate = getNepalTodayAd();
   const selectedRange = typeof params.range === "string" ? params.range : "year";
   const defaultRange = getDateRange(selectedRange, todayDate);
   const fromDate = typeof params.from === "string" && params.from ? params.from : defaultRange.from;
@@ -237,16 +206,10 @@ export default async function Home({
     isWithinRange(transaction.transaction_date, fromDate, toDate),
   );
 
-  const totalSales = filteredSales.reduce((sum, sale) => sum + Number(sale.grand_total ?? 0), 0);
-  const totalPurchases = filteredPurchases.reduce(
-    (sum, purchase) => sum + Number(purchase.total_amount ?? 0),
-    0,
-  );
-  const payables = filteredPurchases.reduce(
-    (sum, purchase) => sum + Number(purchase.credit_amount ?? 0),
-    0,
-  );
-  const netProfit = totalSales - totalPurchases;
+  const { totalSales, totalPurchases, payables, netProfit } = calculateDashboardSummaryTotals({
+    sales: filteredSales,
+    purchases: filteredPurchases,
+  });
 
   const monthlyMap = new Map<string, { sales: number; purchases: number }>();
   filteredSales.forEach((sale) => {
@@ -441,7 +404,7 @@ export default async function Home({
       : null,
     pendingCustomerCollections.length > 0
       ? {
-          title: "Pending Customer Payments",
+          title: messages.dashboardPage.pendingCollections,
           value: `${pendingCustomerCollections.length} bill${pendingCustomerCollections.length > 1 ? "s" : ""}`,
           description: `${formatCurrency(pendingCustomerCollections.reduce((sum, sale) => sum + Number(sale.remaining_amount ?? 0), 0))} still outstanding.`,
           tone: "amber",
@@ -451,7 +414,7 @@ export default async function Home({
       : null,
     supplierDues.length > 0
       ? {
-          title: "Supplier Dues",
+          title: messages.dashboardPage.supplierDues,
           value: `${supplierDues.length} bill${supplierDues.length > 1 ? "s" : ""}`,
           description: `${formatCurrency(supplierDues.reduce((sum, purchase) => sum + Number(purchase.credit_amount ?? 0), 0))} remains payable to suppliers.`,
           tone: "blue",
@@ -475,7 +438,7 @@ export default async function Home({
       : null,
     unpaidSalaryEntries.length > 0
       ? {
-          title: "Unpaid Salary Commitments",
+          title: messages.dashboardPage.salaryPending,
           value: `${unpaidSalaryEntries.length} entr${unpaidSalaryEntries.length > 1 ? "ies" : "y"}`,
           description: `${formatCurrency(unpaidSalaryEntries.reduce((sum, entry) => sum + Number(entry.remaining ?? 0), 0))} is still pending for staff.`,
           tone: "slate",
@@ -549,7 +512,7 @@ export default async function Home({
   }));
   const selectedPeriodLabel = formatReportPeriod(selectedRange, fromDate, toDate);
   const generatedReportDate = formatBsDisplayDate(todayDate);
-  const nepaliNow = getNepaliDateTimeParts();
+  const nepaliNow = getNepalDateTimeParts();
   const salaryPendingHref = buildDrillDownHref("/staff", selectedRange, fromDate, toDate, {
     salary_status: "pending",
   });
@@ -557,28 +520,30 @@ export default async function Home({
   return (
     <DashboardLayout>
       <DashboardHeader
-        title="Main Financial Dashboard"
-        subtitle="Real-time business performance overview with alerts, analytics, and operational logs."
+        title={messages.dashboardPage.title}
+        subtitle={messages.dashboardPage.subtitle}
+        locale={locale}
         actions={
           <>
             <Button href="/sales/create">
               <FilePlus className="h-4 w-4" />
-              Create Sales
+              {messages.dashboardPage.createSales}
             </Button>
             <Button href="/purchases/expense/create" variant="secondary">
               <HandCoins className="h-4 w-4" />
-              Add Expense
+              {messages.dashboardPage.addExpense}
             </Button>
             <DashboardReportPrintButton
               company={company}
+              locale={locale}
               generatedDate={generatedReportDate}
               selectedPeriod={selectedPeriodLabel}
               metrics={[
-                { title: "Total Sales", value: formatCurrency(totalSales) },
-                { title: "Total Purchases", value: formatCurrency(totalPurchases) },
-                { title: "Net Profit", value: formatCurrency(netProfit) },
-                { title: "Outstanding Payables", value: formatCurrency(payables) },
-                { title: "Extra Expenses", value: formatCurrency(miscExpenses) },
+                { title: messages.dashboardPage.totalSales, value: formatCurrency(totalSales) },
+                { title: messages.dashboardPage.totalPurchases, value: formatCurrency(totalPurchases) },
+                { title: messages.dashboardPage.netProfit, value: formatCurrency(netProfit) },
+                { title: messages.dashboardPage.outstandingPayables, value: formatCurrency(payables) },
+                { title: messages.dashboardPage.extraExpenses, value: formatCurrency(miscExpenses) },
               ]}
               customers={customers.map((customer) => ({
                 name: customer.name,
@@ -591,6 +556,7 @@ export default async function Home({
                 salesAmount: item.salesAmount,
               }))}
             />
+            <LanguageSwitcher />
             <ThemeToggle />
           </>
         }
@@ -604,7 +570,7 @@ export default async function Home({
                 <div className="text-[10px] font-bold uppercase tracking-[0.22em] text-slate-400">
                   Nepal Date & Time
                 </div>
-                <div className="mt-1 text-sm font-bold text-slate-900">{nepaliNow.date}</div>
+                <div className="mt-1 text-sm font-bold text-slate-900">{nepaliNow.bsDate}</div>
                 <div className="text-xs font-medium text-slate-500">
                   {nepaliNow.time}
                   <span className="ml-2 font-semibold uppercase tracking-[0.16em] text-slate-400">
@@ -626,7 +592,7 @@ export default async function Home({
       <DashboardGrid className="mb-8 md:grid-cols-2 xl:grid-cols-12">
         <div className="xl:col-span-4">
           <KpiCard
-            title="Total Sales"
+            title={messages.dashboardPage.totalSales}
             value={formatCurrency(totalSales)}
             trend="up"
             percentage={`${filteredSales.length} sales recorded`}
@@ -636,7 +602,7 @@ export default async function Home({
         </div>
         <div className="xl:col-span-4">
           <KpiCard
-            title="Total Purchases"
+            title={messages.dashboardPage.totalPurchases}
             value={formatCurrency(totalPurchases)}
             trend="down"
             percentage={`${filteredPurchases.length} purchases recorded`}
@@ -646,7 +612,7 @@ export default async function Home({
         </div>
         <div className="xl:col-span-4">
           <KpiCard
-            title="Net Profit"
+            title={messages.dashboardPage.netProfit}
             value={formatCurrency(netProfit)}
             trend={netProfit >= 0 ? "up" : "down"}
             percentage="Sales minus purchases"
@@ -657,15 +623,15 @@ export default async function Home({
       </DashboardGrid>
 
       <DashboardGrid className="mb-8">
-        <AlertsCard items={alerts} />
+          <AlertsCard items={alerts} locale={locale} />
         <div className="xl:col-span-5">
           <TableCard
-            title="Operations Grid"
+            title={messages.dashboardPage.operationsGrid}
             subtitle="Priority operational numbers tied to their filtered working views."
             rows={[
               {
                 id: "supplier-dues",
-                metric: "Supplier Dues",
+                metric: messages.dashboardPage.supplierDues,
                 value: formatCurrency(
                   supplierDues.reduce((sum, purchase) => sum + Number(purchase.credit_amount ?? 0), 0),
                 ),
@@ -674,7 +640,7 @@ export default async function Home({
               },
               {
                 id: "pending-collections",
-                metric: "Pending Collections",
+                metric: messages.dashboardPage.pendingCollections,
                 value: formatCurrency(
                   pendingCustomerCollections.reduce((sum, sale) => sum + Number(sale.remaining_amount ?? 0), 0),
                 ),
@@ -683,7 +649,7 @@ export default async function Home({
               },
               {
                 id: "salary-pending",
-                metric: "Salary Pending",
+                metric: messages.dashboardPage.salaryPending,
                 value: formatCurrency(
                   unpaidSalaryEntries.reduce((sum, entry) => sum + Number(entry.remaining ?? 0), 0),
                 ),
@@ -704,7 +670,7 @@ export default async function Home({
       <DashboardGrid className="mb-8">
         <ChartCard
           className="xl:col-span-7"
-          title="Monthly Sales vs Purchases"
+          title={messages.dashboardPage.monthlySalesVsPurchases}
           subtitle="Revenue versus spend over the selected time window."
           summary={<div className="text-sm font-semibold text-slate-600">{selectedPeriodLabel}</div>}
           insight={`Highest current sales volume is ${formatCurrency(totalSales)} against purchases of ${formatCurrency(totalPurchases)}.`}
@@ -713,7 +679,7 @@ export default async function Home({
         </ChartCard>
         <ChartCard
           className="xl:col-span-5"
-          title="Expense Breakdown"
+          title={messages.dashboardPage.expenseBreakdown}
           subtitle="Current allocation across payroll, dues, advances, and extra expenses."
           summary={<div className="text-sm font-semibold text-slate-600">{formatCurrency(expenseTotal)}</div>}
           insight={
@@ -730,16 +696,16 @@ export default async function Home({
         <div className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm shadow-slate-200/50">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <div className="text-lg font-semibold text-slate-900">Data Blocks</div>
+              <div className="text-lg font-semibold text-slate-900">{messages.dashboardPage.dataBlocks}</div>
               <div className="text-sm text-slate-500">
                 Tabbed drill-down tables for overview, sales, expenses, and staff.
               </div>
             </div>
             <TabList>
-              <Tab value="overview">Overview</Tab>
+              <Tab value="overview">{messages.dashboardPage.overview}</Tab>
               <Tab value="sales">Sales</Tab>
-              <Tab value="expenses">Expenses</Tab>
-              <Tab value="staff">Staff</Tab>
+              <Tab value="expenses">{messages.dashboardPage.expenses}</Tab>
+              <Tab value="staff">{messages.common.staff}</Tab>
             </TabList>
           </div>
 
@@ -747,7 +713,7 @@ export default async function Home({
             <DashboardGrid>
               <div className="xl:col-span-6">
                 <TableCard
-                  title="Top Customers"
+                  title={messages.dashboardPage.topCustomers}
                   actionLabel="View All"
                   actionHref="/sales"
                   rows={overviewCustomerRows}
@@ -772,7 +738,7 @@ export default async function Home({
               </div>
               <div className="xl:col-span-6">
                 <TableCard
-                  title="Top Sales Items"
+                  title={messages.dashboardPage.topSalesItems}
                   actionLabel="View All"
                   actionHref="/sales"
                   rows={salesItemRows}
@@ -791,7 +757,7 @@ export default async function Home({
             <DashboardGrid>
               <div className="xl:col-span-6">
                 <TableCard
-                  title="Top Customers"
+                  title={messages.dashboardPage.topCustomers}
                   actionLabel="Open Sales"
                   actionHref="/sales"
                   rows={overviewCustomerRows}
@@ -804,7 +770,7 @@ export default async function Home({
               </div>
               <div className="xl:col-span-6">
                 <TableCard
-                  title="Top Sales Items"
+                  title={messages.dashboardPage.topSalesItems}
                   actionLabel="Open Sales"
                   actionHref="/sales"
                   rows={salesItemRows}
@@ -837,7 +803,7 @@ export default async function Home({
               </div>
               <div className="xl:col-span-5">
                 <TableCard
-                  title="Recent Expenses"
+                  title={messages.dashboardPage.recentExpenses}
                   actionLabel="Add Expense"
                   actionHref="/purchases/expense/create"
                   rows={expenseRows}
@@ -855,12 +821,12 @@ export default async function Home({
             <DashboardGrid>
               <div className="xl:col-span-7">
                 <TableCard
-                  title="Recent Staff Payments"
+                  title={messages.dashboardPage.recentStaffPayments}
                   actionLabel="Open Staff"
                   actionHref="/staff"
                   rows={staffRows}
                   columns={[
-                    { key: "staff", label: "Staff", className: "font-semibold text-slate-900" },
+                    { key: "staff", label: messages.common.staff, className: "font-semibold text-slate-900" },
                     { key: "month", label: "Month" },
                     { key: "type", label: "Type" },
                     { key: "amount", label: "Amount", className: "font-bold text-slate-900" },
@@ -870,7 +836,7 @@ export default async function Home({
               </div>
               <div className="xl:col-span-5">
                 <TableCard
-                  title="Salary Pending"
+                  title={messages.dashboardPage.salaryPending}
                   actionLabel="Open Payroll"
                   actionHref={salaryPendingHref}
                   rows={unpaidSalaryEntries.slice(0, 6).map((entry) => ({

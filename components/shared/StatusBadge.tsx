@@ -1,4 +1,5 @@
 import { LucideIcon, AlertTriangle, CheckCircle2, Clock } from "lucide-react";
+import { type AppLocale, getStatusLabel } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
 const toneStyles: Record<string, string> = {
@@ -50,4 +51,31 @@ export function PaymentStatusBadge({ status }: { status: string }) {
   const Icon = paymentIconMap[status];
 
   return <StatusBadge label={status} tone={tone} icon={Icon} />;
+}
+
+export function LocalizedStatusBadge({
+  status,
+  locale = "en",
+  tone = "neutral",
+  icon,
+}: {
+  status: string;
+  locale?: AppLocale;
+  tone?: "success" | "warning" | "danger" | "info" | "neutral";
+  icon?: LucideIcon;
+}) {
+  return <StatusBadge label={getStatusLabel(status, locale)} tone={tone} icon={icon} />;
+}
+
+export function LocalizedPaymentStatusBadge({
+  status,
+  locale = "en",
+}: {
+  status: string;
+  locale?: AppLocale;
+}) {
+  const tone = paymentToneMap[status] ?? "neutral";
+  const Icon = paymentIconMap[status];
+
+  return <StatusBadge label={getStatusLabel(status, locale)} tone={tone} icon={Icon} />;
 }

@@ -15,6 +15,7 @@ import { ReportToolbar } from "@/components/shared/ReportToolbar";
 import { SupplierPaymentModal } from "@/components/vendors/SupplierPaymentModal";
 import { VendorPrintPreview } from "@/components/vendors/VendorPrintPreview";
 import { getCompanySettings } from "@/lib/company-settings-server";
+import { getServerLocale } from "@/lib/i18n-server";
 import { formatBsDisplayDate } from "@/lib/nepali-date";
 import { formatCurrency } from "@/lib/presentation";
 import { getSupabaseClient } from "@/lib/supabase/server";
@@ -31,6 +32,7 @@ export default async function VendorLedgerPage({
 }) {
   const { id } = await params;
   const query = await searchParams;
+  const locale = await getServerLocale(query.lang);
   const supabase = await getSupabaseClient();
   const company = await getCompanySettings();
   const todayDate = new Intl.DateTimeFormat("en-CA", {
@@ -309,6 +311,7 @@ export default async function VendorLedgerPage({
                 </div>
                 <VendorPrintPreview
                   company={company}
+                  locale={locale}
                   vendor={{
                     name: vendor.name,
                     vendor_code: vendor.vendor_code,

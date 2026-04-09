@@ -22,17 +22,14 @@ import { EmptyState } from "@/components/shared/EmptyState";
 import { PageActionStrip } from "@/components/shared/PageActionStrip";
 import { QueryNoticeToast } from "@/components/shared/QueryNoticeToast";
 import { ReportToolbar } from "@/components/shared/ReportToolbar";
-import { formatBsDisplayDate } from "@/lib/nepali-date";
+import { getMessages, getStaffMonthLabel, getStatusLabel } from "@/lib/i18n";
+import { getServerLocale } from "@/lib/i18n-server";
+import { adToBs, formatBsDisplayDate, getBsDateParts, getNepalTodayAd } from "@/lib/nepali-date";
 import { formatCurrency } from "@/lib/presentation";
 import { recalculateStaffLedgerSnapshots } from "@/lib/staff-payroll";
 import { getSupabaseClient } from "@/lib/supabase/server";
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
-
-const getTodayDate = () =>
-  new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Asia/Kathmandu",
-  }).format(new Date());
 
 const getDateRange = (range: string, today: string) => {
   const current = new Date(`${today}T00:00:00`);
@@ -78,8 +75,13 @@ const isLedgerWithinRange = (
   from: string,
   to: string,
 ) => {
-  const ledgerDate = `${ledger.year}-${String(ledger.month).padStart(2, "0")}-01`;
-  return ledgerDate >= from && ledgerDate <= to;
+  const fromBs = getBsDateParts(adToBs(from));
+  const toBs = getBsDateParts(adToBs(to));
+  const ledgerOrder = ledger.year * 100 + ledger.month;
+  const fromOrder = (fromBs.year || 0) * 100 + (fromBs.month || 0);
+  const toOrder = (toBs.year || 0) * 100 + (toBs.month || 0);
+
+  return ledgerOrder >= fromOrder && ledgerOrder <= toOrder;
 };
 
 export default async function StaffPage({
@@ -89,9 +91,11 @@ export default async function StaffPage({
 }) {
   const supabase = await getSupabaseClient();
   const params = await searchParams;
+  const locale = await getServerLocale(params.lang);
+  const messages = getMessages(locale);
   const notice = typeof params.notice === "string" ? params.notice : "";
   const selectedRange = typeof params.range === "string" ? params.range : "year";
-  const todayDate = getTodayDate();
+  const todayDate = getNepalTodayAd();
   const defaultRange = getDateRange(selectedRange, todayDate);
   const fromDate = typeof params.from === "string" && params.from ? params.from : defaultRange.from;
   const toDate = typeof params.to === "string" && params.to ? params.to : defaultRange.to;
@@ -234,16 +238,17 @@ export default async function StaffPage({
 
       <main className="flex-1 overflow-y-auto p-8">
         <Header
-          title="Staff Salary Ledger"
-          description="Track monthly salary, advances, payments, remaining balance, and carry forward for each staff member."
+          title={messages.staffPage.title}
+          description={messages.staffPage.subtitle}
         />
         <QueryNoticeToast message={notice} />
         <ReportToolbar actionPath="/staff" selectedRange={selectedRange} fromDate={fromDate} toDate={toDate} />
         <PageActionStrip
+          locale={locale}
           actions={[
-            { label: "Create Staff Profile", href: "/staff/create", icon: UserPlus },
+            { label: messages.staffPage.createStaffProfile, href: "/staff/create", icon: UserPlus },
             {
-              label: "Recorded Salary Transactions",
+              label: messages.common.recordedSalaryTransactions,
               href: "/staff/view",
               variant: "secondary",
               icon: LayoutList,
@@ -473,25 +478,25 @@ export default async function StaffPage({
                 <div className="space-y-4">
                   <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
                     <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
-                      <div className="text-xs font-bold uppercase tracking-wider text-slate-400">Monthly Salary</div>
+                      <div className="text-xs font-bold uppercase tracking-wider text-slate-400">{messages.staffPage.monthlySalary}</div>
                       <div className="mt-2 font-semibold text-slate-900">
                         {formatCurrency(activeStaff.total_salary)}
                       </div>
                     </div>
                     <div className="rounded-2xl border border-blue-100 bg-blue-50/70 p-4">
-                      <div className="text-xs font-bold uppercase tracking-wider text-blue-500">Payable Salary</div>
+                      <div className="text-xs font-bold uppercase tracking-wider text-blue-500">{messages.staffPage.payableSalary}</div>
                       <div className="mt-2 font-semibold text-blue-700">
                         {formatCurrency(currentLedger?.payable_amount ?? 0)}
                       </div>
                     </div>
                     <div className="rounded-2xl border border-emerald-100 bg-emerald-50/70 p-4">
-                      <div className="text-xs font-bold uppercase tracking-wider text-emerald-500">Paid So Far</div>
+                      <div className="text-xs font-bold uppercase tracking-wider text-emerald-500">{messages.staffPage.paidSoFar}</div>
                       <div className="mt-2 font-semibold text-blue-700">
                         {formatCurrency(currentLedger?.total_paid ?? 0)}
                       </div>
                     </div>
                     <div className="rounded-2xl border border-rose-100 bg-rose-50/70 p-4">
-                      <div className="text-xs font-bold uppercase tracking-wider text-rose-500">Balance Due</div>
+                      <div className="text-xs font-bold uppercase tracking-wider text-rose-500">{messages.staffPage.balanceDue}</div>
                       <div className="mt-2 font-semibold text-rose-700">
                         {formatCurrency(currentLedger?.remaining ?? 0)}
                       </div>
@@ -542,7 +547,7 @@ export default async function StaffPage({
                       </div>
                       {currentLedger ? (
                         <div className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
-                          {currentLedger.month_label}
+                          {getStaffMonthLabel(currentLedger.month, currentLedger.year, locale)}
                         </div>
                       ) : null}
                     </div>
@@ -603,7 +608,7 @@ export default async function StaffPage({
                               {transaction.type === "SALARY" ? "Salary payment" : "Advance payment"}
                             </div>
                             <div className="mt-1 text-xs text-slate-500">
-                              {formatBsDisplayDate(transaction.transaction_date)} • {transaction.month_label}
+                              {formatBsDisplayDate(transaction.transaction_date)} • {getStaffMonthLabel(transaction.month, transaction.year, locale)}
                             </div>
                           </div>
                           <div className="text-sm font-semibold text-blue-700">
@@ -669,7 +674,7 @@ export default async function StaffPage({
                           index % 2 === 0 ? "bg-white" : "bg-slate-50/40"
                         }`}
                       >
-                        <td className="px-6 py-4 text-sm text-slate-600">{ledger.month_label}</td>
+                        <td className="px-6 py-4 text-sm text-slate-600">{getStaffMonthLabel(ledger.month, ledger.year, locale)}</td>
                         <td className="px-6 py-4 text-sm font-semibold text-slate-900">
                           {formatCurrency(ledger.base_salary)}
                         </td>
@@ -695,7 +700,7 @@ export default async function StaffPage({
                           {formatCurrency(ledger.carry_forward)}
                         </td>
                         <td className="px-6 py-4 text-sm font-semibold text-slate-600">
-                          {ledger.status}
+                          {getStatusLabel(ledger.status, locale)}
                         </td>
                         <td className="px-6 py-4 text-right">
                           <div className="inline-flex flex-wrap justify-end gap-2">
@@ -781,14 +786,14 @@ export default async function StaffPage({
                           index % 2 === 0 ? "bg-white" : "bg-slate-50/40"
                         }`}
                       >
-                        <td className="px-6 py-4 text-sm text-slate-600">{transaction.month_label}</td>
+                        <td className="px-6 py-4 text-sm text-slate-600">{getStaffMonthLabel(transaction.month, transaction.year, locale)}</td>
                         <td className="px-6 py-4 text-sm text-slate-600">
                           {transaction.transaction_date
                             ? formatBsDisplayDate(transaction.transaction_date)
                             : "-"}
                         </td>
                         <td className="px-6 py-4 text-sm font-semibold text-slate-900">
-                          {transaction.type === "SALARY" ? "Salary Payment" : "Advance"}
+                          {transaction.type === "SALARY" ? `${getStatusLabel("SALARY", locale)} Payment` : getStatusLabel("ADVANCE", locale)}
                         </td>
                         <td className="px-6 py-4 text-sm font-semibold text-slate-500">
                           {formatCurrency(transaction.previous_paid)}

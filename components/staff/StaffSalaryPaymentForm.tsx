@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { upsertStaffSalaryPayment } from "@/app/actions";
 import { NepaliDateInput } from "@/components/shared/NepaliDateInput";
+import { type AppLocale, getStaffMonthLabel, getStatusLabel } from "@/lib/i18n";
 import { adToBs, bsToAd, formatBsDisplayDate, getBsDateParts } from "@/lib/nepali-date";
 import { formatCurrency } from "@/lib/presentation";
 import {
@@ -56,6 +57,7 @@ export function StaffSalaryPaymentForm({
   redirectTo = "/staff",
   ledgers,
   transactions,
+  locale = "en",
 }: {
   staffProfiles: StaffOption[];
   editingTransaction: EditingSalaryTransaction;
@@ -63,6 +65,7 @@ export function StaffSalaryPaymentForm({
   redirectTo?: string;
   ledgers: StaffLedgerRecord[];
   transactions: StaffSalaryTransactionRecord[];
+  locale?: AppLocale;
 }) {
   const defaultBsDate = adToBs(defaultDate);
   const defaultBsParts = getBsDateParts(defaultBsDate);
@@ -429,7 +432,7 @@ export function StaffSalaryPaymentForm({
                         index % 2 === 0 ? "bg-white" : "bg-slate-50/40"
                       } transition-colors hover:bg-blue-50/40`}
                     >
-                      <td className="px-6 py-4 text-sm text-slate-600">{ledger.month_label}</td>
+                      <td className="px-6 py-4 text-sm text-slate-600">{getStaffMonthLabel(ledger.month, ledger.year, locale)}</td>
                       <td className="px-6 py-4 text-sm font-semibold text-slate-900">
                         {formatCurrency(ledger.base_salary)}
                       </td>
@@ -446,7 +449,7 @@ export function StaffSalaryPaymentForm({
                         {formatCurrency(ledger.carry_forward)}
                       </td>
                       <td className="px-6 py-4 text-sm font-semibold text-slate-600">
-                        {ledger.status}
+                        {getStatusLabel(ledger.status, locale)}
                       </td>
                     </tr>
                   ))}
@@ -492,14 +495,14 @@ export function StaffSalaryPaymentForm({
                         index % 2 === 0 ? "bg-white" : "bg-slate-50/40"
                       } transition-colors hover:bg-blue-50/40`}
                     >
-                      <td className="px-6 py-4 text-sm text-slate-600">{transaction.month_label}</td>
+                      <td className="px-6 py-4 text-sm text-slate-600">{getStaffMonthLabel(transaction.month, transaction.year, locale)}</td>
                       <td className="px-6 py-4 text-sm text-slate-600">
                         {transaction.transaction_date
                           ? formatBsDisplayDate(transaction.transaction_date)
                           : "-"}
                       </td>
                       <td className="px-6 py-4 text-sm font-semibold text-slate-900">
-                        {transaction.type === "SALARY" ? "Salary" : "Advance"}
+                        {getStatusLabel(transaction.type, locale)}
                       </td>
                       <td className="px-6 py-4 text-sm font-semibold text-slate-500">
                         {formatCurrency(transaction.previous_paid)}

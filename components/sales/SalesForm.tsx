@@ -1,7 +1,7 @@
 "use client";
 
 import { Plus, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { upsertSale } from "@/app/actions";
 import { FieldHint } from "@/components/shared/FieldHint";
 import { FormSectionHeader } from "@/components/shared/FormSectionHeader";
@@ -70,6 +70,15 @@ const createEmptyRow = (): SaleItemRow => ({
   taxable: false,
 });
 
+const normalizeSaleItems = (items: SaleItemRow[]) =>
+  items.map((item) => ({
+    productId: item.productId.trim(),
+    productName: item.productName.trim(),
+    quantity: toWholeNumber(item.quantity),
+    rate: toNumber(item.rate).toFixed(2),
+    taxable: Boolean(item.taxable),
+  }));
+
 export function SalesForm({
   products,
   editingSale,
@@ -111,6 +120,7 @@ export function SalesForm({
   const [paymentDateBs, setPaymentDateBs] = useState(adToBs(defaultDate));
   const salesDate = bsToAd(salesDateBs);
   const paymentDate = bsToAd(paymentDateBs);
+  const isEditingSettledBill = Boolean(editingSale && editingSale.payment_status === "PAID");
 
   const subtotal = items.reduce((sum, item) => {
     return sum + Math.max(toNumber(item.quantity) * toNumber(item.rate), 0);
@@ -140,6 +150,50 @@ export function SalesForm({
         : 0;
   const effectiveAmountReceived = previousAmountReceived + effectivePaymentIncrement;
   const remainingAmount = Math.max(grandTotal - effectiveAmountReceived, 0);
+  const initialFinancialSnapshot = useMemo(
+    () =>
+      editingSale && editingSale.payment_status === "PAID"
+        ? JSON.stringify({
+            invoiceNumber: editingSale.invoice_number.trim(),
+            customerName: editingSale.customer_name.trim(),
+            salesDateBs: adToBs(editingSale.sales_date),
+            paymentStatus: editingSale.payment_status,
+            discount: toNumber(String(editingSale.discount ?? 0)).toFixed(2),
+            items: normalizeSaleItems(
+              editingSale.sales_items?.length
+                ? editingSale.sales_items.map((item) => ({
+                    productId: item.product_id ?? "",
+                    productName: item.product_name ?? "",
+                    quantity: String(item.quantity ?? 1),
+                    rate: String(item.rate ?? 0),
+                    taxable: Boolean(item.taxable),
+                  }))
+                : [
+                    {
+                      productId: "",
+                      productName: "Saved sales item",
+                      quantity: "1",
+                      rate: String(editingSale.subtotal ?? 0),
+                      taxable: Number(editingSale.tax ?? 0) > 0,
+                    },
+                  ],
+            ),
+          })
+        : "",
+    [editingSale],
+  );
+  const currentFinancialSnapshot = useMemo(
+    () =>
+      JSON.stringify({
+        invoiceNumber: invoiceNumber.trim(),
+        customerName: customerName.trim(),
+        salesDateBs,
+        paymentStatus,
+        discount: toNumber(discount).toFixed(2),
+        items: normalizeSaleItems(items),
+      }),
+    [customerName, discount, invoiceNumber, items, paymentStatus, salesDateBs],
+  );
 
   const updateItem = (index: number, nextValues: Partial<SaleItemRow>) => {
     setItems((currentItems) =>
@@ -162,11 +216,37 @@ export function SalesForm({
   };
 
   return (
-    <form action={upsertSale} autoComplete="off" className="space-y-6">
+    <form
+      action={upsertSale}
+      autoComplete="off"
+      className="space-y-6"
+      onSubmit={(event) => {
+        if (!isEditingSettledBill) return;
+        if (initialFinancialSnapshot === currentFinancialSnapshot) return;
+
+        const shouldContinue = window.confirm(
+          "This sales bill is already fully settled. Updating these financial details may affect payment history and dashboard totals. Do you want to continue?",
+        );
+
+        if (!shouldContinue) {
+          event.preventDefault();
+        }
+      }}
+    >
       <input type="hidden" name="id" defaultValue={editingSale?.id ?? ""} />
       <input type="hidden" name="redirect_to" value="/sales" />
       <input type="hidden" name="tax" value={tax.toFixed(2)} />
       <input type="hidden" name="sales_date" value={salesDate} />
+
+      {isEditingSettledBill ? (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          <div className="font-semibold">This bill is already fully settled.</div>
+          <div className="mt-1">
+            Changing financial details may affect payment history, remaining balance, and summary
+            reports.
+          </div>
+        </div>
+      ) : null}
 
       <div className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
         <FormSectionHeader

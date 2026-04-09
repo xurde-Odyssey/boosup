@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { upsertPurchase } from "@/app/actions";
 import { FieldHint } from "@/components/shared/FieldHint";
 import { FormSectionHeader } from "@/components/shared/FormSectionHeader";
@@ -56,6 +56,28 @@ const toWholeNumber = (value: string) => {
   return String(Math.max(Math.trunc(numericValue), 1));
 };
 
+const normalizePurchaseSnapshot = (values: {
+  purchaseNumber: string;
+  purchaseDateBs: string;
+  vendorId: string;
+  vendorName: string;
+  productName: string;
+  quantity: string;
+  rate: string;
+  paymentStatus: string;
+  paymentMethod: string;
+}) => ({
+  purchaseNumber: values.purchaseNumber.trim(),
+  purchaseDateBs: values.purchaseDateBs,
+  vendorId: values.vendorId,
+  vendorName: values.vendorName.trim(),
+  productName: values.productName.trim(),
+  quantity: toWholeNumber(values.quantity),
+  rate: toNumber(values.rate).toFixed(2),
+  paymentStatus: values.paymentStatus,
+  paymentMethod: values.paymentMethod,
+});
+
 export function PurchaseForm({
   vendors,
   editingPurchase,
@@ -85,6 +107,7 @@ export function PurchaseForm({
   const purchaseDate = bsToAd(purchaseDateBs);
   const paymentDate = bsToAd(paymentDateBs);
   const showPaymentMethod = paymentStatus === "PAID" || paymentStatus === "PARTIAL";
+  const isEditingSettledBill = Boolean(editingPurchase && editingPurchase.payment_status === "PAID");
 
   const previousPaidAmount = Number(editingPurchase?.paid_amount ?? 0);
   const itemAmount = Math.max(toNumber(quantity) * toNumber(rate), 0);
@@ -98,6 +121,52 @@ export function PurchaseForm({
     vendorId
       ? vendors.find((vendor) => vendor.id === vendorId)?.name ?? "Saved supplier"
       : vendorName || "No supplier selected";
+  const initialFinancialSnapshot = useMemo(
+    () =>
+      editingPurchase && editingPurchase.payment_status === "PAID"
+        ? JSON.stringify(
+            normalizePurchaseSnapshot({
+              purchaseNumber: editingPurchase.purchase_number,
+              purchaseDateBs: adToBs(editingPurchase.purchase_date),
+              vendorId: editingPurchase.vendor_id ?? "",
+              vendorName: editingPurchase.vendor_name ?? "",
+              productName: purchaseItem?.product_name ?? "",
+              quantity: String(purchaseItem?.quantity ?? 1),
+              rate: String(purchaseItem?.rate ?? 0),
+              paymentStatus: editingPurchase.payment_status,
+              paymentMethod: editingPurchase.payment_method ?? "Cash",
+            }),
+          )
+        : "",
+    [editingPurchase, purchaseItem?.product_name, purchaseItem?.quantity, purchaseItem?.rate],
+  );
+  const currentFinancialSnapshot = useMemo(
+    () =>
+      JSON.stringify(
+        normalizePurchaseSnapshot({
+          purchaseNumber,
+          purchaseDateBs,
+          vendorId,
+          vendorName,
+          productName,
+          quantity,
+          rate,
+          paymentStatus,
+          paymentMethod,
+        }),
+      ),
+    [
+      paymentMethod,
+      paymentStatus,
+      productName,
+      purchaseDateBs,
+      purchaseNumber,
+      quantity,
+      rate,
+      vendorId,
+      vendorName,
+    ],
+  );
 
   return (
     <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
@@ -111,10 +180,36 @@ export function PurchaseForm({
           </p>
         </div>
 
-        <form action={upsertPurchase} autoComplete="off" className="space-y-5">
+        <form
+          action={upsertPurchase}
+          autoComplete="off"
+          className="space-y-5"
+          onSubmit={(event) => {
+            if (!isEditingSettledBill) return;
+            if (initialFinancialSnapshot === currentFinancialSnapshot) return;
+
+            const shouldContinue = window.confirm(
+              "This purchase bill is already fully settled. Updating these financial details may affect payment history, supplier dues, and summary reports. Do you want to continue?",
+            );
+
+            if (!shouldContinue) {
+              event.preventDefault();
+            }
+          }}
+        >
           <input type="hidden" name="id" defaultValue={editingPurchase?.id ?? ""} />
           <input type="hidden" name="redirect_to" value="/purchases" />
           <input type="hidden" name="purchase_date" value={purchaseDate} />
+
+          {isEditingSettledBill ? (
+            <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+              <div className="font-semibold">This bill is already fully settled.</div>
+              <div className="mt-1">
+                Changing financial details may affect payment history, supplier balances, and
+                summary reports.
+              </div>
+            </div>
+          ) : null}
 
           <div className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
             <FormSectionHeader

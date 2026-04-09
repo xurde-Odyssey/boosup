@@ -6,6 +6,7 @@ import { PageActionStrip } from "@/components/shared/PageActionStrip";
 import { PaginationControls } from "@/components/shared/PaginationControls";
 import { QueryNoticeToast } from "@/components/shared/QueryNoticeToast";
 import { ReportToolbar } from "@/components/shared/ReportToolbar";
+import { getServerLocale } from "@/lib/i18n-server";
 import { formatBsDisplayDate } from "@/lib/nepali-date";
 import { formatCurrency, getAvatarTone, getInitials } from "@/lib/presentation";
 import { getSupabaseClient } from "@/lib/supabase/server";
@@ -67,6 +68,7 @@ export default async function RecentSalesInvoicesPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const params = await searchParams;
+  const locale = await getServerLocale(params.lang);
   const notice = typeof params.notice === "string" ? params.notice : "";
   const search = typeof params.q === "string" ? params.q.trim() : "";
   const sort = typeof params.sort === "string" ? params.sort : "date_desc";
@@ -177,6 +179,7 @@ export default async function RecentSalesInvoicesPage({
           sort={sort}
           status={status}
           perPage={perPage}
+          locale={locale}
         />
         <PaginationControls
           basePath="/sales/view"

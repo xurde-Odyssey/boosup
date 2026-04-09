@@ -12,6 +12,7 @@ import {
   PRINT_TABLE_WRAP_CLASS,
 } from "@/components/shared/PrintDocument";
 import { CompanySettings, DEFAULT_COMPANY_SETTINGS } from "@/lib/company-settings";
+import { type AppLocale, getMessages } from "@/lib/i18n";
 
 type SummaryMetric = {
   title: string;
@@ -37,6 +38,7 @@ export function DashboardReportPrintButton({
   customers,
   items,
   company = DEFAULT_COMPANY_SETTINGS,
+  locale = "en",
 }: {
   generatedDate: string;
   selectedPeriod: string;
@@ -44,7 +46,9 @@ export function DashboardReportPrintButton({
   customers: ReportCustomer[];
   items: ReportItem[];
   company?: CompanySettings;
+  locale?: AppLocale;
 }) {
+  const messages = getMessages(locale);
   const isMounted = useSyncExternalStore(
     () => () => {},
     () => true,
@@ -75,24 +79,24 @@ export function DashboardReportPrintButton({
       >
         <span className="inline-flex items-center gap-2">
           <Printer className="h-4 w-4" />
-          Generate Report
+          {messages.dashboardPage.generateReport}
         </span>
       </button>
 
       {isMounted &&
         createPortal(
-          <PrintDocument root="dashboard-report">
+          <PrintDocument root="dashboard-report" locale={locale}>
             <PrintHeader
-              title="Business Summary Report"
+              title={messages.print.businessSummaryReport}
               company={company}
               metaRows={[
-                { label: "Generated", value: generatedDate },
-                { label: "Period", value: selectedPeriod },
+                { label: messages.print.generated, value: generatedDate },
+                { label: messages.print.period, value: selectedPeriod },
               ]}
             />
 
             <section className="py-5">
-              <PrintSectionTitle>Summary Metrics</PrintSectionTitle>
+              <PrintSectionTitle>{messages.print.summaryMetrics}</PrintSectionTitle>
               <div className="grid grid-cols-2 gap-4">
                 {metrics.map((metric) => (
                   <div
@@ -110,14 +114,14 @@ export function DashboardReportPrintButton({
 
             <section className="grid grid-cols-2 gap-5 border-t border-slate-200 py-5">
               <div>
-                <PrintSectionTitle>Top Customers</PrintSectionTitle>
+                <PrintSectionTitle>{messages.dashboardPage.topCustomers}</PrintSectionTitle>
                 <div className={PRINT_TABLE_WRAP_CLASS}>
                   <table className="w-full text-left">
                     <thead>
                       <tr className={PRINT_TABLE_HEAD_ROW_CLASS}>
-                        <th className="px-3 py-2">Customer</th>
-                        <th className="px-3 py-2 text-right">Revenue</th>
-                        <th className="px-3 py-2 text-right">Last</th>
+                        <th className="px-3 py-2">{messages.print.customer}</th>
+                        <th className="px-3 py-2 text-right">{messages.print.revenue}</th>
+                        <th className="px-3 py-2 text-right">{messages.print.last}</th>
                       </tr>
                     </thead>
                     <tbody className={PRINT_TABLE_BODY_CLASS}>
@@ -135,7 +139,7 @@ export function DashboardReportPrintButton({
                       {customers.length === 0 && (
                         <tr>
                           <td colSpan={3} className="px-4 py-6 text-center text-slate-500">
-                            No customer activity in this period.
+                            {messages.print.noCustomerActivity}
                           </td>
                         </tr>
                       )}
@@ -145,14 +149,14 @@ export function DashboardReportPrintButton({
               </div>
 
               <div>
-                <PrintSectionTitle>Top Sales Items</PrintSectionTitle>
+                <PrintSectionTitle>{messages.dashboardPage.topSalesItems}</PrintSectionTitle>
                 <div className={PRINT_TABLE_WRAP_CLASS}>
                   <table className="w-full text-left">
                     <thead>
                       <tr className={PRINT_TABLE_HEAD_ROW_CLASS}>
-                        <th className="px-3 py-2">Item</th>
-                        <th className="px-3 py-2 text-right">Qty</th>
-                        <th className="px-3 py-2 text-right">Amount</th>
+                        <th className="px-3 py-2">{messages.print.item}</th>
+                        <th className="px-3 py-2 text-right">{messages.print.qty}</th>
+                        <th className="px-3 py-2 text-right">{messages.print.amount}</th>
                       </tr>
                     </thead>
                     <tbody className={PRINT_TABLE_BODY_CLASS}>
@@ -170,7 +174,7 @@ export function DashboardReportPrintButton({
                       {items.length === 0 && (
                         <tr>
                           <td colSpan={3} className="px-4 py-6 text-center text-slate-500">
-                            No sales items in this period.
+                            {messages.print.noSalesItems}
                           </td>
                         </tr>
                       )}

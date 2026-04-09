@@ -10,8 +10,9 @@ import { ConfirmActionForm } from "@/components/shared/ConfirmActionForm";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { Input } from "@/components/shared/Input";
 import { Select } from "@/components/shared/Select";
-import { StatusBadge } from "@/components/shared/StatusBadge";
+import { LocalizedStatusBadge } from "@/components/shared/StatusBadge";
 import { TableWrapper } from "@/components/shared/TableWrapper";
+import type { AppLocale } from "@/lib/i18n";
 
 type StaffTransactionRow = {
   id: string;
@@ -43,6 +44,7 @@ export function StaffTransactionsTable({
   month,
   sort,
   perPage,
+  locale = "en",
 }: {
   transactions: StaffTransactionRow[];
   totalCount: number;
@@ -51,6 +53,7 @@ export function StaffTransactionsTable({
   month: string;
   sort: string;
   perPage: number;
+  locale?: AppLocale;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -257,7 +260,7 @@ export function StaffTransactionsTable({
                   <td className="px-6 py-4 text-sm text-slate-600">{transaction.staffCode}</td>
                   <td className="px-6 py-4 text-sm text-slate-600">{transaction.salaryMonth}</td>
                   <td className="px-6 py-4">
-                    <StatusBadge label={transaction.type} tone={getTypeTone(transaction.type)} />
+                    <LocalizedStatusBadge status={transaction.type} locale={locale} tone={getTypeTone(transaction.type)} />
                   </td>
                   <td className="px-6 py-4 text-sm font-semibold text-slate-900">{transaction.amount}</td>
                   <td className="max-w-[240px] px-6 py-4 text-sm text-slate-600">

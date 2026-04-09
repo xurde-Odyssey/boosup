@@ -2,15 +2,11 @@ import { Header } from "@/components/dashboard/Header";
 import { Sidebar } from "@/components/dashboard/Sidebar";
 import { StaffSalaryPaymentForm } from "@/components/staff/StaffSalaryPaymentForm";
 import { QueryNoticeToast } from "@/components/shared/QueryNoticeToast";
-import { adToBs, getBsDateParts } from "@/lib/nepali-date";
+import { getServerLocale } from "@/lib/i18n-server";
+import { adToBs, getBsDateParts, getNepalTodayAd } from "@/lib/nepali-date";
 import { getSupabaseClient } from "@/lib/supabase/server";
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
-
-const getTodayDate = () =>
-  new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Asia/Kathmandu",
-  }).format(new Date());
 
 export default async function CreateStaffPaymentPage({
   searchParams,
@@ -19,10 +15,11 @@ export default async function CreateStaffPaymentPage({
 }) {
   const supabase = await getSupabaseClient();
   const params = await searchParams;
+  const locale = await getServerLocale(params.lang);
   const editId = typeof params.edit === "string" ? params.edit : "";
   const preselectedStaffId = typeof params.staff === "string" ? params.staff : "";
   const notice = typeof params.notice === "string" ? params.notice : "";
-  const todayDate = getTodayDate();
+  const todayDate = getNepalTodayAd();
   const todayBs = adToBs(todayDate);
   const todayBsParts = getBsDateParts(todayBs);
   const defaultYear = todayBsParts.year || 2080;
@@ -121,6 +118,7 @@ export default async function CreateStaffPaymentPage({
             redirectTo="/staff"
             ledgers={ledgers}
             transactions={transactions}
+            locale={locale}
           />
         </section>
       </main>

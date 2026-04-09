@@ -12,6 +12,7 @@ import {
   PRINT_TABLE_WRAP_CLASS,
 } from "@/components/shared/PrintDocument";
 import { CompanySettings, DEFAULT_COMPANY_SETTINGS } from "@/lib/company-settings";
+import { type AppLocale, getMessages } from "@/lib/i18n";
 import { formatBsDisplayDate } from "@/lib/nepali-date";
 import { formatCurrency } from "@/lib/presentation";
 import { cn } from "@/lib/utils";
@@ -46,13 +47,16 @@ export function VendorPrintPreview({
   className,
   company = DEFAULT_COMPANY_SETTINGS,
   iconOnly = false,
+  locale = "en",
 }: {
   vendor: PrintableVendor;
   label?: string;
   className?: string;
   company?: CompanySettings;
   iconOnly?: boolean;
+  locale?: AppLocale;
 }) {
+  const messages = getMessages(locale);
   const isMounted = useSyncExternalStore(
     () => () => {},
     () => true,
@@ -94,48 +98,48 @@ export function VendorPrintPreview({
 
       {isMounted &&
         createPortal(
-          <PrintDocument root="supplier-statement">
+          <PrintDocument root="supplier-statement" locale={locale}>
             <PrintHeader
-              title="Supplier Statement"
+              title={messages.print.supplierStatement}
               company={company}
               metaRows={[
-                { label: "Supplier", value: vendor.name },
-                { label: "Code", value: vendor.vendor_code || "-" },
-                { label: "Bills", value: String(vendor.totalBills) },
+                { label: messages.print.supplier, value: vendor.name },
+                { label: messages.print.code, value: vendor.vendor_code || "-" },
+                { label: messages.print.bills, value: String(vendor.totalBills) },
               ]}
             />
 
             <div className="grid grid-cols-2 gap-4 border-b border-slate-200 py-4 text-sm">
               <div>
                 <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-slate-400">
-                  Contact Person
+                  {messages.print.contactPerson}
                 </div>
                 <div className="mt-1 font-semibold text-slate-900">{vendor.contact_person || "-"}</div>
               </div>
               <div>
                 <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-slate-400">
-                  Phone
+                  {messages.print.phone}
                 </div>
                 <div className="mt-1 font-semibold text-slate-900">{vendor.phone || "-"}</div>
               </div>
               <div className="col-span-2">
                 <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-slate-400">
-                  Address
+                  {messages.print.address}
                 </div>
                 <div className="mt-1 font-semibold text-slate-900">{vendor.address || "-"}</div>
               </div>
             </div>
 
             <div className="py-4">
-              <PrintSectionTitle>Supplier Totals</PrintSectionTitle>
+              <PrintSectionTitle>{messages.print.supplierTotals}</PrintSectionTitle>
               <div className={PRINT_TABLE_WRAP_CLASS}>
                 <table className="w-full text-left">
                   <thead>
                     <tr className={PRINT_TABLE_HEAD_ROW_CLASS}>
-                      <th className="px-3 py-2">Total Purchase</th>
-                      <th className="px-3 py-2">Total Paid</th>
-                      <th className="px-3 py-2">Remaining To Pay</th>
-                      <th className="px-3 py-2">Last Purchase</th>
+                      <th className="px-3 py-2">{messages.print.totalPurchase}</th>
+                      <th className="px-3 py-2">{messages.print.totalPaid}</th>
+                      <th className="px-3 py-2">{messages.print.remainingToPay}</th>
+                      <th className="px-3 py-2">{messages.print.lastPurchase}</th>
                     </tr>
                   </thead>
                   <tbody className={PRINT_TABLE_BODY_CLASS}>
@@ -159,15 +163,15 @@ export function VendorPrintPreview({
             </div>
 
             <div className="border-t border-slate-200 py-4">
-              <PrintSectionTitle>Payment History</PrintSectionTitle>
+              <PrintSectionTitle>{messages.print.paymentHistory}</PrintSectionTitle>
               <div className={PRINT_TABLE_WRAP_CLASS}>
                 <table className="w-full text-left">
                   <thead>
                     <tr className={PRINT_TABLE_HEAD_ROW_CLASS}>
-                      <th className="px-3 py-2">Date</th>
-                      <th className="px-3 py-2">Bill</th>
-                      <th className="px-3 py-2">Method</th>
-                      <th className="px-3 py-2 text-right">Amount</th>
+                      <th className="px-3 py-2">{messages.print.date}</th>
+                      <th className="px-3 py-2">{messages.print.bill}</th>
+                      <th className="px-3 py-2">{messages.print.method}</th>
+                      <th className="px-3 py-2 text-right">{messages.print.amount}</th>
                     </tr>
                   </thead>
                   <tbody className={PRINT_TABLE_BODY_CLASS}>
@@ -189,7 +193,7 @@ export function VendorPrintPreview({
                     ) : (
                       <tr>
                         <td colSpan={4} className="px-3 py-6 text-center text-slate-500">
-                          No payment history recorded yet.
+                          {messages.print.noPaymentHistory}
                         </td>
                       </tr>
                     )}

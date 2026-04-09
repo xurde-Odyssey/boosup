@@ -6,6 +6,7 @@ import { PageActionStrip } from "@/components/shared/PageActionStrip";
 import { SalesForm } from "@/components/sales/SalesForm";
 import { QueryNoticeToast } from "@/components/shared/QueryNoticeToast";
 import { getCompanySettings } from "@/lib/company-settings-server";
+import { getServerLocale } from "@/lib/i18n-server";
 import { formatBsDisplayDate } from "@/lib/nepali-date";
 import { formatCurrency } from "@/lib/presentation";
 import { getSupabaseClient } from "@/lib/supabase/server";
@@ -25,6 +26,7 @@ export default async function CreateSalesPage({
   const supabase = await getSupabaseClient();
   const company = await getCompanySettings();
   const params = await searchParams;
+  const locale = await getServerLocale(params.lang);
   const editId = typeof params.edit === "string" ? params.edit : "";
   const shouldPrint = typeof params.print === "string" && params.print === "1";
   const notice = typeof params.notice === "string" ? params.notice : "";
@@ -216,6 +218,7 @@ export default async function CreateSalesPage({
                     sale={editingSale}
                     autoPrint={shouldPrint}
                     company={company}
+                    locale={locale}
                   />
                 ) : (
                   <button

@@ -2,6 +2,7 @@ import { LucideIcon, ReceiptText } from "lucide-react";
 import { Card } from "@/components/shared/Card";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { SectionHeader } from "@/components/shared/SectionHeader";
+import { type AppLocale, getMessages } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
 type ActivityItem = {
@@ -23,7 +24,8 @@ const toneClasses: Record<string, string> = {
   slate: "bg-slate-100 text-slate-600",
 };
 
-const groupActivities = (items: ActivityItem[], todayDate: string) => {
+const groupActivities = (items: ActivityItem[], todayDate: string, locale: AppLocale) => {
+  const messages = getMessages(locale);
   const today = todayDate;
   const yesterdayDate = new Date(`${todayDate}T00:00:00`);
   yesterdayDate.setDate(yesterdayDate.getDate() - 1);
@@ -32,11 +34,16 @@ const groupActivities = (items: ActivityItem[], todayDate: string) => {
   const groups = new Map<string, ActivityItem[]>();
   items.forEach((item) => {
     const day = item.isoDate.slice(0, 10);
-    const label = day === today ? "Today" : day === yesterday ? "Yesterday" : "Earlier";
+    const label =
+      day === today
+        ? messages.common.today
+        : day === yesterday
+          ? messages.common.yesterday
+          : messages.common.earlier;
     groups.set(label, [...(groups.get(label) ?? []), item]);
   });
 
-  return ["Today", "Yesterday", "Earlier"]
+  return [messages.common.today, messages.common.yesterday, messages.common.earlier]
     .map((label) => ({ label, items: groups.get(label) ?? [] }))
     .filter((group) => group.items.length > 0);
 };
@@ -44,16 +51,19 @@ const groupActivities = (items: ActivityItem[], todayDate: string) => {
 export function ActivityCard({
   items,
   todayDate,
+  locale = "en",
 }: {
   items: ActivityItem[];
   todayDate: string;
+  locale?: AppLocale;
 }) {
-  const groups = groupActivities(items, todayDate);
+  const groups = groupActivities(items, todayDate, locale);
+  const messages = getMessages(locale);
 
   return (
     <Card className="overflow-hidden border-slate-200/80 xl:col-span-5">
       <SectionHeader
-        title="Recent Activity"
+        title={messages.dashboardPage.recentActivity}
         description="Operational log grouped by recency across sales, purchases, expenses, and staff."
       />
       {items.length === 0 ? (

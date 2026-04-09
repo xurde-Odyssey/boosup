@@ -11,9 +11,11 @@ import { PageActionStrip } from "@/components/shared/PageActionStrip";
 import { PaginationControls } from "@/components/shared/PaginationControls";
 import { ReportToolbar } from "@/components/shared/ReportToolbar";
 import { SectionCard } from "@/components/shared/SectionCard";
-import { StatusBadge } from "@/components/shared/StatusBadge";
+import { LocalizedStatusBadge } from "@/components/shared/StatusBadge";
 import { VendorPrintPreview } from "@/components/vendors/VendorPrintPreview";
 import { getCompanySettings } from "@/lib/company-settings-server";
+import { getMessages } from "@/lib/i18n";
+import { getServerLocale } from "@/lib/i18n-server";
 import { formatBsDisplayDate } from "@/lib/nepali-date";
 import { formatCurrency } from "@/lib/presentation";
 import { getSupabaseClient } from "@/lib/supabase/server";
@@ -35,6 +37,8 @@ export default async function VendorsPage({
   const supabase = await getSupabaseClient();
   const company = await getCompanySettings();
   const params = await searchParams;
+  const locale = await getServerLocale(params.lang);
+  const messages = getMessages(locale);
   const notice = typeof params.notice === "string" ? params.notice : "";
   const vendorPayablesPage = parsePage(params.vendorPayablesPage);
   const vendorProfilesPage = parsePage(params.vendorProfilesPage);
@@ -135,21 +139,22 @@ export default async function VendorsPage({
 
       <main className="flex-1 overflow-y-auto p-8">
         <Header
-          title="Supplier Overview"
-          description="Manage supplier profiles, payables, and supplier-wise purchase balances."
+          title={messages.suppliersPage.title}
+          description={messages.suppliersPage.subtitle}
         />
         {notice && <ActionNotice message={notice} />}
         <ReportToolbar actionPath="/vendors" />
         <PageActionStrip
+          locale={locale}
           actions={[
-            { label: "Create Supplier Profile", href: "/vendors/create" },
-            { label: "View Supplier Payables", href: "/vendors", variant: "secondary" },
+            { label: messages.suppliersPage.createSupplierProfile, href: "/vendors/create" },
+            { label: messages.suppliersPage.viewSupplierPayables, href: "/vendors", variant: "secondary" },
           ]}
         />
 
         <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
           <SummaryCard
-            title="Total Suppliers"
+            title={messages.suppliersPage.totalSuppliers}
             value={`${vendors.length}`}
             trend={`${activeVendors} active suppliers`}
             trendType="neutral"
@@ -158,7 +163,7 @@ export default async function VendorsPage({
             iconColor="text-amber-600"
           />
           <SummaryCard
-            title="Supplier Purchase"
+            title={messages.suppliersPage.supplierPurchase}
             value={formatCurrency(totalVendorPurchase)}
             trend="Total supplier bills"
             trendType="positive"
@@ -167,7 +172,7 @@ export default async function VendorsPage({
             iconColor="text-blue-600"
           />
           <SummaryCard
-            title="Supplier Paid"
+            title={messages.suppliersPage.supplierPaid}
             value={formatCurrency(totalVendorPaid)}
             trend="Paid against supplier bills"
             trendType="positive"
@@ -176,7 +181,7 @@ export default async function VendorsPage({
             iconColor="text-green-600"
           />
           <SummaryCard
-            title="Outstanding Payables"
+            title={messages.suppliersPage.outstandingPayables}
             value={formatCurrency(totalPayables)}
             trend="Supplier-wise credit outstanding"
             trendType="negative"
@@ -189,7 +194,7 @@ export default async function VendorsPage({
         <div className="space-y-6">
           <SectionCard className="overflow-hidden" padded={false}>
             <div className="border-b border-slate-50 p-6">
-              <h3 className="text-lg font-bold text-slate-900">Supplier Payables</h3>
+              <h3 className="text-lg font-bold text-slate-900">{messages.suppliersPage.supplierPayables}</h3>
               <p className="mt-1 text-xs text-slate-500">
                 Supplier-wise payable balance, bills, and total items bought.
               </p>
@@ -281,6 +286,7 @@ export default async function VendorsPage({
                             {vendorProfile ? (
                               <VendorPrintPreview
                                 company={company}
+                                locale={locale}
                                 vendor={{
                                   name: vendorProfile.name,
                                   vendor_code: vendorProfile.vendor_code,
@@ -368,8 +374,9 @@ export default async function VendorsPage({
                       <td className="px-6 py-4 text-sm text-slate-600">{vendor.phone ?? "-"}</td>
                       <td className="px-6 py-4 text-sm text-slate-600">{vendor.paymentTerms}</td>
                       <td className="px-6 py-4 text-sm text-slate-600">
-                        <StatusBadge
-                          label={vendor.status}
+                        <LocalizedStatusBadge
+                          status={vendor.status}
+                          locale={locale}
                           tone={vendor.status === "ACTIVE" ? "success" : "neutral"}
                         />
                       </td>

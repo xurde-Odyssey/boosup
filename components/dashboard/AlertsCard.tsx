@@ -3,6 +3,7 @@ import { AlertCircle } from "lucide-react";
 import { Card } from "@/components/shared/Card";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { SectionHeader } from "@/components/shared/SectionHeader";
+import { type AppLocale, getMessages } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
 type AlertItem = {
@@ -23,11 +24,19 @@ const toneConfig: Record<string, string> = {
   green: "bg-emerald-500",
 };
 
-export function AlertsCard({ items }: { items: AlertItem[] }) {
+export function AlertsCard({
+  items,
+  locale = "en",
+}: {
+  items: AlertItem[];
+  locale?: AppLocale;
+}) {
+  const messages = getMessages(locale);
+
   return (
     <Card className="overflow-hidden border-slate-200/80 xl:col-span-7">
       <SectionHeader
-        title="Operational Alerts"
+        title={messages.dashboardPage.operationalAlerts}
         description="Important items that need follow-up across collections, supplier dues, expenses, and staff."
       />
       {items.length === 0 ? (

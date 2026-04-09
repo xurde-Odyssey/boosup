@@ -1,3 +1,5 @@
+import { type AppLocale, getStaffMonthLabel as getLocalizedStaffMonthLabel } from "@/lib/i18n";
+
 export const STAFF_MONTH_OPTIONS = [
   { value: 1, label: "Baisakh" },
   { value: 2, label: "Jestha" },
@@ -71,11 +73,8 @@ export type StaffTransactionSnapshot = StaffSalaryTransactionRecord & {
 
 const monthOrderValue = (month: number, year: number) => year * 100 + month;
 
-export const getStaffMonthLabel = (month: number, year?: number) => {
-  const monthName =
-    STAFF_MONTH_OPTIONS.find((option) => option.value === month)?.label ?? `Month ${month}`;
-  return typeof year === "number" ? `${monthName} ${year}` : monthName;
-};
+export const getStaffMonthLabel = (month: number, year?: number, locale: AppLocale = "en") =>
+  getLocalizedStaffMonthLabel(month, year, locale);
 
 export const getLedgerPeriodKey = (month: number, year: number) =>
   `${year}-${String(month).padStart(2, "0")}`;

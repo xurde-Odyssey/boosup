@@ -6,7 +6,9 @@ import { PageActionStrip } from "@/components/shared/PageActionStrip";
 import { PaginationControls } from "@/components/shared/PaginationControls";
 import { QueryNoticeToast } from "@/components/shared/QueryNoticeToast";
 import { ReportToolbar } from "@/components/shared/ReportToolbar";
-import { formatBsDisplayDate } from "@/lib/nepali-date";
+import { getMessages, getStaffMonthLabel } from "@/lib/i18n";
+import { getServerLocale } from "@/lib/i18n-server";
+import { formatBsDisplayDate, getNepalTodayAd } from "@/lib/nepali-date";
 import { formatCurrency } from "@/lib/presentation";
 import { recalculateStaffLedgerSnapshots } from "@/lib/staff-payroll";
 import { getSupabaseClient } from "@/lib/supabase/server";
@@ -18,11 +20,6 @@ const parsePage = (value: string | string[] | undefined) => {
 };
 
 const PAGE_SIZE = 10;
-const getTodayDate = () =>
-  new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Asia/Kathmandu",
-  }).format(new Date());
-
 const getDateRange = (range: string, today: string) => {
   const current = new Date(`${today}T00:00:00`);
 
@@ -68,13 +65,15 @@ export default async function RecordedSalaryTransactionsPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const params = await searchParams;
+  const locale = await getServerLocale(params.lang);
+  const messages = getMessages(locale);
   const notice = typeof params.notice === "string" ? params.notice : "";
   const search = typeof params.q === "string" ? params.q.trim() : "";
   const transactionType = typeof params.type === "string" ? params.type : "ALL";
   const month = typeof params.month === "string" ? params.month : "ALL";
   const sort = typeof params.sort === "string" ? params.sort : "latest";
   const selectedRange = typeof params.range === "string" ? params.range : "year";
-  const todayDate = getTodayDate();
+  const todayDate = getNepalTodayAd();
   const defaultRange = getDateRange(selectedRange, todayDate);
   const fromDate = typeof params.from === "string" && params.from ? params.from : defaultRange.from;
   const toDate = typeof params.to === "string" && params.to ? params.to : defaultRange.to;
@@ -173,7 +172,7 @@ export default async function RecordedSalaryTransactionsPage({
       staffId: transaction.staff_id,
       staffName: staff?.name ?? "Staff",
       staffCode: staff?.code ?? "-",
-      salaryMonth: transaction.month_label,
+      salaryMonth: getStaffMonthLabel(transaction.month, transaction.year, locale),
       periodKey: transaction.period_key,
       type: transaction.type,
       amount: formatCurrency(transaction.amount),
@@ -188,7 +187,7 @@ export default async function RecordedSalaryTransactionsPage({
 
       <main className="flex-1 overflow-y-auto p-8">
         <Header
-          title="Recorded Salary Transactions"
+          title={messages.common.recordedSalaryTransactions}
           description="Dedicated view of salary advances and salary payments with filters, search, and pagination."
         />
         <QueryNoticeToast message={notice} />
@@ -199,8 +198,9 @@ export default async function RecordedSalaryTransactionsPage({
           toDate={toDate}
         />
         <PageActionStrip
+          locale={locale}
           actions={[
-            { label: "Create Staff Profile", href: "/staff/create", icon: UserPlus },
+            { label: messages.staffPage.createStaffProfile, href: "/staff/create", icon: UserPlus },
             {
               label: "Staff Overview",
               href: "/staff",
@@ -208,7 +208,7 @@ export default async function RecordedSalaryTransactionsPage({
               icon: ArrowLeft,
             },
             {
-              label: "Recorded Salary Transactions",
+              label: messages.common.recordedSalaryTransactions,
               href: "/staff/view",
               variant: "secondary",
               icon: LayoutList,
@@ -257,6 +257,7 @@ export default async function RecordedSalaryTransactionsPage({
           month={month}
           sort={sort}
           perPage={perPage}
+          locale={locale}
         />
         <PaginationControls
           basePath="/staff/view"

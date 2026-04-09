@@ -1,6 +1,7 @@
 import Image from "next/image";
 import { ReactNode } from "react";
 import { CompanySettings, DEFAULT_COMPANY_SETTINGS } from "@/lib/company-settings";
+import { type AppLocale, getMessages } from "@/lib/i18n";
 
 export const PRINT_TABLE_WRAP_CLASS = "overflow-hidden rounded-[22px] border border-slate-200";
 export const PRINT_TABLE_HEAD_ROW_CLASS =
@@ -10,9 +11,11 @@ export const PRINT_TABLE_BODY_CLASS = "divide-y divide-slate-100 text-xs";
 export function PrintDocument({
   root,
   children,
+  locale = "en",
 }: {
   root: "sales-invoice" | "dashboard-report" | "sales-report" | "supplier-statement";
   children: ReactNode;
+  locale?: AppLocale;
 }) {
   return (
     <div data-print-root={root} className="hidden print:block">
@@ -21,7 +24,7 @@ export function PrintDocument({
         className="w-full bg-white p-6 shadow-sm print:min-h-[297mm] print:shadow-none"
       >
         {children}
-        <PrintClosing />
+        <PrintClosing locale={locale} />
       </section>
     </div>
   );
@@ -93,21 +96,25 @@ export function PrintSectionTitle({
   );
 }
 
-export function PrintClosing() {
+export function PrintClosing({
+  locale = "en",
+}: {
+  locale?: AppLocale;
+}) {
+  const messages = getMessages(locale);
   return (
     <footer className="mt-8 pt-5">
       <div className="flex justify-end">
         <div className="w-72 pt-3 text-center">
           <div className="mb-2 h-12" />
           <div className="border-t border-slate-400 pt-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-600">
-            Seller Signature
+            {messages.print.sellerSignature}
           </div>
         </div>
       </div>
       <div className="mt-10 border-t border-slate-300 pt-5">
         <p className="text-center text-[11px] leading-5 text-slate-500">
-        This invoice does not represent any legal work; it is computer-generated and used for
-        information only.
+        {messages.print.generatedOnlyDisclaimer}
         </p>
       </div>
     </footer>

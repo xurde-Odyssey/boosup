@@ -2,16 +2,15 @@
 
 import { useEffect, useState } from "react";
 import { Languages, MonitorCog, Moon, Rows3, SunMedium, TimerReset } from "lucide-react";
+import { LanguageSwitcher } from "@/components/shared/LanguageSwitcher";
 import { cn } from "@/lib/utils";
 
 type ThemeMode = "light" | "dark";
 type PaginationSize = "10" | "25" | "50";
 type DashboardRange = "week" | "month" | "year";
-type AppLanguage = "eng" | "nep";
 
 const THEME_KEY = "bookkeep-theme";
 const THEME_EVENT = "bookkeep-theme-change";
-const LANGUAGE_KEY = "bookkeep-language";
 const PAGE_SIZE_KEY = "bookkeep-page-size";
 const DASHBOARD_RANGE_KEY = "bookkeep-dashboard-range";
 const TIMEZONE_KEY = "bookkeep-timezone";
@@ -37,11 +36,6 @@ const preferenceButtonClass = (active: boolean) =>
 export function SystemPreferencesPanel() {
   const [theme, setTheme] = useState<ThemeMode>(() => {
     return getResolvedTheme();
-  });
-  const [language, setLanguage] = useState<AppLanguage>(() => {
-    if (typeof window === "undefined") return "eng";
-    const savedLanguage = localStorage.getItem(LANGUAGE_KEY);
-    return savedLanguage === "eng" || savedLanguage === "nep" ? savedLanguage : "eng";
   });
   const [pageSize, setPageSize] = useState<PaginationSize>(() => {
     if (typeof window === "undefined") return "10";
@@ -94,11 +88,6 @@ export function SystemPreferencesPanel() {
     window.dispatchEvent(new Event("bookkeep-theme-change"));
   };
 
-  const updateLanguage = (value: AppLanguage) => {
-    setLanguage(value);
-    localStorage.setItem(LANGUAGE_KEY, value);
-  };
-
   const updatePageSize = (value: PaginationSize) => {
     setPageSize(value);
     localStorage.setItem(PAGE_SIZE_KEY, value);
@@ -142,14 +131,7 @@ export function SystemPreferencesPanel() {
           <Languages className="h-4 w-4 text-slate-500 dark:text-slate-400" />
           Language
         </div>
-        <div className="flex flex-wrap gap-2">
-          <button type="button" onClick={() => updateLanguage("eng")} className={preferenceButtonClass(language === "eng")}>
-            Eng
-          </button>
-          <button type="button" onClick={() => updateLanguage("nep")} className={preferenceButtonClass(language === "nep")}>
-            Nep
-          </button>
-        </div>
+        <LanguageSwitcher compact />
       </div>
 
       <div className="rounded-2xl border border-slate-100 bg-slate-50/70 p-4 dark:border-slate-800 dark:bg-slate-900/70">

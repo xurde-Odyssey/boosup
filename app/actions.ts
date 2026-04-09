@@ -2,6 +2,14 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import {
+  allocateSupplierPaymentToOldestBills,
+  calculatePurchasePaymentState,
+  calculateSalesPaymentState,
+  calculateSupplierTotalPending,
+  getPurchaseOutstandingAmount,
+  resolvePurchasePaymentStatus,
+} from "@/lib/financial";
 import { bsToAd } from "@/lib/nepali-date";
 import { recalculateStaffLedgerSnapshots } from "@/lib/staff-payroll";
 import { getSupabaseClient } from "@/lib/supabase/server";
@@ -183,28 +191,6 @@ const upsertStaffSalaryLedger = async ({
   return createdLedger;
 };
 
-const resolvePurchasePaymentStatus = ({
-  totalAmount,
-  paidAmount,
-  previousStatus,
-}: {
-  totalAmount: number;
-  paidAmount: number;
-  previousStatus: string | null | undefined;
-}) => {
-  const remainingAmount = Math.max(totalAmount - paidAmount, 0);
-
-  if (remainingAmount <= 0) {
-    return "PAID";
-  }
-
-  if (paidAmount > 0) {
-    return previousStatus === "OVERDUE" ? "OVERDUE" : "PARTIAL";
-  }
-
-  return previousStatus === "OVERDUE" ? "OVERDUE" : "PENDING";
-};
-
 export async function logoutAdmin() {
   const supabase = await getSupabaseClient();
   await supabase.auth.signOut();
@@ -324,31 +310,19 @@ export async function createSupplierPayment(formData: FormData) {
   }
 
   const payablePurchases = (unpaidPurchases ?? [])
-    .map((purchase) => {
-      const totalAmount = Number(purchase.total_amount ?? 0);
-      const paidAmount = Number(purchase.paid_amount ?? 0);
-      const remainingAmount = Math.max(
-        Number(purchase.credit_amount ?? totalAmount - paidAmount),
-        0,
-      );
-
-      return {
-        ...purchase,
-        totalAmount,
-        paidAmount,
-        remainingAmount,
-      };
-    })
+    .map((purchase) => ({
+      ...purchase,
+      totalAmount: Number(purchase.total_amount ?? 0),
+      paidAmount: Number(purchase.paid_amount ?? 0),
+      remainingAmount: getPurchaseOutstandingAmount(purchase),
+    }))
     .filter((purchase) => purchase.remainingAmount > 0);
 
   if (payablePurchases.length === 0) {
     redirectWithMessage(redirectPath, "No unpaid purchase bills available for this supplier");
   }
 
-  const totalOutstanding = payablePurchases.reduce(
-    (sum, purchase) => sum + purchase.remainingAmount,
-    0,
-  );
+  const totalOutstanding = calculateSupplierTotalPending(payablePurchases);
 
   if (paymentAmount > totalOutstanding) {
     redirectWithMessage(
@@ -357,29 +331,7 @@ export async function createSupplierPayment(formData: FormData) {
     );
   }
 
-  let remainingToAllocate = paymentAmount;
-  const allocations = payablePurchases
-    .map((purchase) => {
-      if (remainingToAllocate <= 0) {
-        return null;
-      }
-
-      const allocatedAmount = Math.min(remainingToAllocate, purchase.remainingAmount);
-      remainingToAllocate -= allocatedAmount;
-
-      return {
-        purchase,
-        allocatedAmount,
-      };
-    })
-    .filter(
-      (
-        allocation,
-      ): allocation is {
-        purchase: (typeof payablePurchases)[number];
-        allocatedAmount: number;
-      } => Boolean(allocation && allocation.allocatedAmount > 0),
-    );
+  const allocations = allocateSupplierPaymentToOldestBills(payablePurchases, paymentAmount);
 
   if (allocations.length === 0) {
     redirectWithMessage(redirectPath, "Unable to allocate this payment to supplier bills");
@@ -671,22 +623,18 @@ export async function upsertPurchase(formData: FormData) {
     previousPaidAmount = Number(existingPurchase?.paid_amount ?? 0);
   }
 
-  const normalizedPaymentNow =
-    requestedPaymentStatus === "PAID" && !id && paymentNow <= 0
-      ? totalAmount
-      : Math.max(paymentNow, 0);
-  const paidAmount = Math.min(previousPaidAmount + normalizedPaymentNow, totalAmount);
-  const remainingAmount = Math.max(totalAmount - paidAmount, 0);
-  const paymentStatus =
-    remainingAmount <= 0
-      ? "PAID"
-      : paidAmount > 0
-        ? requestedPaymentStatus === "OVERDUE"
-          ? "OVERDUE"
-          : "PARTIAL"
-        : requestedPaymentStatus === "OVERDUE"
-          ? "OVERDUE"
-          : "PENDING";
+  const {
+    normalizedPaymentNow,
+    paidAmount,
+    paymentStatus,
+    paymentType,
+  } = calculatePurchasePaymentState({
+    totalAmount,
+    previousPaidAmount,
+    paymentNow,
+    requestedPaymentStatus,
+    isNewRecord: !id,
+  });
 
   const purchasePayload = {
     purchase_number: readText(formData, "purchase_number"),
@@ -694,7 +642,7 @@ export async function upsertPurchase(formData: FormData) {
     vendor_name: vendorId ? null : vendorName || null,
     purchase_date: purchaseDate,
     payment_status: paymentStatus,
-    payment_type: remainingAmount <= 0 ? "Cash" : "Credit",
+    payment_type: paymentType,
     payment_method: paymentMethod,
     total_amount: totalAmount,
     paid_amount: paidAmount,
@@ -900,8 +848,13 @@ export async function upsertSale(formData: FormData) {
         ).data?.amount_received ?? 0,
       )
     : 0;
-  const remainingBeforePayment = Math.max(grossTotal - existingAmountReceived, 0);
-  const maxCollectibleAmount = remainingBeforePayment > 0 ? remainingBeforePayment : 0;
+  const { maxCollectibleAmount, paymentIncrement, amountReceived, paymentStatus } =
+    calculateSalesPaymentState({
+      grossTotal,
+      existingAmountReceived,
+      requestedPaymentStatus,
+      paymentIncrementInput,
+    });
 
   if (
     paymentIncrementInput > 0 &&
@@ -916,26 +869,6 @@ export async function upsertSale(formData: FormData) {
     );
   }
 
-  const paymentIncrement =
-    maxCollectibleAmount <= 0
-      ? 0
-      : requestedPaymentStatus === "PAID"
-      ? Math.min(
-          paymentIncrementInput > 0 ? paymentIncrementInput : maxCollectibleAmount,
-          maxCollectibleAmount,
-        )
-      : requestedPaymentStatus === "PARTIAL"
-        ? Math.min(paymentIncrementInput, maxCollectibleAmount)
-        : 0;
-  const amountReceived = Math.max(existingAmountReceived + paymentIncrement, 0);
-  const paymentStatus =
-    amountReceived >= grossTotal && grossTotal > 0
-      ? "PAID"
-      : amountReceived > 0
-        ? "PARTIAL"
-        : requestedPaymentStatus === "OVERDUE"
-          ? "OVERDUE"
-          : "PENDING";
   const salesPayload = {
     invoice_number: invoiceNumber,
     customer_name: customerName,

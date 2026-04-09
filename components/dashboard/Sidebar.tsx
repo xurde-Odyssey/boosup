@@ -18,20 +18,22 @@ import { usePathname } from 'next/navigation';
 import appIcon from '@/app/logos/icon.png';
 import { logoutAdmin } from '@/app/actions';
 import { DEFAULT_COMPANY_SETTINGS } from '@/lib/company-settings';
+import { getMessages, getStoredLocale } from '@/lib/i18n';
 import { getSupabaseBrowserClient } from '@/lib/supabase/client';
-
-const navItems = [
-  { icon: LayoutDashboard, label: 'Dashboard', href: '/' },
-  { icon: ShoppingBag, label: 'Sales', href: '/sales' },
-  { icon: ShoppingCart, label: 'Purchases', href: '/purchases' },
-  { icon: Users, label: 'Staff', href: '/staff' },
-  { icon: Truck, label: 'Suppliers', href: '/vendors' },
-  { icon: BarChart3, label: 'Your Products', href: '/products' },
-];
 
 export function Sidebar() {
   const pathname = usePathname();
+  const [locale, setLocale] = useState(() => getStoredLocale());
+  const messages = getMessages(locale);
   const [companyName, setCompanyName] = useState(DEFAULT_COMPANY_SETTINGS.businessName);
+  const navItems = [
+    { icon: LayoutDashboard, label: messages.common.dashboard, href: '/' },
+    { icon: ShoppingBag, label: messages.common.sales, href: '/sales' },
+    { icon: ShoppingCart, label: messages.common.purchases, href: '/purchases' },
+    { icon: Users, label: messages.common.staff, href: '/staff' },
+    { icon: Truck, label: messages.common.suppliers, href: '/vendors' },
+    { icon: BarChart3, label: messages.common.products, href: '/products' },
+  ];
 
   useEffect(() => {
     const supabase = getSupabaseBrowserClient();
@@ -47,6 +49,17 @@ export function Sidebar() {
           setCompanyName(nextName);
         }
       });
+  }, []);
+
+  useEffect(() => {
+    const syncLocale = () => setLocale(getStoredLocale());
+    window.addEventListener("bookkeep-language-change", syncLocale);
+    window.addEventListener("storage", syncLocale);
+
+    return () => {
+      window.removeEventListener("bookkeep-language-change", syncLocale);
+      window.removeEventListener("storage", syncLocale);
+    };
   }, []);
 
   return (
@@ -65,7 +78,7 @@ export function Sidebar() {
           </div>
           <div>
             <h1 className="leading-tight font-bold text-slate-900 dark:text-slate-50">BookKeep <span className="text-blue-600 dark:text-cyan-400">Pro</span></h1>
-            <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500">Management System</p>
+            <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500">{messages.common.managementSystem}</p>
           </div>
         </Link>
       </div>
@@ -92,7 +105,7 @@ export function Sidebar() {
               {isActive && (
                 <div className="ml-auto flex items-center gap-2">
                   <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-blue-600 dark:text-cyan-300">
-                    Open
+                    {messages.common.open}
                   </span>
                   <div className="h-7 w-1.5 rounded-full bg-blue-600 dark:bg-cyan-300" />
                 </div>
@@ -110,7 +123,7 @@ export function Sidebar() {
             </div>
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-semibold text-slate-900 dark:text-slate-50">{companyName}</p>
-              <p className="truncate text-xs text-slate-500 dark:text-slate-400">Admin Account</p>
+              <p className="truncate text-xs text-slate-500 dark:text-slate-400">{messages.common.adminAccount}</p>
             </div>
           </div>
         </div>
@@ -125,12 +138,12 @@ export function Sidebar() {
             )}
           >
             <Settings className="h-4.5 w-4.5" />
-            <span>Settings</span>
+            <span>{messages.common.settings}</span>
           </Link>
           <form action={logoutAdmin}>
             <button className="flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-sm font-medium text-slate-500 transition-all hover:bg-red-50 hover:text-red-600 dark:text-slate-400 dark:hover:bg-red-950/40 dark:hover:text-rose-300">
               <LogOut className="h-4.5 w-4.5" />
-              <span>Logout</span>
+              <span>{messages.common.logout}</span>
             </button>
           </form>
         </div>

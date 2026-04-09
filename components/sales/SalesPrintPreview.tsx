@@ -12,6 +12,7 @@ import {
   PRINT_TABLE_WRAP_CLASS,
 } from "@/components/shared/PrintDocument";
 import { CompanySettings, DEFAULT_COMPANY_SETTINGS } from "@/lib/company-settings";
+import { type AppLocale, getMessages, getStatusLabel } from "@/lib/i18n";
 import { formatBsDisplayDate } from "@/lib/nepali-date";
 import { formatCurrency } from "@/lib/presentation";
 import { cn } from "@/lib/utils";
@@ -53,13 +54,16 @@ export function SalesPrintPreview({
   className,
   autoPrint = false,
   company = DEFAULT_COMPANY_SETTINGS,
+  locale = "en",
 }: {
   sale: PrintableSale;
   label?: string;
   className?: string;
   autoPrint?: boolean;
   company?: CompanySettings;
+  locale?: AppLocale;
 }) {
+  const messages = getMessages(locale);
   const isMounted = useSyncExternalStore(
     () => () => {},
     () => true,
@@ -155,14 +159,14 @@ export function SalesPrintPreview({
 
       {isMounted &&
         createPortal(
-          <PrintDocument root="sales-invoice">
+          <PrintDocument root="sales-invoice" locale={locale}>
             <PrintHeader
-              title="Sales Invoice"
+              title={messages.print.salesInvoice}
               company={company}
               metaRows={[
-                { label: "Invoice", value: sale.invoice_number },
-                { label: "Date", value: formatBsDisplayDate(sale.sales_date) },
-                { label: "Status", value: sale.payment_status },
+                { label: messages.print.invoice, value: sale.invoice_number },
+                { label: messages.print.date, value: formatBsDisplayDate(sale.sales_date) },
+                { label: messages.print.status, value: getStatusLabel(sale.payment_status, locale) },
               ]}
             />
 
@@ -171,22 +175,22 @@ export function SalesPrintPreview({
                 <tbody>
                   <tr className="bg-slate-50">
                     <td className="w-32 px-3 py-2 text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                      Customer Name
+                      {messages.print.customerName}
                     </td>
                     <td className="px-3 py-2 font-semibold text-slate-900">
                       {sale.customer_name}
                     </td>
                     <td className="w-28 px-3 py-2 text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                      Sales Date
+                      {messages.print.salesDate}
                     </td>
                     <td className="w-36 px-3 py-2 font-semibold text-slate-900">
                       {formatBsDisplayDate(sale.sales_date)}
                     </td>
                     <td className="w-24 px-3 py-2 text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                      Status
+                      {messages.print.status}
                     </td>
                     <td className="w-28 px-3 py-2 font-semibold text-slate-900">
-                      {sale.payment_status}
+                      {getStatusLabel(sale.payment_status, locale)}
                     </td>
                   </tr>
                 </tbody>
@@ -194,15 +198,15 @@ export function SalesPrintPreview({
             </div>
 
             <div className="py-4">
-              <PrintSectionTitle>Sales Items</PrintSectionTitle>
+              <PrintSectionTitle>{messages.print.salesItems}</PrintSectionTitle>
               <div className={PRINT_TABLE_WRAP_CLASS}>
                 <table className="w-full text-left">
                   <thead>
                     <tr className={PRINT_TABLE_HEAD_ROW_CLASS}>
-                      <th className="px-3 py-2">Description</th>
-                      <th className="px-3 py-2 text-right">Unit Price</th>
-                      <th className="px-3 py-2 text-right">Qty</th>
-                      <th className="px-3 py-2 text-right">Total</th>
+                      <th className="px-3 py-2">{messages.print.description}</th>
+                      <th className="px-3 py-2 text-right">{messages.print.unitPrice}</th>
+                      <th className="px-3 py-2 text-right">{messages.print.qty}</th>
+                      <th className="px-3 py-2 text-right">{messages.print.total}</th>
                     </tr>
                   </thead>
                   <tbody className={PRINT_TABLE_BODY_CLASS}>
@@ -227,12 +231,12 @@ export function SalesPrintPreview({
               <div className="ml-auto max-w-[320px] rounded-[22px] border border-slate-200 bg-slate-50 p-4">
                 <div className="space-y-2.5 text-xs">
                   <div className="flex items-center justify-between">
-                    <span className="font-semibold text-slate-700">Subtotal</span>
+                    <span className="font-semibold text-slate-700">{messages.print.subtotal}</span>
                     <span className="font-bold text-slate-900">{formatCurrency(subtotal)}</span>
                   </div>
                   {discount > 0 && (
                     <div className="flex items-center justify-between">
-                      <span className="text-slate-500">Discount</span>
+                      <span className="text-slate-500">{messages.print.discount}</span>
                       <span className="font-semibold text-slate-900">
                         {formatCurrency(discount)}
                       </span>
@@ -240,19 +244,19 @@ export function SalesPrintPreview({
                   )}
                   {tax > 0 && (
                     <div className="flex items-center justify-between">
-                      <span className="text-slate-500">Tax</span>
+                      <span className="text-slate-500">{messages.print.tax}</span>
                       <span className="font-semibold text-slate-900">{formatCurrency(tax)}</span>
                     </div>
                   )}
                   <div className="flex items-center justify-between border-t border-slate-200 pt-3">
-                    <span className="font-semibold text-slate-900">Total</span>
+                    <span className="font-semibold text-slate-900">{messages.print.total}</span>
                     <span className="text-base font-bold text-slate-900">
                       {formatCurrency(grandTotal)}
                     </span>
                   </div>
                   {remainingAmount > 0 && (
                     <div className="flex items-center justify-between">
-                      <span className="font-semibold text-slate-700">Remaining Amount</span>
+                      <span className="font-semibold text-slate-700">{messages.print.remainingAmount}</span>
                       <span className="font-bold text-amber-700">
                         {formatCurrency(remainingAmount)}
                       </span>
