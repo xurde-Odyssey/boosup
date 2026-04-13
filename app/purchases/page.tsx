@@ -19,6 +19,7 @@ import { Header } from "@/components/dashboard/Header";
 import { Sidebar } from "@/components/dashboard/Sidebar";
 import { SummaryCard } from "@/components/dashboard/SummaryCard";
 import { ConfirmActionForm } from "@/components/shared/ConfirmActionForm";
+import { ActionIconButton } from "@/components/shared/ActionIconButton";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { PageActionStrip } from "@/components/shared/PageActionStrip";
 import { PaginationControls } from "@/components/shared/PaginationControls";
@@ -177,7 +178,7 @@ export default async function PurchasesPage({
     <div className="flex min-h-screen bg-slate-50/50">
       <Sidebar />
 
-      <main className="flex-1 overflow-y-auto p-8">
+      <main className="flex-1 overflow-y-auto p-4 pt-20 sm:p-6 sm:pt-24 lg:p-8 lg:pt-8">
         <Header
           title="Purchases Overview"
           description="Track supplier profiles, purchase totals, and outstanding credit."
@@ -293,20 +294,18 @@ export default async function PurchasesPage({
                         </td>
                         <td className="px-6 py-4">
                           <div className="flex items-center justify-end gap-2">
-                            <Link
+                            <ActionIconButton
                               href={`/purchases/create?edit=${purchase.id}`}
-                              className="rounded-lg p-2 text-slate-400 transition-all hover:bg-blue-50 hover:text-blue-600"
-                              title={`Edit purchase ${purchase.purchase_number}`}
+                              label={`Edit purchase ${purchase.purchase_number}`}
                             >
                               <Pencil className="h-4 w-4" />
-                            </Link>
-                            <Link
+                            </ActionIconButton>
+                            <ActionIconButton
                               href={`/purchases/create?edit=${purchase.id}`}
-                              className="rounded-lg p-2 text-slate-400 transition-all hover:bg-amber-50 hover:text-amber-600"
-                              title={`Open update view for purchase ${purchase.purchase_number}`}
+                              label={`Open update view for purchase ${purchase.purchase_number}`}
                             >
                               <RefreshCcw className="h-4 w-4" />
-                            </Link>
+                            </ActionIconButton>
                             <ConfirmActionForm
                               action={deletePurchase}
                               confirmMessage="Are you sure you want to delete this purchase record?"
@@ -315,12 +314,12 @@ export default async function PurchasesPage({
                                 { name: "redirect_to", value: "/purchases" },
                               ]}
                             >
-                              <button
-                                className="rounded-lg p-2 text-slate-400 transition-all hover:bg-red-50 hover:text-red-600"
-                                title={`Delete purchase ${purchase.purchase_number}`}
+                              <ActionIconButton
+                                type="submit"
+                                label={`Delete purchase ${purchase.purchase_number}`}
                               >
                                 <Trash2 className="h-4 w-4" />
-                              </button>
+                              </ActionIconButton>
                             </ConfirmActionForm>
                           </div>
                         </td>
@@ -389,20 +388,18 @@ export default async function PurchasesPage({
                         <td className="px-6 py-4 text-sm text-slate-600">{expense.notes ?? "-"}</td>
                         <td className="px-6 py-4">
                           <div className="flex items-center justify-end gap-2">
-                            <Link
+                            <ActionIconButton
                               href={`/purchases/expense/create?edit=${expense.id}`}
-                              className="rounded-lg p-2 text-slate-400 transition-all hover:bg-blue-50 hover:text-blue-600"
-                              title={`Edit expense ${expense.expense_title}`}
+                              label={`Edit expense ${expense.expense_title}`}
                             >
                               <Pencil className="h-4 w-4" />
-                            </Link>
-                            <Link
+                            </ActionIconButton>
+                            <ActionIconButton
                               href={`/purchases/expense/create?edit=${expense.id}`}
-                              className="rounded-lg p-2 text-slate-400 transition-all hover:bg-amber-50 hover:text-amber-600"
-                              title={`Open update view for expense ${expense.expense_title}`}
+                              label={`Open update view for expense ${expense.expense_title}`}
                             >
                               <RefreshCcw className="h-4 w-4" />
-                            </Link>
+                            </ActionIconButton>
                             <ConfirmActionForm
                               action={deletePurchaseExpense}
                               confirmMessage="Are you sure you want to delete this expense?"
@@ -411,12 +408,12 @@ export default async function PurchasesPage({
                                 { name: "redirect_to", value: "/purchases" },
                               ]}
                             >
-                              <button
-                                className="rounded-lg p-2 text-slate-400 transition-all hover:bg-red-50 hover:text-red-600"
-                                title={`Delete expense ${expense.expense_title}`}
+                              <ActionIconButton
+                                type="submit"
+                                label={`Delete expense ${expense.expense_title}`}
                               >
                                 <Trash2 className="h-4 w-4" />
-                              </button>
+                              </ActionIconButton>
                             </ConfirmActionForm>
                           </div>
                         </td>

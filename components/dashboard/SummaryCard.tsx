@@ -41,7 +41,7 @@ export function SummaryCard({
 
     const cardContent = (
         <Card className={cn(
-            "transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md dark:shadow-slate-950/30",
+            "flex h-full flex-col justify-between transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md dark:shadow-slate-950/30",
             href && "cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60",
             toneClasses,
             emphasis === 'high' ? "p-7" : "p-6",

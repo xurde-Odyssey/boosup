@@ -325,10 +325,7 @@ export async function createSupplierPayment(formData: FormData) {
   const totalOutstanding = calculateSupplierTotalPending(payablePurchases);
 
   if (paymentAmount > totalOutstanding) {
-    redirectWithMessage(
-      redirectPath,
-      `Payment exceeds supplier pending balance of ${totalOutstanding.toFixed(2)}`,
-    );
+    redirectWithMessage(redirectPath, "Payment exceeds this supplier's total payable balance.");
   }
 
   const allocations = allocateSupplierPaymentToOldestBills(payablePurchases, paymentAmount);
@@ -596,9 +593,6 @@ export async function upsertPurchase(formData: FormData) {
   const id = readText(formData, "id");
   const actionType = id ? "updated" : "created";
   const purchaseFormPath = id ? `/purchases/create?edit=${id}` : "/purchases/create";
-  const quantity = readWholeNumber(formData, "quantity");
-  const rate = readNumber(formData, "rate");
-  const totalAmount = quantity * rate;
   const vendorId = readText(formData, "vendor_id");
   const vendorName = readText(formData, "vendor_name");
   const requestedPaymentStatus = readText(formData, "payment_status") || "PENDING";
@@ -606,11 +600,45 @@ export async function upsertPurchase(formData: FormData) {
   const paymentNow = readNumber(formData, "payment_now");
   const purchaseDate = resolveGregorianDate(formData, "purchase_date", "purchase_date_bs");
   const paymentDate = resolveGregorianDate(formData, "payment_date", "payment_date_bs");
+  const productNames = formData
+    .getAll("product_name")
+    .map((value) => String(value ?? "").trim());
+  const quantities = formData.getAll("quantity").map((value) => {
+    const numericValue = Number(String(value ?? "").trim());
+    return Number.isFinite(numericValue) && numericValue > 0
+      ? Math.max(Math.trunc(numericValue), 1)
+      : 1;
+  });
+  const rates = formData.getAll("rate").map((value) => {
+    const numericValue = Number(String(value ?? "").trim());
+    return Number.isFinite(numericValue) && numericValue >= 0 ? numericValue : 0;
+  });
+  const purchaseItems = productNames
+    .map((productName, index) => ({
+      product_id: null,
+      product_name: productName,
+      quantity: quantities[index] ?? 1,
+      rate: rates[index] ?? 0,
+    }))
+    .filter((item) => item.product_name || item.quantity > 0 || item.rate > 0);
+  const normalizedPurchaseItems = purchaseItems.filter((item) => item.product_name.trim());
+  const totalAmount = normalizedPurchaseItems.reduce(
+    (sum, item) => sum + item.quantity * item.rate,
+    0,
+  );
 
   if (!purchaseDate) {
     redirect(
       `${purchaseFormPath}${purchaseFormPath.includes("?") ? "&" : "?"}notice=Valid%20purchase%20date%20is%20required`,
     );
+  }
+
+  if (!normalizedPurchaseItems.length) {
+    redirectWithMessage(purchaseFormPath, "Add at least one purchase item.");
+  }
+
+  if (totalAmount <= 0) {
+    redirectWithMessage(purchaseFormPath, "Purchase amount must be greater than 0.");
   }
 
   let previousPaidAmount = 0;
@@ -621,6 +649,12 @@ export async function upsertPurchase(formData: FormData) {
       .eq("id", id)
       .single();
     previousPaidAmount = Number(existingPurchase?.paid_amount ?? 0);
+  }
+
+  const currentPayableAmount = Math.max(totalAmount - previousPaidAmount, 0);
+
+  if (paymentNow > currentPayableAmount) {
+    redirectWithMessage(purchaseFormPath, "Payment exceeds this bill's payable amount.");
   }
 
   const {
@@ -649,13 +683,6 @@ export async function upsertPurchase(formData: FormData) {
     notes: readText(formData, "notes") || null,
   };
 
-  const itemPayload = {
-    product_id: null,
-    product_name: readText(formData, "product_name"),
-    quantity,
-    rate,
-  };
-
   if (!vendorId && !vendorName) {
     redirect("/purchases/create?notice=Select%20or%20type%20a%20supplier");
   }
@@ -663,10 +690,12 @@ export async function upsertPurchase(formData: FormData) {
   if (id) {
     await supabase.from("purchases").update(purchasePayload).eq("id", id);
     await supabase.from("purchase_items").delete().eq("purchase_id", id);
-    await supabase.from("purchase_items").insert({
-      ...itemPayload,
-      purchase_id: id,
-    });
+    await supabase.from("purchase_items").insert(
+      normalizedPurchaseItems.map((item) => ({
+        ...item,
+        purchase_id: id,
+      })),
+    );
     if (normalizedPaymentNow > 0) {
       await supabase.from("purchase_payments").insert({
         purchase_id: id,
@@ -684,10 +713,12 @@ export async function upsertPurchase(formData: FormData) {
       .single();
 
     if (data?.id) {
-      await supabase.from("purchase_items").insert({
-        ...itemPayload,
-        purchase_id: data.id,
-      });
+      await supabase.from("purchase_items").insert(
+        normalizedPurchaseItems.map((item) => ({
+          ...item,
+          purchase_id: data.id,
+        })),
+      );
       if (normalizedPaymentNow > 0) {
         await supabase.from("purchase_payments").insert({
           purchase_id: data.id,

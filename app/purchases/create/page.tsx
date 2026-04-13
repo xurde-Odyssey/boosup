@@ -4,14 +4,10 @@ import { PurchaseForm } from "@/components/purchases/PurchaseForm";
 import { QueryNoticeToast } from "@/components/shared/QueryNoticeToast";
 import { getMessages } from "@/lib/i18n";
 import { getServerLocale } from "@/lib/i18n-server";
+import { getNepalTodayAd } from "@/lib/nepali-date";
 import { getSupabaseClient } from "@/lib/supabase/server";
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
-
-const getTodayDate = () =>
-  new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Asia/Kathmandu",
-  }).format(new Date());
 
 export default async function CreatePurchasePage({
   searchParams,
@@ -25,7 +21,7 @@ export default async function CreatePurchasePage({
   const purchaseMessages = messages.purchaseEntry;
   const editId = typeof params.edit === "string" ? params.edit : "";
   const notice = typeof params.notice === "string" ? params.notice : "";
-  const todayDate = getTodayDate();
+  const todayDate = getNepalTodayAd();
 
   const [{ data: vendors = [] }, purchaseResponse, paymentsResponse] = await Promise.all([
     supabase
@@ -58,7 +54,7 @@ export default async function CreatePurchasePage({
     <div className="flex min-h-screen bg-slate-50/50">
       <Sidebar />
 
-      <main className="flex-1 overflow-y-auto p-8">
+      <main className="flex-1 overflow-y-auto p-4 pt-20 sm:p-6 sm:pt-24 lg:p-8 lg:pt-8">
         <Header
           title={editingPurchase ? purchaseMessages.pageEditTitle : purchaseMessages.pageCreateTitle}
           description={purchaseMessages.pageDescription}

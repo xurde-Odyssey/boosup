@@ -76,12 +76,28 @@ export function SupplierPaymentModal({
                 <div className="md:col-span-2">
                   <label className="mb-2 block text-sm font-semibold text-slate-700">Supplier</label>
                   <Input value={vendorName} disabled className="bg-slate-100 text-slate-700" />
-                  <FieldHint>Current pending balance: {formatCurrency(totalPayable)}</FieldHint>
+                  <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3">
+                    <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-amber-700">
+                      Current Pending Balance
+                    </div>
+                    <div className="mt-1 text-xl font-black tracking-tight text-amber-900">
+                      {formatCurrency(totalPayable)}
+                    </div>
+                  </div>
                 </div>
 
                 <div>
                   <label className="mb-2 block text-sm font-semibold text-slate-700">Payment Amount</label>
-                  <Input name="amount" type="number" min="0.01" step="0.01" placeholder="0.00" required />
+                  <Input
+                    name="amount"
+                    type="number"
+                    min="0.01"
+                    max={totalPayable.toFixed(2)}
+                    step="0.01"
+                    placeholder="0.00"
+                    required
+                  />
+                  <FieldHint>Maximum payable: {formatCurrency(totalPayable)}</FieldHint>
                 </div>
 
                 <div>
