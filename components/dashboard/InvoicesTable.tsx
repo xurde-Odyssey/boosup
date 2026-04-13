@@ -8,6 +8,7 @@ import { FileText, Pencil, Printer, RefreshCcw, Trash2 } from "lucide-react";
 import { deleteSale } from "@/app/actions";
 import { Button } from "@/components/shared/Button";
 import { ConfirmActionForm } from "@/components/shared/ConfirmActionForm";
+import { ActionIconButton } from "@/components/shared/ActionIconButton";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { Input } from "@/components/shared/Input";
 import { Select } from "@/components/shared/Select";
@@ -260,27 +261,27 @@ export function InvoicesTable({
                 <td className="px-6 py-4 text-sm text-slate-500">{invoice.date}</td>
                 <td className="px-6 py-4">
                   <div className="flex items-center justify-end gap-1">
-                    <Link
+                    <ActionIconButton
                       href={`/sales/create?edit=${invoice.id}`}
-                      className="rounded-lg p-1.5 text-slate-300 transition-all hover:bg-blue-50 hover:text-blue-600"
-                      title={`Edit sales invoice ${invoice.invoiceNumber}`}
+                      label={`Edit sales invoice ${invoice.invoiceNumber}`}
+                      className="h-8 w-8"
                     >
                       <Pencil className="h-4 w-4" />
-                    </Link>
-                    <Link
+                    </ActionIconButton>
+                    <ActionIconButton
                       href={`/sales/create?edit=${invoice.id}&print=1`}
-                      className="rounded-lg p-1.5 text-slate-300 transition-all hover:bg-slate-100 hover:text-slate-700"
-                      title={`Print sales invoice ${invoice.invoiceNumber}`}
+                      label={`Print sales invoice ${invoice.invoiceNumber}`}
+                      className="h-8 w-8"
                     >
                       <Printer className="h-4 w-4" />
-                    </Link>
-                    <Link
+                    </ActionIconButton>
+                    <ActionIconButton
                       href={`/sales/create?edit=${invoice.id}`}
-                      className="rounded-lg p-1.5 text-slate-300 transition-all hover:bg-amber-50 hover:text-amber-600"
-                      title={`Open update view for sales invoice ${invoice.invoiceNumber}`}
+                      label={`Open update view for sales invoice ${invoice.invoiceNumber}`}
+                      className="h-8 w-8"
                     >
                       <RefreshCcw className="h-4 w-4" />
-                    </Link>
+                    </ActionIconButton>
                     <ConfirmActionForm
                       action={deleteSale}
                       confirmMessage="Are you sure you want to delete this sales record?"
@@ -289,13 +290,13 @@ export function InvoicesTable({
                         { name: "redirect_to", value: "/sales" },
                       ]}
                     >
-                      <button
+                      <ActionIconButton
                         type="submit"
-                        className="rounded-lg p-1.5 text-slate-300 transition-all hover:bg-red-50 hover:text-red-600"
-                        title={`Delete sales invoice ${invoice.invoiceNumber}`}
+                        label={`Delete sales invoice ${invoice.invoiceNumber}`}
+                        className="h-8 w-8"
                       >
                         <Trash2 className="h-4 w-4" />
-                      </button>
+                      </ActionIconButton>
                     </ConfirmActionForm>
                   </div>
                 </td>

@@ -55,10 +55,11 @@ export default async function VendorLedgerPage({
     supabase
       .from("purchases")
       .select(
-        "id, purchase_number, purchase_date, payment_status, payment_method, total_amount, paid_amount, credit_amount, notes, purchase_items(product_name, quantity, rate)",
+        "id, purchase_number, purchase_date, created_at, payment_status, payment_method, total_amount, paid_amount, credit_amount, notes, purchase_items(product_name, quantity, rate)",
       )
       .eq("vendor_id", id)
-      .order("purchase_date", { ascending: false }),
+      .order("purchase_date", { ascending: false })
+      .order("created_at", { ascending: false }),
     supabase
       .from("purchase_payments")
       .select("id, payment_date, amount, payment_method, notes, purchase_id, purchases!inner(vendor_id, purchase_number)")
@@ -87,25 +88,35 @@ export default async function VendorLedgerPage({
     paymentsByPurchase.set(purchaseId, existingPayments);
   });
 
-  const purchaseRows = purchases.map((purchase) => {
-    const purchasePayments = paymentsByPurchase.get(purchase.id) ?? [];
-    const paidFromHistory = purchasePayments.reduce(
-      (sum, payment) => sum + Number(payment.amount ?? 0),
-      0,
-    );
-    const paidAmount = purchasePayments.length > 0
-      ? paidFromHistory
-      : Number(purchase.paid_amount ?? 0);
-    const totalAmount = Number(purchase.total_amount ?? 0);
-    const remainingAmount = Math.max(totalAmount - paidAmount, 0);
+  const purchaseRows = purchases
+    .map((purchase) => {
+      const purchasePayments = [...(paymentsByPurchase.get(purchase.id) ?? [])].sort((left, right) => {
+        const rightKey = `${right.payment_date ?? ""}|${right.id}`;
+        const leftKey = `${left.payment_date ?? ""}|${left.id}`;
+        return rightKey.localeCompare(leftKey);
+      });
+      const paidFromHistory = purchasePayments.reduce(
+        (sum, payment) => sum + Number(payment.amount ?? 0),
+        0,
+      );
+      const paidAmount = purchasePayments.length > 0
+        ? paidFromHistory
+        : Number(purchase.paid_amount ?? 0);
+      const totalAmount = Number(purchase.total_amount ?? 0);
+      const remainingAmount = Math.max(totalAmount - paidAmount, 0);
 
-    return {
-      ...purchase,
-      paidAmount,
-      remainingAmount,
-      purchasePayments,
-    };
-  });
+      return {
+        ...purchase,
+        paidAmount,
+        remainingAmount,
+        purchasePayments,
+      };
+    })
+    .sort((left, right) => {
+      const rightKey = `${right.purchase_date ?? ""}|${right.created_at ?? ""}`;
+      const leftKey = `${left.purchase_date ?? ""}|${left.created_at ?? ""}`;
+      return rightKey.localeCompare(leftKey);
+    });
 
   const localTotalPurchase = purchaseRows.reduce(
     (sum, purchase) => sum + Number(purchase.total_amount ?? 0),
@@ -146,9 +157,9 @@ export default async function VendorLedgerPage({
         purchase: Array.isArray(allocation.purchases) ? allocation.purchases[0] : allocation.purchases,
       }))
       .sort((left, right) => {
-        const leftDate = left.purchase?.purchase_date ?? "";
-        const rightDate = right.purchase?.purchase_date ?? "";
-        return leftDate.localeCompare(rightDate);
+        const rightDate = `${right.purchase?.purchase_date ?? ""}|${right.id}`;
+        const leftDate = `${left.purchase?.purchase_date ?? ""}|${left.id}`;
+        return rightDate.localeCompare(leftDate);
       }),
   }));
 
@@ -156,7 +167,7 @@ export default async function VendorLedgerPage({
     <div className="flex min-h-screen bg-slate-50/50">
       <Sidebar />
 
-      <main className="flex-1 overflow-y-auto p-8">
+      <main className="flex-1 overflow-y-auto p-4 pt-20 sm:p-6 sm:pt-24 lg:p-8 lg:pt-8">
         <Header
           title={vendor ? `${vendor.name} Ledger` : "Supplier Ledger"}
           description="Supplier-wise purchase history, bills, paid amount, and outstanding payable."

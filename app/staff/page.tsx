@@ -236,7 +236,7 @@ export default async function StaffPage({
     <div className="flex min-h-screen bg-slate-50/50">
       <Sidebar />
 
-      <main className="flex-1 overflow-y-auto p-8">
+      <main className="flex-1 overflow-y-auto p-4 pt-20 sm:p-6 sm:pt-24 lg:p-8 lg:pt-8">
         <Header
           title={messages.staffPage.title}
           description={messages.staffPage.subtitle}
@@ -260,51 +260,56 @@ export default async function StaffPage({
           <SummaryCard
             title="Total Salary Paid"
             value={formatCurrency(totalSalaryPaid)}
-            trend="Salary transactions in selected range"
+            trend="Paid this range"
             trendType="positive"
             icon={Wallet}
             iconBgColor="bg-green-50"
             iconColor="text-green-600"
+            className="min-h-[168px]"
             href={baseStaffHref}
           />
           <SummaryCard
             title="Total Advance"
             value={formatCurrency(totalAdvance)}
-            trend="Advance transactions in selected range"
+            trend="Advance issued"
             trendType="negative"
             icon={CreditCard}
             iconBgColor="bg-red-50"
             iconColor="text-red-600"
+            className="min-h-[168px]"
             href={baseStaffHref}
           />
           <SummaryCard
             title="Total Staff Expense"
             value={formatCurrency(totalStaffExpense)}
-            trend="All staff salary expenses in range"
+            trend="Salary outflow"
             trendType="neutral"
             icon={ReceiptText}
             iconBgColor="bg-blue-50"
             iconColor="text-blue-600"
+            className="min-h-[168px]"
             href={baseStaffHref}
           />
           <SummaryCard
             title="Pending Salary"
             value={formatCurrency(totalPendingSalary)}
-            trend={`${staffWithRemainingBalance} staff with remaining balance`}
+            trend="Still unpaid"
             trendType="neutral"
             icon={CalendarClock}
             iconBgColor="bg-amber-50"
             iconColor="text-amber-600"
+            className="min-h-[168px]"
             href={`${baseStaffHref}&salary_status=pending`}
           />
           <SummaryCard
             title="Staff With Balance"
             value={`${staffWithRemainingBalance}`}
-            trend="Open salary ledgers"
+            trend="Open ledgers"
             trendType={staffWithRemainingBalance > 0 ? "negative" : "positive"}
             icon={UserRound}
             iconBgColor="bg-slate-100"
             iconColor="text-slate-700"
+            className="min-h-[168px]"
             href={`${baseStaffHref}&salary_status=pending`}
           />
         </div>

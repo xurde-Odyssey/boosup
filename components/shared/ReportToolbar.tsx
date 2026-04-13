@@ -98,7 +98,7 @@ export function ReportToolbar({
         <input type="hidden" name="to" value={bsToAd(toBs)} />
 
         <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-          <div className="flex flex-col gap-3 xl:flex-row xl:items-center">
+          <div className="flex min-w-0 flex-col gap-3 xl:flex-row xl:items-center">
             <div className="flex items-center gap-2 text-sm font-semibold text-slate-700">
               <div className="rounded-xl bg-slate-100 p-2 text-slate-500">
                 <CalendarRange className="h-4 w-4" />
@@ -135,25 +135,25 @@ export function ReportToolbar({
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
             {showCustomDates && (
               <button
                 type="submit"
-                className="rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-blue-700"
+                className="w-full rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-blue-700 sm:w-auto"
               >
                 Apply
               </button>
             )}
             <Link
               href={actionPath}
-              className="inline-flex items-center justify-center rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50"
+              className="inline-flex w-full items-center justify-center rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 sm:w-auto"
             >
               Reset
             </Link>
             {reportButton ?? (
               <button
                 type="button"
-                className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50"
+                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 sm:w-auto"
               >
                 Generate Report
               </button>

@@ -94,7 +94,7 @@ export default async function CreateStaffPaymentPage({
     <div className="flex min-h-screen bg-slate-50/50">
       <Sidebar />
 
-      <main className="flex-1 overflow-y-auto p-8">
+      <main className="flex-1 overflow-y-auto p-4 pt-20 sm:p-6 sm:pt-24 lg:p-8 lg:pt-8">
         <Header
           title={editingTransaction?.id ? "Update Salary Transaction" : "Add Salary Transaction"}
           description="Record a simple staff advance or salary payment against the correct monthly ledger."

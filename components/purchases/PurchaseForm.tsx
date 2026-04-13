@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { Plus, Trash2 } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { upsertPurchase } from "@/app/actions";
 import { FieldHint } from "@/components/shared/FieldHint";
 import { FormSectionHeader } from "@/components/shared/FormSectionHeader";
@@ -43,6 +44,20 @@ type EditingPurchase = {
     | null;
 };
 
+type PurchaseItemRow = {
+  id: string;
+  productName: string;
+  quantity: string;
+  rate: string;
+};
+
+let purchaseItemRowCounter = 0;
+
+const createPurchaseItemRowId = () => {
+  purchaseItemRowCounter += 1;
+  return `purchase-item-${purchaseItemRowCounter}`;
+};
+
 const toNumber = (value: string) => {
   const numericValue = Number(value);
   return Number.isFinite(numericValue) ? numericValue : 0;
@@ -57,14 +72,26 @@ const toWholeNumber = (value: string) => {
   return String(Math.max(Math.trunc(numericValue), 1));
 };
 
+const createEmptyRow = (): PurchaseItemRow => ({
+  id: createPurchaseItemRowId(),
+  productName: "",
+  quantity: "1",
+  rate: "0",
+});
+
+const normalizePurchaseItems = (items: PurchaseItemRow[]) =>
+  items.map((item) => ({
+    productName: item.productName.trim(),
+    quantity: toWholeNumber(item.quantity),
+    rate: toNumber(item.rate).toFixed(2),
+  }));
+
 const normalizePurchaseSnapshot = (values: {
   purchaseNumber: string;
   purchaseDateBs: string;
   vendorId: string;
   vendorName: string;
-  productName: string;
-  quantity: string;
-  rate: string;
+  items: PurchaseItemRow[];
   paymentStatus: string;
   paymentMethod: string;
 }) => ({
@@ -72,9 +99,7 @@ const normalizePurchaseSnapshot = (values: {
   purchaseDateBs: values.purchaseDateBs,
   vendorId: values.vendorId,
   vendorName: values.vendorName.trim(),
-  productName: values.productName.trim(),
-  quantity: toWholeNumber(values.quantity),
-  rate: toNumber(values.rate).toFixed(2),
+  items: normalizePurchaseItems(values.items),
   paymentStatus: values.paymentStatus,
   paymentMethod: values.paymentMethod,
 });
@@ -94,32 +119,49 @@ export function PurchaseForm({
 }) {
   const messages = getMessages(locale);
   const purchaseMessages = messages.purchaseEntry;
-  const purchaseItem = editingPurchase?.purchase_items?.[0] ?? null;
-  const [purchaseNumber, setPurchaseNumber] = useState(editingPurchase?.purchase_number ?? "");
   const [purchaseDateBs, setPurchaseDateBs] = useState(
     adToBs(editingPurchase?.purchase_date ?? defaultDate),
   );
+  const purchaseNumberPrefix = useMemo(
+    () => `PUR-${purchaseDateBs || adToBs(defaultDate)}-`,
+    [defaultDate, purchaseDateBs],
+  );
+  const [purchaseNumber, setPurchaseNumber] = useState(
+    editingPurchase?.purchase_number ?? purchaseNumberPrefix,
+  );
   const [vendorId, setVendorId] = useState(editingPurchase?.vendor_id ?? "");
   const [vendorName, setVendorName] = useState(editingPurchase?.vendor_name ?? "");
-  const [productName, setProductName] = useState(purchaseItem?.product_name ?? "");
-  const [quantity, setQuantity] = useState(String(purchaseItem?.quantity ?? 1));
-  const [rate, setRate] = useState(String(purchaseItem?.rate ?? 0));
+  const [items, setItems] = useState<PurchaseItemRow[]>(
+    editingPurchase?.purchase_items?.length
+      ? editingPurchase.purchase_items.map((item) => ({
+          id: createPurchaseItemRowId(),
+          productName: item.product_name ?? "",
+          quantity: String(item.quantity ?? 1),
+          rate: String(item.rate ?? 0),
+        }))
+      : [createEmptyRow()],
+  );
   const [paymentStatus, setPaymentStatus] = useState(editingPurchase?.payment_status ?? "PENDING");
   const [paymentMethod, setPaymentMethod] = useState(editingPurchase?.payment_method ?? "Cash");
   const [paymentNow, setPaymentNow] = useState("0");
   const [paymentDateBs, setPaymentDateBs] = useState(adToBs(defaultDate));
   const [notes, setNotes] = useState(editingPurchase?.notes ?? "");
+  const previousPrefixRef = useRef(purchaseNumberPrefix);
   const purchaseDate = bsToAd(purchaseDateBs);
   const paymentDate = bsToAd(paymentDateBs);
   const showPaymentMethod = paymentStatus === "PAID" || paymentStatus === "PARTIAL";
   const isEditingSettledBill = Boolean(editingPurchase && editingPurchase.payment_status === "PAID");
 
   const previousPaidAmount = Number(editingPurchase?.paid_amount ?? 0);
-  const itemAmount = Math.max(toNumber(quantity) * toNumber(rate), 0);
+  const itemAmount = items.reduce((sum, item) => {
+    return sum + Math.max(toNumber(item.quantity) * toNumber(item.rate), 0);
+  }, 0);
+  const payableAmount = Math.max(itemAmount - previousPaidAmount, 0);
+  const enteredPaymentNow = Math.max(toNumber(paymentNow), 0);
   const normalizedPaymentNow =
     paymentStatus === "PAID" && !editingPurchase && toNumber(paymentNow) <= 0
       ? itemAmount
-      : Math.max(toNumber(paymentNow), 0);
+      : enteredPaymentNow;
   const nextPaidAmount = Math.min(previousPaidAmount + normalizedPaymentNow, itemAmount);
   const remainingAmount = Math.max(itemAmount - nextPaidAmount, 0);
   const activeVendorLabel =
@@ -135,43 +177,55 @@ export function PurchaseForm({
               purchaseDateBs: adToBs(editingPurchase.purchase_date),
               vendorId: editingPurchase.vendor_id ?? "",
               vendorName: editingPurchase.vendor_name ?? "",
-              productName: purchaseItem?.product_name ?? "",
-              quantity: String(purchaseItem?.quantity ?? 1),
-              rate: String(purchaseItem?.rate ?? 0),
+              items:
+                editingPurchase.purchase_items?.length
+                  ? editingPurchase.purchase_items.map((item) => ({
+                      id: createPurchaseItemRowId(),
+                      productName: item.product_name ?? "",
+                      quantity: String(item.quantity ?? 1),
+                      rate: String(item.rate ?? 0),
+                    }))
+                  : [createEmptyRow()],
               paymentStatus: editingPurchase.payment_status,
               paymentMethod: editingPurchase.payment_method ?? "Cash",
             }),
           )
         : "",
-    [editingPurchase, purchaseItem?.product_name, purchaseItem?.quantity, purchaseItem?.rate],
+    [editingPurchase],
   );
-  const currentFinancialSnapshot = useMemo(
-    () =>
-      JSON.stringify(
-        normalizePurchaseSnapshot({
-          purchaseNumber,
-          purchaseDateBs,
-          vendorId,
-          vendorName,
-          productName,
-          quantity,
-          rate,
-          paymentStatus,
-          paymentMethod,
-        }),
+  const updateItem = (index: number, nextValues: Partial<PurchaseItemRow>) => {
+    setItems((currentItems) =>
+      currentItems.map((item, itemIndex) =>
+        itemIndex === index ? { ...item, ...nextValues } : item,
       ),
-    [
-      paymentMethod,
-      paymentStatus,
-      productName,
-      purchaseDateBs,
-      purchaseNumber,
-      quantity,
-      rate,
-      vendorId,
-      vendorName,
-    ],
-  );
+    );
+  };
+
+  const addItem = () => {
+    setItems((currentItems) => [...currentItems, createEmptyRow()]);
+  };
+
+  const removeItem = (index: number) => {
+    setItems((currentItems) =>
+      currentItems.length === 1
+        ? [createEmptyRow()]
+        : currentItems.filter((_, itemIndex) => itemIndex !== index),
+    );
+  };
+
+  useEffect(() => {
+    if (editingPurchase) return;
+
+    const previousPrefix = previousPrefixRef.current;
+    if (purchaseNumber === previousPrefix || purchaseNumber.startsWith(previousPrefix)) {
+      const suffix = purchaseNumber.slice(previousPrefix.length);
+      setPurchaseNumber(`${purchaseNumberPrefix}${suffix}`);
+    } else if (!purchaseNumber.trim()) {
+      setPurchaseNumber(purchaseNumberPrefix);
+    }
+
+    previousPrefixRef.current = purchaseNumberPrefix;
+  }, [editingPurchase, purchaseNumber, purchaseNumberPrefix]);
 
   return (
     <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
@@ -191,6 +245,17 @@ export function PurchaseForm({
           className="space-y-5"
           onSubmit={(event) => {
             if (!isEditingSettledBill) return;
+            const currentFinancialSnapshot = JSON.stringify(
+              normalizePurchaseSnapshot({
+                purchaseNumber,
+                purchaseDateBs,
+                vendorId,
+                vendorName,
+                items,
+                paymentStatus,
+                paymentMethod,
+              }),
+            );
             if (initialFinancialSnapshot === currentFinancialSnapshot) return;
 
             const shouldContinue = window.confirm(
@@ -230,10 +295,14 @@ export function PurchaseForm({
                   autoFocus
                   value={purchaseNumber}
                   onChange={(event) => setPurchaseNumber(event.target.value)}
-                  placeholder="PUR-2026-001"
+                  placeholder={`${purchaseNumberPrefix}001`}
                   className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-blue-500"
                 />
-                <FieldHint>{purchaseMessages.purchaseNumberHint}</FieldHint>
+                <FieldHint>
+                  {editingPurchase
+                    ? purchaseMessages.purchaseNumberHint
+                    : `Prefix follows Nepal date. Add your bill no after ${purchaseNumberPrefix}`}
+                </FieldHint>
               </div>
               <div>
                 <label className="mb-2 block text-sm font-semibold text-slate-700">
@@ -282,50 +351,119 @@ export function PurchaseForm({
               eyebrow={purchaseMessages.itemsEyebrow}
               title={purchaseMessages.itemsTitle}
               description={purchaseMessages.itemsDescription}
+              action={
+                <button
+                  type="button"
+                  onClick={addItem}
+                  className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-700"
+                >
+                  <Plus className="h-4 w-4" />
+                  {purchaseMessages.addItem}
+                </button>
+              }
             />
-            <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-[minmax(0,1.4fr)_140px_160px]">
-              <div>
-                <label className="mb-2 block text-sm font-semibold text-slate-700">
-                  {purchaseMessages.rawMaterialName}
-                </label>
-                <input
-                  name="product_name"
-                  value={productName}
-                  onChange={(event) => setProductName(event.target.value)}
-                  placeholder={purchaseMessages.rawMaterialPlaceholder}
-                  className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-blue-500"
-                />
-              </div>
-              <div>
-                <label className="mb-2 block text-sm font-semibold text-slate-700">
-                  {purchaseMessages.quantity}
-                </label>
-                <input
-                  name="quantity"
-                  type="number"
-                  min="1"
-                  step="1"
-                  value={quantity}
-                  onChange={(event) => setQuantity(toWholeNumber(event.target.value))}
-                  placeholder="1"
-                  className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-blue-500"
-                />
-              </div>
-              <div>
-                <label className="mb-2 block text-sm font-semibold text-slate-700">
-                  {purchaseMessages.rate}
-                </label>
-                <input
-                  name="rate"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={rate}
-                  onChange={(event) => setRate(event.target.value)}
-                  placeholder={purchaseMessages.ratePlaceholder}
-                  className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-blue-500"
-                />
-              </div>
+            <div className="mt-5 space-y-4">
+              {items.map((item, index) => (
+                <div
+                  key={item.id}
+                  className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4"
+                >
+                  <div className="mb-4 flex items-center justify-between gap-3">
+                    <h5 className="text-sm font-semibold text-slate-900">
+                      {purchaseMessages.itemLabel} {index + 1}
+                    </h5>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const shouldDelete = window.confirm(purchaseMessages.deleteItemConfirm);
+                        if (shouldDelete) {
+                          removeItem(index);
+                        }
+                      }}
+                      className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-600 transition-colors hover:border-red-200 hover:bg-red-50 hover:text-red-600"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      {purchaseMessages.remove}
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-3 md:grid-cols-[minmax(0,1.4fr)_140px_160px]">
+                    <div>
+                      <label className="mb-2 block text-sm font-semibold text-slate-700">
+                        {purchaseMessages.rawMaterialName}
+                      </label>
+                      <input
+                        name="product_name"
+                        value={item.productName}
+                        onChange={(event) => updateItem(index, { productName: event.target.value })}
+                        placeholder={purchaseMessages.rawMaterialPlaceholder}
+                        className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-2 block text-sm font-semibold text-slate-700">
+                        {purchaseMessages.quantity}
+                      </label>
+                      <input
+                        name="quantity"
+                        type="number"
+                        min="1"
+                        step="1"
+                        value={item.quantity}
+                        onChange={(event) =>
+                          updateItem(index, { quantity: toWholeNumber(event.target.value) })
+                        }
+                        placeholder="1"
+                        className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-2 block text-sm font-semibold text-slate-700">
+                        {purchaseMessages.rate}
+                      </label>
+                      <input
+                        name="rate"
+                        type="number"
+                        min="0.01"
+                        step="0.01"
+                        value={item.rate}
+                        onChange={(event) => updateItem(index, { rate: event.target.value })}
+                        placeholder={purchaseMessages.ratePlaceholder}
+                        className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-blue-500"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="mt-3 rounded-2xl border border-slate-200 bg-white p-4">
+                    <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                      <div>
+                        <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-slate-400">
+                          {purchaseMessages.materialAmount}
+                        </div>
+                        <div className="mt-1 font-semibold text-slate-900">
+                          {formatCurrency(toNumber(item.quantity) * toNumber(item.rate))}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-slate-400">
+                          {purchaseMessages.quantityTimesRate}
+                        </div>
+                        <div className="mt-1 font-semibold text-slate-900">
+                          {item.quantity || "0"} x {formatCurrency(item.rate)}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-slate-400">
+                          {purchaseMessages.lineAmount}
+                        </div>
+                        <div className="mt-1 font-semibold text-slate-900">
+                          {formatCurrency(toNumber(item.quantity) * toNumber(item.rate))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
 
             <div className="mt-3 rounded-2xl border border-slate-200 bg-slate-50 p-4">
@@ -338,11 +476,9 @@ export function PurchaseForm({
                 </div>
                 <div>
                   <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-slate-400">
-                    {purchaseMessages.quantityTimesRate}
+                    {purchaseMessages.totalItems}
                   </div>
-                  <div className="mt-1 font-semibold text-slate-900">
-                    {quantity || "0"} x {formatCurrency(rate)}
-                  </div>
+                  <div className="mt-1 font-semibold text-slate-900">{items.length}</div>
                 </div>
                 <div>
                   <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-slate-400">
@@ -451,11 +587,17 @@ export function PurchaseForm({
                   type="number"
                   min="0"
                   step="0.01"
+                  max={payableAmount.toFixed(2)}
                   value={paymentNow}
                   onChange={(event) => setPaymentNow(event.target.value)}
                   placeholder={purchaseMessages.amountPaidNowPlaceholder}
                   className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-blue-500"
                 />
+                <FieldHint tone={enteredPaymentNow > payableAmount ? "danger" : "default"}>
+                  {enteredPaymentNow > payableAmount
+                    ? "Payment exceeds this bill's payable amount."
+                    : `Maximum payable: ${formatCurrency(payableAmount)}`}
+                </FieldHint>
               </div>
               <div>
                 <label className="mb-2 block text-sm font-semibold text-slate-700">
@@ -514,10 +656,24 @@ export function PurchaseForm({
             </div>
             <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
               <div className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                {purchaseMessages.rawMaterial}
+                {purchaseMessages.rawMaterials}
               </div>
-              <div className="mt-2 text-base font-semibold text-slate-900">
-                {productName || purchaseMessages.noMaterialEntered}
+              <div className="mt-2 space-y-1 text-base font-semibold text-slate-900">
+                {items.some((item) => item.productName.trim()) ? (
+                  items
+                    .filter((item) => item.productName.trim())
+                    .slice(0, 3)
+                    .map((item, index) => (
+                      <div key={`${item.productName}-${index}`}>{item.productName}</div>
+                    ))
+                ) : (
+                  <div>{purchaseMessages.noMaterialEntered}</div>
+                )}
+                {items.filter((item) => item.productName.trim()).length > 3 ? (
+                  <div className="text-sm font-medium text-slate-500">
+                    +{items.filter((item) => item.productName.trim()).length - 3} more
+                  </div>
+                ) : null}
               </div>
             </div>
             <div className="space-y-3 rounded-2xl border border-slate-100 bg-slate-50 p-4 text-sm">

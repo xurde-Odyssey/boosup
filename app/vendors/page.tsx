@@ -5,6 +5,7 @@ import { Header } from "@/components/dashboard/Header";
 import { Sidebar } from "@/components/dashboard/Sidebar";
 import { SummaryCard } from "@/components/dashboard/SummaryCard";
 import { ActionNotice } from "@/components/shared/ActionNotice";
+import { ActionIconButton } from "@/components/shared/ActionIconButton";
 import { ConfirmActionForm } from "@/components/shared/ConfirmActionForm";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { PageActionStrip } from "@/components/shared/PageActionStrip";
@@ -137,7 +138,7 @@ export default async function VendorsPage({
     <div className="flex min-h-screen bg-slate-50/50">
       <Sidebar />
 
-      <main className="flex-1 overflow-y-auto p-8">
+      <main className="flex-1 overflow-y-auto p-4 pt-20 sm:p-6 sm:pt-24 lg:p-8 lg:pt-8">
         <Header
           title={messages.suppliersPage.title}
           description={messages.suppliersPage.subtitle}
@@ -266,22 +267,20 @@ export default async function VendorsPage({
                         <td className="px-6 py-4">
                           <div className="flex items-center justify-end gap-1">
                             <div>
-                              <Link
+                              <ActionIconButton
                                 href={`/vendors/${vendor.id}?action=pay`}
-                                className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 transition-all hover:bg-slate-900 hover:text-white"
-                                title={`Add supplier payment for ${vendor.name}`}
+                                label={`Add supplier payment for ${vendor.name}`}
                               >
                                 <HandCoins className="h-4 w-4" />
-                              </Link>
+                              </ActionIconButton>
                             </div>
                             <div>
-                              <Link
+                              <ActionIconButton
                                 href={`/vendors/create?edit=${vendor.id}`}
-                                className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 transition-all hover:bg-slate-900 hover:text-white"
-                                title={`Edit supplier ${vendor.name}`}
+                                label={`Edit supplier ${vendor.name}`}
                               >
                                 <Pencil className="h-4 w-4" />
-                              </Link>
+                              </ActionIconButton>
                             </div>
                             {vendorProfile ? (
                               <VendorPrintPreview
@@ -382,20 +381,18 @@ export default async function VendorsPage({
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex items-center justify-end gap-2">
-                          <Link
+                          <ActionIconButton
                             href={`/vendors/create?edit=${vendor.id}`}
-                            className="rounded-lg p-2 text-slate-400 transition-all hover:bg-blue-50 hover:text-blue-600"
-                            title={`Edit supplier ${vendor.name}`}
+                            label={`Edit supplier ${vendor.name}`}
                           >
                             <Pencil className="h-4 w-4" />
-                          </Link>
-                          <Link
+                          </ActionIconButton>
+                          <ActionIconButton
                             href={`/vendors/create?edit=${vendor.id}`}
-                            className="rounded-lg p-2 text-slate-400 transition-all hover:bg-amber-50 hover:text-amber-600"
-                            title={`Open update view for supplier ${vendor.name}`}
+                            label={`Open update view for supplier ${vendor.name}`}
                           >
                             <RefreshCcw className="h-4 w-4" />
-                          </Link>
+                          </ActionIconButton>
                           <ConfirmActionForm
                             action={deleteVendor}
                             confirmMessage="Are you sure you want to delete this supplier profile?"
@@ -404,12 +401,9 @@ export default async function VendorsPage({
                               { name: "redirect_to", value: "/vendors" },
                             ]}
                           >
-                            <button
-                              className="rounded-lg p-2 text-slate-400 transition-all hover:bg-red-50 hover:text-red-600"
-                              title={`Delete supplier ${vendor.name}`}
-                            >
+                            <ActionIconButton label={`Delete supplier ${vendor.name}`}>
                               <Trash2 className="h-4 w-4" />
-                            </button>
+                            </ActionIconButton>
                           </ConfirmActionForm>
                         </div>
                       </td>
