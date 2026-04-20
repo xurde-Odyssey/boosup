@@ -25,7 +25,8 @@ export default async function SalesCustomerLedgerPage({
     .eq("customer_name", customerName)
     .order("created_at", { ascending: false });
 
-  const saleIds = sales.map((sale) => sale.id);
+  const saleRows = sales ?? [];
+  const saleIds = saleRows.map((sale) => sale.id);
   const [{ data: salesItems = [] }, { data: salesPayments = [] }] = saleIds.length
     ? await Promise.all([
         supabase
@@ -39,14 +40,16 @@ export default async function SalesCustomerLedgerPage({
           .order("created_at", { ascending: false }),
       ])
     : [{ data: [] }, { data: [] }];
+  const salesItemRows = salesItems ?? [];
+  const salesPaymentRows = salesPayments ?? [];
 
-  const totalInvoiced = sales.reduce((sum, sale) => sum + Number(sale.grand_total ?? 0), 0);
-  const totalReceived = sales.reduce((sum, sale) => sum + Number(sale.amount_received ?? 0), 0);
-  const totalRemaining = sales.reduce((sum, sale) => sum + Number(sale.remaining_amount ?? 0), 0);
-  const overdueCount = sales.filter((sale) => sale.payment_status === "OVERDUE").length;
+  const totalInvoiced = saleRows.reduce((sum, sale) => sum + Number(sale.grand_total ?? 0), 0);
+  const totalReceived = saleRows.reduce((sum, sale) => sum + Number(sale.amount_received ?? 0), 0);
+  const totalRemaining = saleRows.reduce((sum, sale) => sum + Number(sale.remaining_amount ?? 0), 0);
+  const overdueCount = saleRows.filter((sale) => sale.payment_status === "OVERDUE").length;
 
-  const salesWithItems = sales.map((sale) => {
-    const linkedItems = salesItems.filter((item) => item.sale_id === sale.id);
+  const salesWithItems = saleRows.map((sale) => {
+    const linkedItems = salesItemRows.filter((item) => item.sale_id === sale.id);
     return {
       ...sale,
       itemCount: linkedItems.length,
@@ -75,7 +78,7 @@ export default async function SalesCustomerLedgerPage({
           <SummaryCard
             title="Total Invoiced"
             value={formatCurrency(totalInvoiced)}
-            trend={`${sales.length} invoices`}
+            trend={`${saleRows.length} invoices`}
             trendType="positive"
             icon={FileText}
             iconBgColor="bg-blue-50"
@@ -200,9 +203,9 @@ export default async function SalesCustomerLedgerPage({
                 </p>
               </div>
               <div className="divide-y divide-slate-50">
-                {salesPayments.length > 0 ? (
-                  salesPayments.map((payment, index) => {
-                    const parentSale = sales.find((sale) => sale.id === payment.sale_id);
+                {salesPaymentRows.length > 0 ? (
+                  salesPaymentRows.map((payment, index) => {
+                    const parentSale = saleRows.find((sale) => sale.id === payment.sale_id);
                     return (
                       <div
                         key={payment.id}

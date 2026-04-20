@@ -63,10 +63,12 @@ export function Button(props: ButtonProps) {
     );
   }
 
-  const { type = "button", ...restProps } = props;
+  const buttonProps = props as BaseProps & ButtonHTMLAttributes<HTMLButtonElement>;
+  const { type = "button", ...restProps } = buttonProps;
+  const buttonType = type as "button" | "submit" | "reset";
 
   return (
-    <button type={type} className={classes} {...restProps}>
+    <button type={buttonType} className={classes} {...restProps}>
       {children}
     </button>
   );

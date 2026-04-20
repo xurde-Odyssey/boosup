@@ -8,6 +8,7 @@ import {
   ShoppingBag,
   ShoppingCart,
   Users,
+  ContactRound,
   Truck,
   BarChart3,
   Settings,
@@ -31,9 +32,10 @@ export function Sidebar() {
   const navItems = [
     { icon: LayoutDashboard, label: messages.common.dashboard, href: '/' },
     { icon: ShoppingBag, label: messages.common.sales, href: '/sales' },
+    { icon: ContactRound, label: messages.common.customers, href: '/customers' },
     { icon: ShoppingCart, label: messages.common.purchases, href: '/purchases' },
-    { icon: Users, label: messages.common.staff, href: '/staff' },
     { icon: Truck, label: messages.common.suppliers, href: '/vendors' },
+    { icon: Users, label: messages.common.staff, href: '/staff' },
     { icon: BarChart3, label: messages.common.products, href: '/products' },
   ];
 
@@ -65,35 +67,42 @@ export function Sidebar() {
   }, []);
 
   const renderNavLinks = () => (
-    <nav className="min-h-0 flex-1 space-y-1.5 overflow-y-auto pr-1">
-      {navItems.map((item) => {
+    <nav className="min-h-0 flex-1 overflow-y-auto pr-1">
+      {navItems.map((item, index) => {
         const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
         return (
-          <Link
+          <div
             key={item.label}
-            href={item.href}
-            onClick={() => setIsMobileMenuOpen(false)}
             className={cn(
-              "group flex items-center gap-3 rounded-2xl px-3 py-2.5 transition-all duration-200",
-              isActive
-                ? "border border-blue-100 bg-gradient-to-r from-blue-50 to-cyan-50 text-slate-950 shadow-sm dark:border-cyan-900/70 dark:from-slate-900 dark:to-cyan-950/60 dark:text-slate-50"
-                : "border border-transparent text-slate-500 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-900 dark:hover:text-slate-50"
+              "py-1.5",
+              index < navItems.length - 1 && "border-b border-slate-100 dark:border-slate-800/80",
             )}
           >
-            <item.icon className={cn(
-              "h-4.5 w-4.5 shrink-0",
-              isActive ? "text-blue-600 dark:text-cyan-300" : "text-slate-400 group-hover:text-slate-900 dark:text-slate-500 dark:group-hover:text-slate-100"
-            )} />
-            <span className={cn("text-sm font-medium", isActive ? "text-slate-950 dark:text-slate-50" : "")}>{item.label}</span>
-            {isActive && (
-              <div className="ml-auto flex items-center gap-2">
-                <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-blue-600 dark:text-cyan-300">
-                  {messages.common.open}
-                </span>
-                <div className="h-7 w-1.5 rounded-full bg-blue-600 dark:bg-cyan-300" />
-              </div>
-            )}
-          </Link>
+            <Link
+              href={item.href}
+              onClick={() => setIsMobileMenuOpen(false)}
+              className={cn(
+                "group flex items-center gap-3 rounded-2xl px-3 py-2.5 transition-all duration-200",
+                isActive
+                  ? "border border-blue-100 bg-gradient-to-r from-blue-50 to-cyan-50 text-slate-950 shadow-sm dark:border-cyan-900/70 dark:from-slate-900 dark:to-cyan-950/60 dark:text-slate-50"
+                  : "border border-transparent text-slate-500 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-900 dark:hover:text-slate-50"
+              )}
+            >
+              <item.icon className={cn(
+                "h-4.5 w-4.5 shrink-0",
+                isActive ? "text-blue-600 dark:text-cyan-300" : "text-slate-400 group-hover:text-slate-900 dark:text-slate-500 dark:group-hover:text-slate-100"
+              )} />
+              <span className={cn("text-sm font-medium", isActive ? "text-slate-950 dark:text-slate-50" : "")}>{item.label}</span>
+              {isActive && (
+                <div className="ml-auto flex items-center gap-2">
+                  <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-blue-600 dark:text-cyan-300">
+                    {messages.common.open}
+                  </span>
+                  <div className="h-7 w-1.5 rounded-full bg-blue-600 dark:bg-cyan-300" />
+                </div>
+              )}
+            </Link>
+          </div>
         );
       })}
     </nav>

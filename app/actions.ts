@@ -53,13 +53,13 @@ const redirectWithNotice = (
   formData: FormData,
   entity: string,
   action: "created" | "updated" | "deleted",
-) => {
+): never => {
   const redirectTo = readText(formData, "redirect_to") || fallbackPath;
   const separator = redirectTo.includes("?") ? "&" : "?";
   redirect(`${redirectTo}${separator}notice=${encodeURIComponent(`${entity} ${action}`)}`);
 };
 
-const redirectWithMessage = (path: string, message: string) => {
+const redirectWithMessage = (path: string, message: string): never => {
   const separator = path.includes("?") ? "&" : "?";
   redirect(`${path}${separator}notice=${encodeURIComponent(message)}`);
 };
@@ -274,6 +274,224 @@ export async function deleteVendor(formData: FormData) {
   redirectWithNotice("/vendors", formData, "Supplier", "deleted");
 }
 
+export async function upsertCustomer(formData: FormData) {
+  const supabase = await getSupabaseClient();
+  const id = readText(formData, "id");
+  const actionType = id ? "updated" : "created";
+  const customerFormPath = id ? `/customers/create?edit=${id}` : "/customers/create";
+  const name = readText(formData, "name");
+
+  if (!name) {
+    redirectWithMessage(customerFormPath, "Customer name is required");
+  }
+
+  const payload = {
+    name,
+    phone: readText(formData, "phone") || null,
+    address: readText(formData, "address") || null,
+    email: readText(formData, "email") || null,
+    status: readText(formData, "status") || "ACTIVE",
+    notes: readText(formData, "notes") || null,
+  };
+
+  if (id) {
+    const { error } = await supabase.from("customers").update(payload).eq("id", id);
+    if (error) {
+      redirectWithMessage(customerFormPath, error.message || "Failed to update customer");
+    }
+  } else {
+    const { error } = await supabase.from("customers").insert(payload);
+    if (error) {
+      redirectWithMessage(customerFormPath, error.message || "Failed to create customer");
+    }
+  }
+
+  revalidateAll("/customers", "/sales", "/sales/create");
+  redirectWithNotice("/customers", formData, "Customer", actionType);
+}
+
+export async function deleteCustomer(formData: FormData) {
+  const supabase = await getSupabaseClient();
+  const id = readText(formData, "id");
+
+  if (!id) {
+    redirectWithMessage("/customers", "Customer is required");
+  }
+
+  const { error } = await supabase.from("customers").delete().eq("id", id);
+  if (error) {
+    redirectWithMessage("/customers", error.message || "Failed to delete customer");
+  }
+
+  revalidateAll("/customers", "/sales", "/sales/create");
+  redirectWithNotice("/customers", formData, "Customer", "deleted");
+}
+
+export async function linkCustomerSalesByName(formData: FormData) {
+  const supabase = await getSupabaseClient();
+  const customerId = readText(formData, "customer_id");
+  const redirectPath = customerId ? `/customers/${customerId}` : "/customers";
+
+  if (!customerId) {
+    redirectWithMessage("/customers", "Customer profile is required");
+  }
+
+  const { data: customer, error: customerError } = await supabase
+    .from("customers")
+    .select("id, name")
+    .eq("id", customerId)
+    .single();
+
+  const customerName = customer?.name?.trim();
+
+  if (customerError || !customerName) {
+    redirectWithMessage(redirectPath, "Customer profile was not found");
+  }
+
+  const { error } = await supabase
+    .from("sales")
+    .update({ customer_id: customerId })
+    .is("customer_id", null)
+    .eq("customer_name", customerName);
+
+  if (error) {
+    redirectWithMessage(redirectPath, error.message || "Failed to link old sales");
+  }
+
+  revalidateAll("/", "/sales", "/sales/view", "/customers", redirectPath);
+  redirectWithMessage(redirectPath, "Matching old sales linked to customer profile");
+}
+
+export async function createCustomerPayment(formData: FormData) {
+  const supabase = await getSupabaseClient();
+  const customerId = readText(formData, "customer_id");
+  const paymentAmount = readNumber(formData, "amount");
+  const paymentMethod = readText(formData, "payment_method") || "Cash";
+  const paymentDate = resolveGregorianDate(formData, "payment_date", "payment_date_bs");
+  const note = readText(formData, "note");
+  const redirectPath = customerId ? `/customers/${customerId}` : "/customers";
+
+  if (!customerId) {
+    redirectWithMessage("/customers", "Customer profile is required");
+  }
+
+  if (paymentAmount <= 0) {
+    redirectWithMessage(redirectPath, "Payment amount must be greater than 0");
+  }
+
+  if (!paymentDate) {
+    redirectWithMessage(redirectPath, "Valid payment date is required");
+  }
+
+  const { data: customer, error: customerError } = await supabase
+    .from("customers")
+    .select("id, name")
+    .eq("id", customerId)
+    .single();
+
+  if (customerError || !customer?.id) {
+    redirectWithMessage(redirectPath, "Customer profile was not found");
+  }
+
+  const { data: unpaidSales = [], error: salesError } = await supabase
+    .from("sales")
+    .select("id, invoice_number, sales_date, created_at, payment_status, grand_total, amount_received, remaining_amount")
+    .eq("customer_id", customerId)
+    .order("sales_date", { ascending: true })
+    .order("created_at", { ascending: true });
+
+  if (salesError) {
+    redirectWithMessage(redirectPath, salesError.message || "Failed to load customer invoices");
+  }
+
+  const payableSales = (unpaidSales ?? [])
+    .map((sale) => ({
+      ...sale,
+      totalAmount: Number(sale.grand_total ?? 0),
+      receivedAmount: Number(sale.amount_received ?? 0),
+      remainingAmount: Number(sale.remaining_amount ?? 0),
+    }))
+    .filter((sale) => sale.remainingAmount > 0);
+
+  if (payableSales.length === 0) {
+    redirectWithMessage(redirectPath, "No unpaid sales invoices available for this customer");
+  }
+
+  const totalDue = payableSales.reduce((sum, sale) => sum + sale.remainingAmount, 0);
+
+  if (paymentAmount > totalDue) {
+    redirectWithMessage(redirectPath, "Payment exceeds this customer's total due balance.");
+  }
+
+  let remainingPayment = paymentAmount;
+  const allocations = payableSales
+    .map((sale) => {
+      if (remainingPayment <= 0) return null;
+      const allocatedAmount = Math.min(remainingPayment, sale.remainingAmount);
+      remainingPayment -= allocatedAmount;
+      return { sale, allocatedAmount };
+    })
+    .filter(
+      (
+        allocation,
+      ): allocation is {
+        sale: (typeof payableSales)[number];
+        allocatedAmount: number;
+      } => Boolean(allocation && allocation.allocatedAmount > 0),
+    );
+
+  if (allocations.length === 0) {
+    redirectWithMessage(redirectPath, "Unable to allocate this payment to customer invoices");
+  }
+
+  for (const allocation of allocations) {
+    const { amountReceived, paymentStatus } = calculateSalesPaymentState({
+      grossTotal: allocation.sale.totalAmount,
+      existingAmountReceived: allocation.sale.receivedAmount,
+      requestedPaymentStatus: "PARTIAL",
+      paymentIncrementInput: allocation.allocatedAmount,
+    });
+
+    const { error: saleUpdateError } = await supabase
+      .from("sales")
+      .update({
+        amount_received: amountReceived,
+        payment_status: paymentStatus,
+      })
+      .eq("id", allocation.sale.id);
+
+    if (saleUpdateError) {
+      redirectWithMessage(
+        redirectPath,
+        saleUpdateError.message || "Failed to update customer invoice balance",
+      );
+    }
+
+    const paymentNoteParts = [
+      note || null,
+      `Customer payment allocation`,
+      `Method: ${paymentMethod}`,
+    ].filter(Boolean);
+
+    const { error: paymentInsertError } = await supabase.from("sales_payments").insert({
+      sale_id: allocation.sale.id,
+      payment_date: paymentDate,
+      amount: allocation.allocatedAmount,
+      notes: paymentNoteParts.join(" | "),
+    });
+
+    if (paymentInsertError) {
+      redirectWithMessage(
+        redirectPath,
+        paymentInsertError.message || "Failed to record customer payment",
+      );
+    }
+  }
+
+  revalidateAll("/", "/sales", "/sales/view", "/customers", redirectPath);
+  redirectWithMessage(redirectPath, "Customer payment allocated to oldest unpaid invoices");
+}
+
 export async function createSupplierPayment(formData: FormData) {
   const supabase = await getSupabaseClient();
   const vendorId = readText(formData, "vendor_id");
@@ -346,7 +564,9 @@ export async function createSupplierPayment(formData: FormData) {
     .select("id")
     .single();
 
-  if (supplierPaymentError || !supplierPayment?.id) {
+  const supplierPaymentId = supplierPayment?.id;
+
+  if (supplierPaymentError || !supplierPaymentId) {
     redirectWithMessage(
       redirectPath,
       supplierPaymentError?.message || "Failed to save supplier payment",
@@ -357,7 +577,7 @@ export async function createSupplierPayment(formData: FormData) {
     .from("supplier_payment_allocations")
     .insert(
       allocations.map((allocation) => ({
-        supplier_payment_id: supplierPayment.id,
+        supplier_payment_id: supplierPaymentId,
         purchase_id: allocation.purchase.id,
         amount: allocation.allocatedAmount,
       })),
@@ -371,12 +591,14 @@ export async function createSupplierPayment(formData: FormData) {
   }
 
   for (const allocation of allocations) {
+    const purchaseTotalAmount = Number(allocation.purchase.total_amount ?? 0);
+    const purchasePaidAmount = Number(allocation.purchase.paid_amount ?? 0);
     const nextPaidAmount = Math.min(
-      allocation.purchase.paidAmount + allocation.allocatedAmount,
-      allocation.purchase.totalAmount,
+      purchasePaidAmount + allocation.allocatedAmount,
+      purchaseTotalAmount,
     );
     const nextStatus = resolvePurchasePaymentStatus({
-      totalAmount: allocation.purchase.totalAmount,
+      totalAmount: purchaseTotalAmount,
       paidAmount: nextPaidAmount,
       previousStatus: allocation.purchase.payment_status,
     });
@@ -791,7 +1013,8 @@ export async function upsertSale(formData: FormData) {
   const id = readText(formData, "id");
   const actionType = id ? "updated" : "created";
   const invoiceNumber = readText(formData, "invoice_number");
-  const customerName = readText(formData, "customer_name");
+  const customerId = readText(formData, "customer_id");
+  let customerName = readText(formData, "customer_name");
   const salesDate = resolveGregorianDate(formData, "sales_date", "sales_date_bs");
   const paymentDate = resolveGregorianDate(formData, "payment_date", "payment_date_bs");
   const productIds = formData.getAll("product_id").map((value) => String(value ?? "").trim());
@@ -816,6 +1039,21 @@ export async function upsertSale(formData: FormData) {
 
   if (!invoiceNumber) {
     redirect(`${salesFormPath}${salesFormPath.includes("?") ? "&" : "?"}notice=Bill%20number%20is%20required`);
+  }
+
+  if (customerId) {
+    const { data: customer, error: customerError } = await supabase
+      .from("customers")
+      .select("name")
+      .eq("id", customerId)
+      .single();
+    const linkedCustomerName = customer?.name;
+
+    if (customerError || !linkedCustomerName) {
+      redirectWithMessage(salesFormPath, "Selected customer profile was not found");
+    }
+
+    customerName = linkedCustomerName;
   }
 
   if (!customerName) {
@@ -879,6 +1117,17 @@ export async function upsertSale(formData: FormData) {
         ).data?.amount_received ?? 0,
       )
     : 0;
+  const previousCustomerId = id
+    ? String(
+        (
+          await supabase
+            .from("sales")
+            .select("customer_id")
+            .eq("id", id)
+            .single()
+        ).data?.customer_id ?? "",
+      )
+    : "";
   const { maxCollectibleAmount, paymentIncrement, amountReceived, paymentStatus } =
     calculateSalesPaymentState({
       grossTotal,
@@ -903,6 +1152,7 @@ export async function upsertSale(formData: FormData) {
   const salesPayload = {
     invoice_number: invoiceNumber,
     customer_name: customerName,
+    customer_id: customerId || null,
     sales_date: salesDate,
     payment_status: paymentStatus,
     subtotal,
@@ -980,14 +1230,29 @@ export async function upsertSale(formData: FormData) {
     }
   }
 
-  revalidateAll("/", "/sales", "/sales/create");
+  revalidateAll("/", "/sales", "/sales/create", "/customers");
+  if (customerId) {
+    revalidatePath(`/customers/${customerId}`);
+  }
+  if (previousCustomerId && previousCustomerId !== customerId) {
+    revalidatePath(`/customers/${previousCustomerId}`);
+  }
   redirectWithNotice("/sales", formData, "Sale", actionType);
 }
 
 export async function deleteSale(formData: FormData) {
   const supabase = await getSupabaseClient();
   const id = readText(formData, "id");
+  const { data: sale } = await supabase
+    .from("sales")
+    .select("customer_id")
+    .eq("id", id)
+    .single();
+
   await supabase.from("sales").delete().eq("id", id);
-  revalidateAll("/", "/sales");
+  revalidateAll("/", "/sales", "/customers");
+  if (sale?.customer_id) {
+    revalidatePath(`/customers/${sale.customer_id}`);
+  }
   redirectWithNotice("/sales", formData, "Sale", "deleted");
 }

@@ -13,7 +13,7 @@ export function PrintDocument({
   children,
   locale = "en",
 }: {
-  root: "sales-invoice" | "dashboard-report" | "sales-report" | "supplier-statement";
+  root: "sales-invoice" | "dashboard-report" | "sales-report" | "supplier-statement" | "customer-statement";
   children: ReactNode;
   locale?: AppLocale;
 }) {

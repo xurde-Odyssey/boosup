@@ -449,7 +449,7 @@ export function PurchaseForm({
                           {purchaseMessages.quantityTimesRate}
                         </div>
                         <div className="mt-1 font-semibold text-slate-900">
-                          {item.quantity || "0"} x {formatCurrency(item.rate)}
+                          {item.quantity || "0"} x {formatCurrency(toNumber(item.rate))}
                         </div>
                       </div>
                       <div>

@@ -2,6 +2,7 @@ export const neMessages = {
   common: {
     dashboard: "ड्यासबोर्ड",
     sales: "बिक्री",
+    customers: "ग्राहकहरू",
     purchases: "खरिद",
     staff: "कर्मचारी",
     suppliers: "आपूर्तिकर्ता",

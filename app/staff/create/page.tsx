@@ -39,8 +39,9 @@ export default async function CreateStaffPage({
     .select("id, staff_code, name, address, phone, total_salary, status")
     .order("created_at", { ascending: false });
 
-  const editingStaff = staffProfiles.find((staff) => staff.id === editId) ?? null;
-  const nextStaffCode = generateNextStaffCode(staffProfiles.map((staff) => staff.staff_code));
+  const staffRows = staffProfiles ?? [];
+  const editingStaff = staffRows.find((staff) => staff.id === editId) ?? null;
+  const nextStaffCode = generateNextStaffCode(staffRows.map((staff) => staff.staff_code));
 
   return (
     <div className="flex min-h-screen bg-slate-50/50">
@@ -74,7 +75,7 @@ export default async function CreateStaffPage({
             </div>
 
             <div className="divide-y divide-slate-50">
-              {staffProfiles.map((staff, index) => {
+              {staffRows.map((staff, index) => {
                 const isActive = staff.id === editId;
 
                 return (
@@ -132,7 +133,7 @@ export default async function CreateStaffPage({
                 );
               })}
 
-              {staffProfiles.length === 0 && (
+              {staffRows.length === 0 && (
                 <div className="p-6">
                   <EmptyState
                     icon={UserRound}

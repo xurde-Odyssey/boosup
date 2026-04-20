@@ -10,6 +10,7 @@ import {
   ShoppingCart,
   Trash2,
   Wallet,
+  WalletCards,
 } from "lucide-react";
 import {
   deletePurchaseExpense,
@@ -255,24 +256,29 @@ export default async function PurchasesPage({
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-50">
-                    {visiblePurchases.map((purchase, index) => (
-                      <tr
-                        key={purchase.id}
-                        className={`transition-colors hover:bg-blue-50/40 ${
-                          index % 2 === 0 ? "bg-white" : "bg-slate-50/40"
-                        }`}
-                      >
-                        <td className="px-6 py-4 text-sm font-semibold text-slate-900">
-                          {purchase.purchase_number}
-                        </td>
-                        <td className="px-6 py-4 text-sm text-slate-600">
-                          {purchase.vendors?.name ? (
+                    {visiblePurchases.map((purchase, index) => {
+                      const linkedVendor = Array.isArray(purchase.vendors)
+                        ? purchase.vendors[0]
+                        : purchase.vendors;
+
+                      return (
+                        <tr
+                          key={purchase.id}
+                          className={`transition-colors hover:bg-blue-50/40 ${
+                            index % 2 === 0 ? "bg-white" : "bg-slate-50/40"
+                          }`}
+                        >
+                          <td className="px-6 py-4 text-sm font-semibold text-slate-900">
+                            {purchase.purchase_number}
+                          </td>
+                          <td className="px-6 py-4 text-sm text-slate-600">
+                            {linkedVendor?.name ? (
                             <Link
                               href={`/vendors/${purchase.vendor_id}`}
                               className="font-semibold text-slate-700 hover:text-blue-600"
-                              title={`Open supplier profile for ${purchase.vendors.name}`}
+                              title={`Open supplier profile for ${linkedVendor.name}`}
                             >
-                              {purchase.vendors.name}
+                              {linkedVendor.name}
                             </Link>
                           ) : purchase.vendor_name ? (
                             <span className="font-semibold text-slate-700">{purchase.vendor_name}</span>
@@ -323,8 +329,9 @@ export default async function PurchasesPage({
                             </ConfirmActionForm>
                           </div>
                         </td>
-                      </tr>
-                    ))}
+                        </tr>
+                      );
+                    })}
                     {purchases.length === 0 && (
                       <tr>
                         <td colSpan={7} className="px-6 py-10">
@@ -463,35 +470,43 @@ export default async function PurchasesPage({
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-50">
-                    {visiblePayments.map((payment, index) => (
-                      <tr
-                        key={payment.id}
-                        className={`transition-colors hover:bg-blue-50/40 ${
-                          index % 2 === 0 ? "bg-white" : "bg-slate-50/40"
-                        }`}
-                      >
+                    {visiblePayments.map((payment, index) => {
+                      const linkedPurchase = Array.isArray(payment.purchases)
+                        ? payment.purchases[0]
+                        : payment.purchases;
+                      const linkedVendor = Array.isArray(linkedPurchase?.vendors)
+                        ? linkedPurchase?.vendors[0]
+                        : linkedPurchase?.vendors;
+
+                      return (
+                        <tr
+                          key={payment.id}
+                          className={`transition-colors hover:bg-blue-50/40 ${
+                            index % 2 === 0 ? "bg-white" : "bg-slate-50/40"
+                          }`}
+                        >
                         <td className="px-6 py-4 text-sm text-slate-600">
                           {formatBsDisplayDate(payment.payment_date)}
                         </td>
                         <td className="px-6 py-4 text-sm text-slate-600">
-                            {payment.purchases?.vendors?.name ? (
+                            {linkedVendor?.name ? (
                               <Link
-                                href={`/vendors/${payment.purchases.vendor_id}`}
+                                href={`/vendors/${linkedPurchase?.vendor_id}`}
                                 className="font-semibold text-slate-700 hover:text-blue-600"
-                                title={`Open supplier profile for ${payment.purchases.vendors.name}`}
+                                title={`Open supplier profile for ${linkedVendor.name}`}
                               >
-                                {payment.purchases.vendors.name}
+                                {linkedVendor.name}
                               </Link>
-                          ) : payment.purchases?.vendor_name ? (
+                          ) : linkedPurchase?.vendor_name ? (
                             <span className="font-semibold text-slate-700">
-                              {payment.purchases.vendor_name}
+                              {linkedPurchase.vendor_name}
                             </span>
                           ) : (
                             "-"
                           )}
                         </td>
                         <td className="px-6 py-4 text-sm font-semibold text-slate-900">
-                          {payment.purchases?.purchase_number ?? "-"}
+                          {linkedPurchase?.purchase_number ?? "-"}
                         </td>
                         <td className="px-6 py-4 text-sm text-slate-600">
                           {payment.payment_method}
@@ -499,8 +514,9 @@ export default async function PurchasesPage({
                         <td className="px-6 py-4 text-sm font-bold text-green-700">
                           {formatCurrency(payment.amount)}
                         </td>
-                      </tr>
-                    ))}
+                        </tr>
+                      );
+                    })}
                     {purchasePayments.length === 0 && (
                       <tr>
                         <td colSpan={5} className="px-6 py-10">

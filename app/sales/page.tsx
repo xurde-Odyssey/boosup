@@ -112,7 +112,7 @@ export default async function SalesPage({
     supabase
       .from("sales")
       .select(
-        "id, invoice_number, customer_name, sales_date, payment_status, grand_total, amount_received, remaining_amount",
+        "id, invoice_number, customer_id, customer_name, sales_date, payment_status, grand_total, amount_received, remaining_amount, customers(name)",
       )
       .order("created_at", { ascending: false }),
     supabase
@@ -120,7 +120,9 @@ export default async function SalesPage({
       .select("sale_id, product_name, quantity, amount"),
   ]);
 
-  const rangedSales = allSales.filter((sale) => isWithinRange(sale.sales_date, fromDate, toDate));
+  const allSalesRows = allSales ?? [];
+  const allSalesItemRows = allSalesItems ?? [];
+  const rangedSales = allSalesRows.filter((sale) => isWithinRange(sale.sales_date, fromDate, toDate));
   const searchedSales = search
     ? rangedSales.filter((sale) => {
         const haystack = `${sale.invoice_number} ${sale.customer_name}`.toLowerCase();
@@ -178,16 +180,20 @@ export default async function SalesPage({
 
   const invoices = paginatedSales.map((sale, index) => {
     const tone = getAvatarTone(index);
+    const linkedCustomer = Array.isArray(sale.customers) ? sale.customers[0] : sale.customers;
+    const customerName = linkedCustomer?.name ?? sale.customer_name;
+
     return {
       id: sale.id,
       invoiceNumber: sale.invoice_number,
-      customer: sale.customer_name,
+      customerId: sale.customer_id,
+      customer: customerName,
       totalAmount: formatCurrency(sale.grand_total),
       paidAmount: formatCurrency(sale.amount_received ?? 0),
       remainingAmount: formatCurrency(sale.remaining_amount ?? 0),
       date: formatBsDisplayDate(sale.sales_date),
       status: sale.payment_status,
-      initials: getInitials(sale.customer_name),
+      initials: getInitials(customerName),
       initialsBg: tone.bg,
       initialsColor: tone.text,
     };
@@ -202,7 +208,7 @@ export default async function SalesPage({
     date: formatBsDisplayDate(sale.sales_date),
   }));
   const filteredSaleIds = new Set(sales.map((sale) => sale.id));
-  const filteredSalesItems = allSalesItems.filter((item) => filteredSaleIds.has(item.sale_id));
+  const filteredSalesItems = allSalesItemRows.filter((item) => filteredSaleIds.has(item.sale_id));
   const topSalesItemMap = new Map<
     string,
     { quantity: number; amount: number; invoiceCount: number; lastSold: string | null }

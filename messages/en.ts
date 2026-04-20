@@ -2,6 +2,7 @@ export const enMessages = {
   common: {
     dashboard: "Dashboard",
     sales: "Sales",
+    customers: "Customers",
     purchases: "Purchases",
     staff: "Staff",
     suppliers: "Suppliers",

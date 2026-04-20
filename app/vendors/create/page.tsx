@@ -26,7 +26,8 @@ export default async function CreateVendorPage({
     .select("id, vendor_code, name, contact_person, phone, address, payment_terms, status, notes")
     .eq("id", editId || "00000000-0000-0000-0000-000000000000");
 
-  const editingVendor = vendors[0] ?? null;
+  const vendorRows = vendors ?? [];
+  const editingVendor = vendorRows[0] ?? null;
 
   return (
     <div className="flex min-h-screen bg-slate-50/50">
