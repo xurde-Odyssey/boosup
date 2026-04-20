@@ -1,7 +1,7 @@
 import React from 'react';
 import Link from "next/link";
 import { ReactNode } from "react";
-import { LucideIcon } from 'lucide-react';
+import { ArrowUpRight, LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Card } from "@/components/shared/Card";
 
@@ -60,6 +60,12 @@ export function SummaryCard({
                             {trend}
                         </div>
                     )}
+                    {href ? (
+                        <div className="mt-2 inline-flex items-center gap-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-blue-600 dark:text-blue-400">
+                            <span>View details</span>
+                            <ArrowUpRight className="h-3.5 w-3.5" />
+                        </div>
+                    ) : null}
                 </div>
                 <div className={cn(
                     "rounded-2xl border p-3 shadow-sm",

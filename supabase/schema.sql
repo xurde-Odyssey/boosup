@@ -141,6 +141,22 @@ create index if not exists idx_staff_salary_transactions_staff_date
 create index if not exists idx_staff_salary_transactions_ledger_id
   on public.staff_salary_transactions(ledger_id);
 
+create table if not exists public.customers (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  phone text,
+  address text,
+  email text,
+  notes text,
+  status text not null default 'ACTIVE' check (status in ('ACTIVE', 'INACTIVE')),
+  organization_id uuid,
+  created_at timestamptz not null default timezone('utc', now()),
+  updated_at timestamptz not null default timezone('utc', now())
+);
+
+create index if not exists idx_customers_name on public.customers(name);
+create index if not exists idx_customers_status on public.customers(status);
+
 alter table public.staff_salary_payments
   add column if not exists payment_type text not null default 'ADVANCE';
 
@@ -177,6 +193,11 @@ add column if not exists amount_received numeric(12, 2) not null default 0 check
 alter table public.sales
 add column if not exists remaining_amount numeric(12, 2)
 generated always as (greatest((subtotal - discount + tax) - amount_received, 0)) stored;
+
+alter table public.sales
+add column if not exists customer_id uuid references public.customers(id) on delete set null;
+
+create index if not exists idx_sales_customer_id on public.sales(customer_id);
 
 create table if not exists public.sales_items (
   id uuid primary key default gen_random_uuid(),
@@ -362,6 +383,7 @@ alter table public.staff_profiles enable row level security;
 alter table public.staff_salary_payments enable row level security;
 alter table public.staff_salary_ledgers enable row level security;
 alter table public.staff_salary_transactions enable row level security;
+alter table public.customers enable row level security;
 alter table public.sales enable row level security;
 alter table public.sales_items enable row level security;
 alter table public.sales_payments enable row level security;
@@ -599,6 +621,39 @@ drop policy if exists "anon can delete staff salary transactions" on public.staf
 drop policy if exists "authenticated can delete staff salary transactions" on public.staff_salary_transactions;
 create policy "authenticated can delete staff salary transactions"
 on public.staff_salary_transactions
+for delete
+to authenticated
+using (true);
+
+drop policy if exists "anon can read customers" on public.customers;
+drop policy if exists "authenticated can read customers" on public.customers;
+create policy "authenticated can read customers"
+on public.customers
+for select
+to authenticated
+using (true);
+
+drop policy if exists "anon can insert customers" on public.customers;
+drop policy if exists "authenticated can insert customers" on public.customers;
+create policy "authenticated can insert customers"
+on public.customers
+for insert
+to authenticated
+with check (true);
+
+drop policy if exists "anon can update customers" on public.customers;
+drop policy if exists "authenticated can update customers" on public.customers;
+create policy "authenticated can update customers"
+on public.customers
+for update
+to authenticated
+using (true)
+with check (true);
+
+drop policy if exists "anon can delete customers" on public.customers;
+drop policy if exists "authenticated can delete customers" on public.customers;
+create policy "authenticated can delete customers"
+on public.customers
 for delete
 to authenticated
 using (true);
@@ -981,6 +1036,12 @@ execute function public.set_updated_at();
 drop trigger if exists staff_salary_transactions_set_updated_at on public.staff_salary_transactions;
 create trigger staff_salary_transactions_set_updated_at
 before update on public.staff_salary_transactions
+for each row
+execute function public.set_updated_at();
+
+drop trigger if exists customers_set_updated_at on public.customers;
+create trigger customers_set_updated_at
+before update on public.customers
 for each row
 execute function public.set_updated_at();
 

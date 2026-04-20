@@ -20,6 +20,7 @@ import { cn } from "@/lib/utils";
 type Invoice = {
   id: string;
   invoiceNumber: string;
+  customerId?: string | null;
   customer: string;
   totalAmount: string;
   paidAmount: string;
@@ -244,9 +245,17 @@ export function InvoicesTable({
                       {invoice.initials}
                     </div>
                     <Link
-                      href={`/sales/customer/${encodeURIComponent(invoice.customer)}`}
+                      href={
+                        invoice.customerId
+                          ? `/customers/${invoice.customerId}`
+                          : `/sales/customer/${encodeURIComponent(invoice.customer)}`
+                      }
                       className="text-sm font-semibold text-slate-900 transition-colors group-hover:text-blue-600"
-                      title={`Open customer ledger for ${invoice.customer}`}
+                      title={
+                        invoice.customerId
+                          ? `Open customer profile for ${invoice.customer}`
+                          : `Open customer ledger for ${invoice.customer}`
+                      }
                     >
                       {highlightText(invoice.customer, search)}
                     </Link>

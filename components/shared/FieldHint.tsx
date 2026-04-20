@@ -7,7 +7,7 @@ export function FieldHint({
   className,
 }: {
   children: ReactNode;
-  tone?: "muted" | "info" | "warning";
+  tone?: "muted" | "info" | "warning" | "danger" | "default";
   className?: string;
 }) {
   const toneClass =
@@ -15,6 +15,8 @@ export function FieldHint({
       ? "text-blue-600"
       : tone === "warning"
         ? "text-amber-600"
+        : tone === "danger"
+          ? "text-red-600"
         : "text-slate-500";
 
   return <p className={cn("mt-2 text-xs leading-5", toneClass, className)}>{children}</p>;

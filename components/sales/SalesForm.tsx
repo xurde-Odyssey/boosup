@@ -17,9 +17,17 @@ type ProductOption = {
   sales_rate: number | null;
 };
 
+type CustomerOption = {
+  id: string;
+  name: string;
+  phone: string | null;
+  status: string | null;
+};
+
 type EditingSale = {
   id: string;
   invoice_number: string;
+  customer_id?: string | null;
   customer_name: string;
   sales_date: string;
   payment_status: string;
@@ -82,11 +90,13 @@ const normalizeSaleItems = (items: SaleItemRow[]) =>
 
 export function SalesForm({
   products,
+  customers = [],
   editingSale,
   defaultDate,
   locale = "en",
 }: {
   products: ProductOption[];
+  customers?: CustomerOption[];
   editingSale: EditingSale | null;
   defaultDate: string;
   locale?: AppLocale;
@@ -95,6 +105,7 @@ export function SalesForm({
   const salesMessages = messages.salesEntry;
   const [invoiceNumber, setInvoiceNumber] = useState(editingSale?.invoice_number ?? "");
   const [salesDateBs, setSalesDateBs] = useState(adToBs(editingSale?.sales_date ?? defaultDate));
+  const [customerId, setCustomerId] = useState(editingSale?.customer_id ?? "");
   const [customerName, setCustomerName] = useState(editingSale?.customer_name ?? "");
   const [paymentStatus, setPaymentStatus] = useState(
     editingSale?.payment_status ?? "PENDING",
@@ -160,6 +171,7 @@ export function SalesForm({
       editingSale && editingSale.payment_status === "PAID"
         ? JSON.stringify({
             invoiceNumber: editingSale.invoice_number.trim(),
+            customerId: editingSale.customer_id ?? "",
             customerName: editingSale.customer_name.trim(),
             salesDateBs: adToBs(editingSale.sales_date),
             paymentStatus: editingSale.payment_status,
@@ -191,13 +203,14 @@ export function SalesForm({
     () =>
       JSON.stringify({
         invoiceNumber: invoiceNumber.trim(),
+        customerId,
         customerName: customerName.trim(),
         salesDateBs,
         paymentStatus,
         discount: toNumber(discount).toFixed(2),
         items: normalizeSaleItems(items),
       }),
-    [customerName, discount, invoiceNumber, items, paymentStatus, salesDateBs],
+    [customerId, customerName, discount, invoiceNumber, items, paymentStatus, salesDateBs],
   );
 
   const updateItem = (index: number, nextValues: Partial<SaleItemRow>) => {
@@ -242,6 +255,7 @@ export function SalesForm({
       <input type="hidden" name="redirect_to" value="/sales" />
       <input type="hidden" name="tax" value={tax.toFixed(2)} />
       <input type="hidden" name="sales_date" value={salesDate} />
+      <input type="hidden" name="customer_id" value={customerId} />
 
       {isEditingSettledBill ? (
         <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
@@ -283,18 +297,57 @@ export function SalesForm({
           </div>
           <div>
             <label className="mb-2 block text-sm font-semibold text-slate-700">
+              Saved Customer Profile
+            </label>
+            <select
+              suppressHydrationWarning
+              value={customerId}
+              onChange={(event) => {
+                const nextCustomerId = event.target.value;
+                const nextCustomer = customers.find((customer) => customer.id === nextCustomerId);
+                setCustomerId(nextCustomerId);
+
+                if (nextCustomer) {
+                  setCustomerName(nextCustomer.name);
+                }
+              }}
+              className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-blue-500"
+            >
+              <option value="">One-time / manual customer</option>
+              {customers.map((customer) => (
+                <option key={customer.id} value={customer.id}>
+                  {customer.name}
+                  {customer.phone ? ` · ${customer.phone}` : ""}
+                </option>
+              ))}
+            </select>
+            <FieldHint>
+              Select a saved profile for customer ledger tracking, or leave blank for a one-time customer.
+            </FieldHint>
+          </div>
+          <div>
+            <label className="mb-2 block text-sm font-semibold text-slate-700">
               {salesMessages.customerName}
             </label>
             <input
               suppressHydrationWarning
               name="customer_name"
-              required
+              required={!customerId}
               value={customerName}
-              onChange={(event) => setCustomerName(event.target.value)}
+              onChange={(event) => {
+                setCustomerName(event.target.value);
+                if (customerId) {
+                  setCustomerId("");
+                }
+              }}
               placeholder={salesMessages.customerPlaceholder}
               className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-blue-500"
             />
-            <FieldHint>{salesMessages.customerHint}</FieldHint>
+            <FieldHint>
+              {customerId
+                ? "This invoice will be linked to the selected customer profile."
+                : salesMessages.customerHint}
+            </FieldHint>
           </div>
           <div>
             <label className="mb-2 block text-sm font-semibold text-slate-700">

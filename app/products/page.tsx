@@ -59,16 +59,17 @@ export default async function ProductsPage({
     .select("id, code, name, category, sales_rate, unit, status, notes")
     .order("code", { ascending: true });
 
-  const editingProduct = products.find((product) => product.id === editId) ?? null;
-  const nextProductCode = generateNextProductCode(products.map((product) => product.code));
-  const activeProducts = products.filter((product) => product.status === "ACTIVE").length;
-  const draftProducts = products.filter((product) => product.status === "DRAFT").length;
+  const productRows = products ?? [];
+  const editingProduct = productRows.find((product) => product.id === editId) ?? null;
+  const nextProductCode = generateNextProductCode(productRows.map((product) => product.code));
+  const activeProducts = productRows.filter((product) => product.status === "ACTIVE").length;
+  const draftProducts = productRows.filter((product) => product.status === "DRAFT").length;
   const searchedProducts = search
-    ? products.filter((product) => {
+    ? productRows.filter((product) => {
         const haystack = `${product.code} ${product.name} ${product.category} ${product.unit}`.toLowerCase();
         return haystack.includes(search.toLowerCase());
       })
-    : products;
+    : productRows;
   const filteredProducts =
     status === "ALL"
       ? searchedProducts
@@ -124,7 +125,7 @@ export default async function ProductsPage({
                 <Boxes className="h-5 w-5" />
               </div>
             </div>
-            <div className="text-2xl font-bold text-slate-900">{products.length}</div>
+            <div className="text-2xl font-bold text-slate-900">{productRows.length}</div>
             <p className="text-xs font-semibold text-blue-600">Products added manually</p>
           </div>
 
@@ -281,7 +282,7 @@ export default async function ProductsPage({
               </div>
               <div className="inline-flex items-center gap-2 rounded-xl bg-slate-50 px-3 py-2 text-sm font-medium text-slate-600">
                 <Tag className="h-4 w-4 text-slate-400" />
-                {products.length} items
+                {productRows.length} items
               </div>
             </div>
 

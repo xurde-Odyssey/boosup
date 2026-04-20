@@ -35,15 +35,23 @@ export default async function CreateSalesPage({
   const notice = typeof params.notice === "string" ? params.notice : "";
   const todayDate = getTodayDate();
 
-  const { data: products = [] } = await supabase
-    .from("products")
-    .select("id, name, sales_rate")
-    .eq("status", "ACTIVE")
-    .order("name");
+  const [{ data: products = [] }, { data: customers = [] }] = await Promise.all([
+    supabase
+      .from("products")
+      .select("id, name, sales_rate")
+      .eq("status", "ACTIVE")
+      .order("name"),
+    supabase
+      .from("customers")
+      .select("id, name, phone, status")
+      .eq("status", "ACTIVE")
+      .order("name"),
+  ]);
 
   let editingSale: {
     id: string;
     invoice_number: string;
+    customer_id: string | null;
     customer_name: string;
     sales_date: string;
     payment_status: string;
@@ -74,7 +82,7 @@ export default async function CreateSalesPage({
       supabase
         .from("sales")
         .select(
-          "id, invoice_number, customer_name, sales_date, payment_status, subtotal, discount, tax, amount_received, remaining_amount, notes",
+          "id, invoice_number, customer_id, customer_name, sales_date, payment_status, subtotal, discount, tax, amount_received, remaining_amount, notes",
         )
         .eq("id", editId)
         .single(),
@@ -108,6 +116,8 @@ export default async function CreateSalesPage({
   const paymentHistory = [...(editingSale?.sales_payments ?? [])].sort((left, right) =>
     left.payment_date < right.payment_date ? 1 : -1,
   );
+  const productRows = products ?? [];
+  const customerRows = customers ?? [];
 
   return (
     <div className="flex min-h-screen bg-slate-50/50">
@@ -153,7 +163,8 @@ export default async function CreateSalesPage({
             <SalesForm
               key={editingSale?.id ?? "new-sale"}
               defaultDate={todayDate}
-              products={products}
+              products={productRows}
+              customers={customerRows}
               editingSale={editingSale}
               locale={locale}
             />

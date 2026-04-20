@@ -32,10 +32,12 @@ export function ActionIconButton(props: ActionIconButtonProps) {
     );
   }
 
-  const { type = "button", ...restProps } = props;
+  const buttonProps = props as BaseProps & ButtonHTMLAttributes<HTMLButtonElement>;
+  const { type = "button", ...restProps } = buttonProps;
+  const buttonType = type as "button" | "submit" | "reset";
 
   return (
-    <button type={type} {...restProps} title={label} aria-label={label} className={classes}>
+    <button type={buttonType} {...restProps} title={label} aria-label={label} className={classes}>
       {children}
     </button>
   );

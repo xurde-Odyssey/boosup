@@ -49,6 +49,7 @@ export default async function CreatePurchasePage({
 
   const editingPurchase = purchaseResponse.data;
   const purchasePayments = paymentsResponse.data ?? [];
+  const vendorRows = vendors ?? [];
 
   return (
     <div className="flex min-h-screen bg-slate-50/50">
@@ -65,7 +66,7 @@ export default async function CreatePurchasePage({
         <QueryNoticeToast message={notice} />
 
         <PurchaseForm
-          vendors={vendors}
+          vendors={vendorRows}
           editingPurchase={editingPurchase}
           purchasePayments={purchasePayments}
           defaultDate={todayDate}

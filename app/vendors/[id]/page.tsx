@@ -77,7 +77,18 @@ export default async function VendorLedgerPage({
 
   const vendor = vendorResponse.data;
   const purchases = purchasesResponse.data ?? [];
-  const payments = paymentsResponse.data ?? [];
+  const payments = (paymentsResponse.data ?? []).map((payment) => {
+    const purchase = Array.isArray(payment.purchases) ? payment.purchases[0] : payment.purchases;
+
+    return {
+      ...payment,
+      purchases: purchase
+        ? {
+            purchase_number: purchase.purchase_number ?? null,
+          }
+        : null,
+    };
+  });
   const supplierPayments = supplierPaymentsResponse.data ?? [];
   const paymentsByPurchase = new Map<string, typeof payments>();
   payments.forEach((payment) => {
