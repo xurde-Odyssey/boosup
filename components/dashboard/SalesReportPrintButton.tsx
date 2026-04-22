@@ -19,6 +19,7 @@ type SummaryMetric = {
 };
 
 type SalesInvoiceRow = {
+  id: string;
   invoiceNumber: string;
   customer: string;
   totalAmount: string;
@@ -121,7 +122,7 @@ export function SalesReportPrintButton({
                   </thead>
                   <tbody className={PRINT_TABLE_BODY_CLASS}>
                     {invoices.map((invoice) => (
-                      <tr key={`${invoice.invoiceNumber}-${invoice.customer}`}>
+                      <tr key={invoice.id}>
                         <td className="px-3 py-2.5 font-semibold text-slate-900">
                           {invoice.invoiceNumber}
                         </td>

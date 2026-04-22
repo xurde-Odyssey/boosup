@@ -1,12 +1,18 @@
 import {
+  BadgeDollarSign,
   CalendarClock,
   CircleDollarSign,
   FilePlus,
   HandCoins,
+  Package,
+  ReceiptText,
   ShoppingCart,
   TrendingUp,
+  Truck,
+  Users,
 } from "lucide-react";
 import { AlertsCard } from "@/components/dashboard/AlertsCard";
+import { ActivityCard } from "@/components/dashboard/ActivityCard";
 import { ChartCard } from "@/components/dashboard/ChartCard";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
@@ -134,6 +140,7 @@ export default async function Home({
     expensesResponse,
     salesItemsResponse,
     purchaseItemsResponse,
+    activityLogsResponse,
   ] = await Promise.all([
     supabase
       .from("sales")
@@ -173,6 +180,11 @@ export default async function Home({
       .from("purchase_items")
       .select("product_name, quantity, amount, purchases(purchase_date)")
       .order("created_at", { ascending: false }),
+    supabase
+      .from("activity_logs")
+      .select("id, module, action, title, description, amount, created_at")
+      .order("created_at", { ascending: false })
+      .limit(12),
   ]);
 
   const sales = salesResponse.data ?? [];
@@ -185,6 +197,7 @@ export default async function Home({
   const purchaseExpenses = expensesResponse.data ?? [];
   const salesItems = salesItemsResponse.data ?? [];
   const purchaseItems = purchaseItemsResponse.data ?? [];
+  const activityLogs = activityLogsResponse.data ?? [];
   const payrollMonthSummaries = staffLedgerSnapshots.ledgers;
   const filteredSales = sales.filter((sale) => isWithinRange(sale.sales_date, fromDate, toDate));
   const filteredPurchases = purchases.filter((purchase) =>
@@ -524,6 +537,40 @@ export default async function Home({
   const salaryPendingHref = buildDrillDownHref("/staff", selectedRange, fromDate, toDate, {
     salary_status: "pending",
   });
+  const activityIconByModule = {
+    sales: ReceiptText,
+    purchases: ShoppingCart,
+    suppliers: Truck,
+    customers: Users,
+    staff: BadgeDollarSign,
+    products: Package,
+    expenses: HandCoins,
+  };
+  const activityToneByModule: Record<string, string> = {
+    sales: "green",
+    purchases: "blue",
+    suppliers: "amber",
+    customers: "emerald",
+    staff: "slate",
+    products: "blue",
+    expenses: "amber",
+  };
+  const activityItems = activityLogs.map((activity) => {
+    const createdAt = activity.created_at ?? todayDate;
+    return {
+      id: activity.id,
+      title: activity.title,
+      description: activity.description ?? activity.module,
+      amount:
+        activity.amount === null || activity.amount === undefined
+          ? "-"
+          : formatCurrency(activity.amount),
+      date: formatBsDisplayDate(createdAt.slice(0, 10)),
+      isoDate: createdAt,
+      tone: activityToneByModule[activity.module] ?? "slate",
+      icon: activityIconByModule[activity.module as keyof typeof activityIconByModule] ?? ReceiptText,
+    };
+  });
 
   return (
     <DashboardLayout>
@@ -673,6 +720,10 @@ export default async function Home({
             ]}
           />
         </div>
+      </DashboardGrid>
+
+      <DashboardGrid className="mb-8">
+        <ActivityCard items={activityItems} todayDate={todayDate} locale={locale} />
       </DashboardGrid>
 
       <DashboardGrid className="mb-8">

@@ -90,10 +90,9 @@ export function SupplierPaymentModal({
                   <label className="mb-2 block text-sm font-semibold text-slate-700">Payment Amount</label>
                   <Input
                     name="amount"
-                    type="number"
-                    min="0.01"
-                    max={totalPayable.toFixed(2)}
-                    step="0.01"
+                    type="text"
+                    inputMode="decimal"
+                    pattern="[0-9]*[.]?[0-9]*"
                     placeholder="0.00"
                     required
                   />

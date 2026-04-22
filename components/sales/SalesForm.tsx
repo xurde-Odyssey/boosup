@@ -3,7 +3,6 @@
 import { Plus, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { upsertSale } from "@/app/actions";
-import { FieldHint } from "@/components/shared/FieldHint";
 import { FormSectionHeader } from "@/components/shared/FormSectionHeader";
 import { NepaliDateInput } from "@/components/shared/NepaliDateInput";
 import { FormStickyActions } from "@/components/shared/FormStickyActions";
@@ -79,6 +78,23 @@ const createEmptyRow = (): SaleItemRow => ({
   taxable: false,
 });
 
+const salesInvoicePattern = /^SA-\d{4}\/\d{2}\/\d{2}-(.*)$/;
+
+const buildSalesInvoicePrefix = (bsDate: string) => {
+  const [year, month, day] = bsDate.trim().replace(/[.-]/g, "/").split("/");
+
+  if (!year || !month || !day) {
+    return "SA-";
+  }
+
+  return `SA-${year}/${month.padStart(2, "0")}/${day.padStart(2, "0")}-`;
+};
+
+const getSalesInvoiceSuffix = (invoiceNumber: string) => {
+  const match = invoiceNumber.match(salesInvoicePattern);
+  return match ? match[1] : invoiceNumber;
+};
+
 const normalizeSaleItems = (items: SaleItemRow[]) =>
   items.map((item) => ({
     productId: item.productId.trim(),
@@ -103,8 +119,10 @@ export function SalesForm({
 }) {
   const messages = getMessages(locale);
   const salesMessages = messages.salesEntry;
-  const [invoiceNumber, setInvoiceNumber] = useState(editingSale?.invoice_number ?? "");
   const [salesDateBs, setSalesDateBs] = useState(adToBs(editingSale?.sales_date ?? defaultDate));
+  const [invoiceNumberSuffix, setInvoiceNumberSuffix] = useState(
+    getSalesInvoiceSuffix(editingSale?.invoice_number ?? ""),
+  );
   const [customerId, setCustomerId] = useState(editingSale?.customer_id ?? "");
   const [customerName, setCustomerName] = useState(editingSale?.customer_name ?? "");
   const [paymentStatus, setPaymentStatus] = useState(
@@ -136,6 +154,8 @@ export function SalesForm({
   const [paymentDateBs, setPaymentDateBs] = useState(adToBs(defaultDate));
   const salesDate = bsToAd(salesDateBs);
   const paymentDate = bsToAd(paymentDateBs);
+  const invoicePrefix = buildSalesInvoicePrefix(salesDateBs);
+  const invoiceNumber = `${invoicePrefix}${invoiceNumberSuffix.trim()}`;
   const isEditingSettledBill = Boolean(editingSale && editingSale.payment_status === "PAID");
 
   const subtotal = items.reduce((sum, item) => {
@@ -253,6 +273,7 @@ export function SalesForm({
     >
       <input type="hidden" name="id" defaultValue={editingSale?.id ?? ""} />
       <input type="hidden" name="redirect_to" value="/sales" />
+      <input type="hidden" name="invoice_number" value={invoiceNumber} />
       <input type="hidden" name="tax" value={tax.toFixed(2)} />
       <input type="hidden" name="sales_date" value={salesDate} />
       <input type="hidden" name="customer_id" value={customerId} />
@@ -268,24 +289,27 @@ export function SalesForm({
         <FormSectionHeader
           eyebrow={salesMessages.partyEyebrow}
           title={salesMessages.partyTitle}
-          description={salesMessages.partyDescription}
         />
         <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2">
           <div>
-            <label className="mb-2 block text-sm font-semibold text-slate-700">
+            <label htmlFor="sales-invoice-number" className="mb-2 block text-sm font-semibold text-slate-700">
               {salesMessages.billNumber}
             </label>
-            <input
-              suppressHydrationWarning
-              name="invoice_number"
-              required
-              autoFocus
-              value={invoiceNumber}
-              onChange={(event) => setInvoiceNumber(event.target.value)}
-              placeholder="55"
-              className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-blue-500"
-            />
-            <FieldHint>{salesMessages.billNumberHint}</FieldHint>
+            <div className="flex w-full">
+              <span className="inline-flex shrink-0 items-center rounded-l-xl border border-slate-200 bg-slate-100 px-4 py-3 text-sm font-semibold text-slate-700">
+                {invoicePrefix}
+              </span>
+              <input
+                suppressHydrationWarning
+                id="sales-invoice-number"
+                required
+                autoFocus
+                value={invoiceNumberSuffix}
+                onChange={(event) => setInvoiceNumberSuffix(event.target.value)}
+                placeholder="55"
+                className="min-w-0 flex-1 rounded-r-xl border border-l-0 border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-blue-500"
+              />
+            </div>
           </div>
           <div>
             <label className="mb-2 block text-sm font-semibold text-slate-700">
@@ -293,7 +317,6 @@ export function SalesForm({
             </label>
             <NepaliDateInput value={salesDateBs} onChange={setSalesDateBs} />
             <input type="hidden" name="sales_date_bs" value={salesDateBs} />
-            <FieldHint>{salesMessages.bsDateHint}</FieldHint>
           </div>
           <div>
             <label className="mb-2 block text-sm font-semibold text-slate-700">
@@ -321,9 +344,6 @@ export function SalesForm({
                 </option>
               ))}
             </select>
-            <FieldHint>
-              Select a saved profile for customer ledger tracking, or leave blank for a one-time customer.
-            </FieldHint>
           </div>
           <div>
             <label className="mb-2 block text-sm font-semibold text-slate-700">
@@ -343,11 +363,6 @@ export function SalesForm({
               placeholder={salesMessages.customerPlaceholder}
               className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-blue-500"
             />
-            <FieldHint>
-              {customerId
-                ? "This invoice will be linked to the selected customer profile."
-                : salesMessages.customerHint}
-            </FieldHint>
           </div>
           <div>
             <label className="mb-2 block text-sm font-semibold text-slate-700">
@@ -373,7 +388,6 @@ export function SalesForm({
         <FormSectionHeader
           eyebrow={salesMessages.itemsEyebrow}
           title={salesMessages.itemsTitle}
-          description={salesMessages.itemsDescription}
           action={
             <button
               type="button"
@@ -443,7 +457,6 @@ export function SalesForm({
                       </option>
                     ))}
                   </select>
-                  <FieldHint>{salesMessages.productHint}</FieldHint>
                 </div>
                 <div>
                   <label className="mb-2 block text-sm font-semibold text-slate-700">
@@ -569,7 +582,6 @@ export function SalesForm({
         <FormSectionHeader
           eyebrow={salesMessages.paymentEyebrow}
           title={salesMessages.paymentTitle}
-          description={salesMessages.paymentDescription}
         />
         <div className="mt-5 space-y-4">
           <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
@@ -674,10 +686,9 @@ export function SalesForm({
                 <input
                   suppressHydrationWarning
                   name="payment_increment"
-                  type="number"
-                  min="0"
-                  max={remainingBeforePayment}
-                  step="0.01"
+                  type="text"
+                  inputMode="decimal"
+                  pattern="[0-9]*[.]?[0-9]*"
                   value={paymentIncrement}
                   onChange={(event) => setPaymentIncrement(event.target.value)}
                   placeholder={
@@ -685,9 +696,8 @@ export function SalesForm({
                       ? salesMessages.collectFullRemaining
                       : salesMessages.receivedAmountPlaceholder
                   }
-                  className="[appearance:textfield] w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none focus:border-blue-500"
+                  className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-blue-500"
                 />
-                <FieldHint>{salesMessages.receivedAmountHint}</FieldHint>
               </div>
               <div>
                 <label className="mb-2 block text-sm font-semibold text-slate-700">
@@ -712,7 +722,6 @@ export function SalesForm({
         <FormSectionHeader
           eyebrow={salesMessages.notesEyebrow}
           title={salesMessages.notesTitle}
-          description={salesMessages.notesDescription}
         />
         <div className="mt-5">
           <textarea

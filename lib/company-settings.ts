@@ -16,7 +16,7 @@ export const DEFAULT_COMPANY_SETTINGS: CompanySettings = {
   email: "suppliersdipak@gmail.com",
   website: "www.dipaksuppliers.com.np",
   logoPath: "/logos/logo.png",
-  faviconPath: "/logos/icon.png",
+  faviconPath: "/logos/book.ico",
 };
 
 export const normalizeCompanyAssetPath = (value: string | null | undefined, fallback: string) => {

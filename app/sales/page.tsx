@@ -71,11 +71,6 @@ const getDateRange = (range: string, today: string) => {
   };
 };
 
-const isWithinRange = (value: string | null | undefined, from: string, to: string) => {
-  if (!value) return false;
-  return value >= from && value <= to;
-};
-
 const formatReportPeriod = (range: string, from: string, to: string) => {
   if (range === "week") return "This Week";
   if (range === "month") return "This Month";
@@ -108,21 +103,16 @@ export default async function SalesPage({
   })();
   const company = await getCompanySettings();
   const supabase = await getSupabaseClient();
-  const [{ data: allSales = [] }, { data: allSalesItems = [] }] = await Promise.all([
-    supabase
-      .from("sales")
-      .select(
-        "id, invoice_number, customer_id, customer_name, sales_date, payment_status, grand_total, amount_received, remaining_amount, customers(name)",
-      )
-      .order("created_at", { ascending: false }),
-    supabase
-      .from("sales_items")
-      .select("sale_id, product_name, quantity, amount"),
-  ]);
+  const { data: allSales = [] } = await supabase
+    .from("sales")
+    .select(
+      "id, invoice_number, customer_id, customer_name, sales_date, payment_status, grand_total, amount_received, remaining_amount, customers(name)",
+    )
+    .gte("sales_date", fromDate)
+    .lte("sales_date", toDate)
+    .order("created_at", { ascending: false });
 
-  const allSalesRows = allSales ?? [];
-  const allSalesItemRows = allSalesItems ?? [];
-  const rangedSales = allSalesRows.filter((sale) => isWithinRange(sale.sales_date, fromDate, toDate));
+  const rangedSales = allSales ?? [];
   const searchedSales = search
     ? rangedSales.filter((sale) => {
         const haystack = `${sale.invoice_number} ${sale.customer_name}`.toLowerCase();
@@ -199,6 +189,7 @@ export default async function SalesPage({
     };
   });
   const reportInvoices = sales.slice(0, 10).map((sale) => ({
+    id: sale.id,
     invoiceNumber: sale.invoice_number,
     customer: sale.customer_name,
     totalAmount: formatCurrency(sale.grand_total),
@@ -207,17 +198,23 @@ export default async function SalesPage({
     status: sale.payment_status,
     date: formatBsDisplayDate(sale.sales_date),
   }));
-  const filteredSaleIds = new Set(sales.map((sale) => sale.id));
-  const filteredSalesItems = allSalesItemRows.filter((item) => filteredSaleIds.has(item.sale_id));
+  const filteredSaleIds = sales.map((sale) => sale.id);
+  const { data: filteredSalesItems = [] } = filteredSaleIds.length
+    ? await supabase
+        .from("sales_items")
+        .select("sale_id, product_name, quantity, amount")
+        .in("sale_id", filteredSaleIds)
+    : { data: [] };
+  const salesById = new Map(sales.map((sale) => [sale.id, sale]));
   const topSalesItemMap = new Map<
     string,
     { quantity: number; amount: number; invoiceCount: number; lastSold: string | null }
   >();
-  filteredSalesItems.forEach((item) => {
+  (filteredSalesItems ?? []).forEach((item) => {
     const itemName = item.product_name?.trim();
     if (!itemName) return;
 
-    const parentSale = sales.find((sale) => sale.id === item.sale_id);
+    const parentSale = salesById.get(item.sale_id);
     const existing = topSalesItemMap.get(itemName) ?? {
       quantity: 0,
       amount: 0,
