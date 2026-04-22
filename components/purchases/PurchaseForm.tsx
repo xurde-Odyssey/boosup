@@ -584,10 +584,9 @@ export function PurchaseForm({
                 </label>
                 <input
                   name="payment_now"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  max={payableAmount.toFixed(2)}
+                  type="text"
+                  inputMode="decimal"
+                  pattern="[0-9]*[.]?[0-9]*"
                   value={paymentNow}
                   onChange={(event) => setPaymentNow(event.target.value)}
                   placeholder={purchaseMessages.amountPaidNowPlaceholder}

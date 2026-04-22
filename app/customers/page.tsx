@@ -40,9 +40,19 @@ export default async function CustomersPage({
 
   const customerProfiles = customers ?? [];
   const salesRows = linkedSales ?? [];
+  const salesByCustomerId = salesRows.reduce(
+    (groups, sale) => {
+      if (!sale.customer_id) return groups;
+      const customerSales = groups.get(sale.customer_id) ?? [];
+      customerSales.push(sale);
+      groups.set(sale.customer_id, customerSales);
+      return groups;
+    },
+    new Map<string, typeof salesRows>(),
+  );
 
   const customerRows = customerProfiles.map((customer) => {
-    const sales = salesRows.filter((sale) => sale.customer_id === customer.id);
+    const sales = salesByCustomerId.get(customer.id) ?? [];
     const totalInvoiced = sales.reduce((sum, sale) => sum + Number(sale.grand_total ?? 0), 0);
     const totalPaid = sales.reduce((sum, sale) => sum + Number(sale.amount_received ?? 0), 0);
     const totalDue = sales.reduce((sum, sale) => sum + Number(sale.remaining_amount ?? 0), 0);

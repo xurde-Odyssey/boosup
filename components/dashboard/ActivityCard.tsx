@@ -61,7 +61,7 @@ export function ActivityCard({
   const messages = getMessages(locale);
 
   return (
-    <Card className="overflow-hidden border-slate-200/80 xl:col-span-5">
+    <Card className="overflow-hidden border-slate-200/80 xl:col-span-12">
       <SectionHeader
         title={messages.dashboardPage.recentActivity}
         description="Operational log grouped by recency across sales, purchases, expenses, and staff."

@@ -154,9 +154,6 @@ export default async function CreateSalesPage({
               </div>
               <div>
                 <h3 className="text-lg font-bold text-slate-900">{salesMessages.entryTitle}</h3>
-                <p className="text-sm text-slate-500">
-                  {salesMessages.entrySubtitle}
-                </p>
               </div>
             </div>
 
@@ -178,7 +175,6 @@ export default async function CreateSalesPage({
                 </div>
                 <div>
                   <h3 className="text-lg font-bold text-slate-900">{salesMessages.summaryTitle}</h3>
-                  <p className="text-sm text-slate-500">{salesMessages.summarySubtitle}</p>
                 </div>
               </div>
               <div className="space-y-3 text-sm">

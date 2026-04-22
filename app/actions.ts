@@ -73,6 +73,35 @@ const resolveGregorianDate = (formData: FormData, adKey: string, bsKey: string) 
   return bsToAd(readText(formData, bsKey));
 };
 
+const recordActivity = async (
+  supabase: Awaited<ReturnType<typeof getSupabaseClient>>,
+  payload: {
+    module: string;
+    action: string;
+    title: string;
+    description?: string | null;
+    amount?: number | null;
+    entityType?: string | null;
+    entityId?: string | null;
+    metadata?: Record<string, string | number | boolean | null>;
+  },
+) => {
+  const { error } = await supabase.from("activity_logs").insert({
+    module: payload.module,
+    action: payload.action,
+    title: payload.title,
+    description: payload.description ?? null,
+    amount: payload.amount ?? null,
+    entity_type: payload.entityType ?? null,
+    entity_id: payload.entityId || null,
+    metadata: payload.metadata ?? {},
+  });
+
+  if (error) {
+    console.warn("Failed to record activity", error.message);
+  }
+};
+
 const resolveStaffSalaryFormPath = (id: string, staffId: string) =>
   id ? `/staff/payment/create?edit=${id}` : `/staff/payment/create${staffId ? `?staff=${staffId}` : ""}`;
 
@@ -228,6 +257,15 @@ export async function upsertProduct(formData: FormData) {
     await supabase.from("products").insert(payload);
   }
 
+  await recordActivity(supabase, {
+    module: "products",
+    action: actionType,
+    title: `Product ${actionType}`,
+    description: payload.name,
+    amount: payload.sales_rate,
+    entityType: "product",
+    entityId: id || null,
+  });
   revalidateAll("/products", "/sales/create", "/purchases");
   redirectWithNotice("/products", formData, "Product", actionType);
 }
@@ -235,7 +273,16 @@ export async function upsertProduct(formData: FormData) {
 export async function deleteProduct(formData: FormData) {
   const supabase = await getSupabaseClient();
   const id = readText(formData, "id");
+  const { data: product } = await supabase.from("products").select("name").eq("id", id).maybeSingle();
   await supabase.from("products").delete().eq("id", id);
+  await recordActivity(supabase, {
+    module: "products",
+    action: "deleted",
+    title: "Product deleted",
+    description: product?.name ?? "Product",
+    entityType: "product",
+    entityId: id,
+  });
   revalidateAll("/products", "/sales/create", "/purchases");
   redirectWithNotice("/products", formData, "Product", "deleted");
 }
@@ -262,6 +309,14 @@ export async function upsertVendor(formData: FormData) {
     await supabase.from("vendors").insert(payload);
   }
 
+  await recordActivity(supabase, {
+    module: "suppliers",
+    action: actionType,
+    title: `Supplier ${actionType}`,
+    description: payload.name,
+    entityType: "vendor",
+    entityId: id || null,
+  });
   revalidateAll("/purchases", "/vendors");
   redirectWithNotice("/vendors", formData, "Supplier", actionType);
 }
@@ -269,7 +324,16 @@ export async function upsertVendor(formData: FormData) {
 export async function deleteVendor(formData: FormData) {
   const supabase = await getSupabaseClient();
   const id = readText(formData, "id");
+  const { data: vendor } = await supabase.from("vendors").select("name").eq("id", id).maybeSingle();
   await supabase.from("vendors").delete().eq("id", id);
+  await recordActivity(supabase, {
+    module: "suppliers",
+    action: "deleted",
+    title: "Supplier deleted",
+    description: vendor?.name ?? "Supplier",
+    entityType: "vendor",
+    entityId: id,
+  });
   revalidateAll("/purchases", "/vendors");
   redirectWithNotice("/vendors", formData, "Supplier", "deleted");
 }
@@ -306,6 +370,14 @@ export async function upsertCustomer(formData: FormData) {
     }
   }
 
+  await recordActivity(supabase, {
+    module: "customers",
+    action: actionType,
+    title: `Customer ${actionType}`,
+    description: name,
+    entityType: "customer",
+    entityId: id || null,
+  });
   revalidateAll("/customers", "/sales", "/sales/create");
   redirectWithNotice("/customers", formData, "Customer", actionType);
 }
@@ -323,43 +395,16 @@ export async function deleteCustomer(formData: FormData) {
     redirectWithMessage("/customers", error.message || "Failed to delete customer");
   }
 
+  await recordActivity(supabase, {
+    module: "customers",
+    action: "deleted",
+    title: "Customer deleted",
+    description: "Customer profile removed",
+    entityType: "customer",
+    entityId: id,
+  });
   revalidateAll("/customers", "/sales", "/sales/create");
   redirectWithNotice("/customers", formData, "Customer", "deleted");
-}
-
-export async function linkCustomerSalesByName(formData: FormData) {
-  const supabase = await getSupabaseClient();
-  const customerId = readText(formData, "customer_id");
-  const redirectPath = customerId ? `/customers/${customerId}` : "/customers";
-
-  if (!customerId) {
-    redirectWithMessage("/customers", "Customer profile is required");
-  }
-
-  const { data: customer, error: customerError } = await supabase
-    .from("customers")
-    .select("id, name")
-    .eq("id", customerId)
-    .single();
-
-  const customerName = customer?.name?.trim();
-
-  if (customerError || !customerName) {
-    redirectWithMessage(redirectPath, "Customer profile was not found");
-  }
-
-  const { error } = await supabase
-    .from("sales")
-    .update({ customer_id: customerId })
-    .is("customer_id", null)
-    .eq("customer_name", customerName);
-
-  if (error) {
-    redirectWithMessage(redirectPath, error.message || "Failed to link old sales");
-  }
-
-  revalidateAll("/", "/sales", "/sales/view", "/customers", redirectPath);
-  redirectWithMessage(redirectPath, "Matching old sales linked to customer profile");
 }
 
 export async function createCustomerPayment(formData: FormData) {
@@ -383,111 +428,36 @@ export async function createCustomerPayment(formData: FormData) {
     redirectWithMessage(redirectPath, "Valid payment date is required");
   }
 
-  const { data: customer, error: customerError } = await supabase
-    .from("customers")
-    .select("id, name")
-    .eq("id", customerId)
-    .single();
+  const { data, error } = await supabase.rpc("record_customer_payment_with_allocations", {
+    p_customer_id: customerId,
+    p_payment_date: paymentDate,
+    p_amount: paymentAmount,
+    p_payment_method: paymentMethod,
+    p_note: note || null,
+  });
 
-  if (customerError || !customer?.id) {
-    redirectWithMessage(redirectPath, "Customer profile was not found");
+  if (error) {
+    redirectWithMessage(redirectPath, error.message || "Failed to record customer payment");
   }
 
-  const { data: unpaidSales = [], error: salesError } = await supabase
-    .from("sales")
-    .select("id, invoice_number, sales_date, created_at, payment_status, grand_total, amount_received, remaining_amount")
-    .eq("customer_id", customerId)
-    .order("sales_date", { ascending: true })
-    .order("created_at", { ascending: true });
+  const result = Array.isArray(data) ? data[0] : data;
+  const allocatedInvoiceCount = Number(result?.allocated_invoice_count ?? 0);
+  const customerPaymentId = String(result?.customer_payment_id ?? "");
 
-  if (salesError) {
-    redirectWithMessage(redirectPath, salesError.message || "Failed to load customer invoices");
-  }
-
-  const payableSales = (unpaidSales ?? [])
-    .map((sale) => ({
-      ...sale,
-      totalAmount: Number(sale.grand_total ?? 0),
-      receivedAmount: Number(sale.amount_received ?? 0),
-      remainingAmount: Number(sale.remaining_amount ?? 0),
-    }))
-    .filter((sale) => sale.remainingAmount > 0);
-
-  if (payableSales.length === 0) {
-    redirectWithMessage(redirectPath, "No unpaid sales invoices available for this customer");
-  }
-
-  const totalDue = payableSales.reduce((sum, sale) => sum + sale.remainingAmount, 0);
-
-  if (paymentAmount > totalDue) {
-    redirectWithMessage(redirectPath, "Payment exceeds this customer's total due balance.");
-  }
-
-  let remainingPayment = paymentAmount;
-  const allocations = payableSales
-    .map((sale) => {
-      if (remainingPayment <= 0) return null;
-      const allocatedAmount = Math.min(remainingPayment, sale.remainingAmount);
-      remainingPayment -= allocatedAmount;
-      return { sale, allocatedAmount };
-    })
-    .filter(
-      (
-        allocation,
-      ): allocation is {
-        sale: (typeof payableSales)[number];
-        allocatedAmount: number;
-      } => Boolean(allocation && allocation.allocatedAmount > 0),
-    );
-
-  if (allocations.length === 0) {
-    redirectWithMessage(redirectPath, "Unable to allocate this payment to customer invoices");
-  }
-
-  for (const allocation of allocations) {
-    const { amountReceived, paymentStatus } = calculateSalesPaymentState({
-      grossTotal: allocation.sale.totalAmount,
-      existingAmountReceived: allocation.sale.receivedAmount,
-      requestedPaymentStatus: "PARTIAL",
-      paymentIncrementInput: allocation.allocatedAmount,
-    });
-
-    const { error: saleUpdateError } = await supabase
-      .from("sales")
-      .update({
-        amount_received: amountReceived,
-        payment_status: paymentStatus,
-      })
-      .eq("id", allocation.sale.id);
-
-    if (saleUpdateError) {
-      redirectWithMessage(
-        redirectPath,
-        saleUpdateError.message || "Failed to update customer invoice balance",
-      );
-    }
-
-    const paymentNoteParts = [
-      note || null,
-      `Customer payment allocation`,
-      `Method: ${paymentMethod}`,
-    ].filter(Boolean);
-
-    const { error: paymentInsertError } = await supabase.from("sales_payments").insert({
-      sale_id: allocation.sale.id,
+  await recordActivity(supabase, {
+    module: "customers",
+    action: "payment",
+    title: "Customer payment recorded",
+    description: `${allocatedInvoiceCount} invoice${allocatedInvoiceCount === 1 ? "" : "s"} allocated`,
+    amount: paymentAmount,
+    entityType: "customer_payment",
+    entityId: customerPaymentId || null,
+    metadata: {
+      customer_id: customerId,
+      payment_method: paymentMethod,
       payment_date: paymentDate,
-      amount: allocation.allocatedAmount,
-      notes: paymentNoteParts.join(" | "),
-    });
-
-    if (paymentInsertError) {
-      redirectWithMessage(
-        redirectPath,
-        paymentInsertError.message || "Failed to record customer payment",
-      );
-    }
-  }
-
+    },
+  });
   revalidateAll("/", "/sales", "/sales/view", "/customers", redirectPath);
   redirectWithMessage(redirectPath, "Customer payment allocated to oldest unpaid invoices");
 }
@@ -637,6 +607,19 @@ export async function createSupplierPayment(formData: FormData) {
     }
   }
 
+  await recordActivity(supabase, {
+    module: "suppliers",
+    action: "payment",
+    title: "Supplier payment recorded",
+    description: `${allocations.length} bill${allocations.length === 1 ? "" : "s"} allocated`,
+    amount: paymentAmount,
+    entityType: "vendor",
+    entityId: vendorId,
+    metadata: {
+      payment_method: paymentMethod,
+      payment_date: paymentDate,
+    },
+  });
   revalidateAll("/purchases", "/vendors", redirectPath);
   redirectWithNotice(redirectPath, formData, "Supplier payment", "created");
 }
@@ -699,6 +682,15 @@ export async function upsertStaffProfile(formData: FormData) {
     await supabase.from("staff_profiles").insert(payload);
   }
 
+  await recordActivity(supabase, {
+    module: "staff",
+    action: actionType,
+    title: `Staff profile ${actionType}`,
+    description: payload.name,
+    amount: payload.total_salary,
+    entityType: "staff_profile",
+    entityId: id || null,
+  });
   revalidateAll("/staff");
   redirectWithNotice("/staff", formData, "Staff profile", actionType);
 }
@@ -706,7 +698,16 @@ export async function upsertStaffProfile(formData: FormData) {
 export async function deleteStaffProfile(formData: FormData) {
   const supabase = await getSupabaseClient();
   const id = readText(formData, "id");
+  const { data: staff } = await supabase.from("staff_profiles").select("name").eq("id", id).maybeSingle();
   await supabase.from("staff_profiles").delete().eq("id", id);
+  await recordActivity(supabase, {
+    module: "staff",
+    action: "deleted",
+    title: "Staff profile deleted",
+    description: staff?.name ?? "Staff profile",
+    entityType: "staff_profile",
+    entityId: id,
+  });
   revalidateAll("/staff");
   redirectWithNotice("/staff", formData, "Staff profile", "deleted");
 }
@@ -790,6 +791,20 @@ export async function upsertStaffSalaryPayment(formData: FormData) {
   }
   await syncStaffSalaryLedgers(supabase, staffId);
 
+  await recordActivity(supabase, {
+    module: "staff",
+    action: actionType,
+    title: `Staff salary transaction ${actionType}`,
+    description: payload.type,
+    amount,
+    entityType: "staff_salary_transaction",
+    entityId: id || null,
+    metadata: {
+      staff_id: staffId,
+      month,
+      year,
+    },
+  });
   revalidateAll("/staff", "/staff/payment/create", "/");
   redirectWithNotice("/staff", formData, "Staff salary transaction", actionType);
 }
@@ -806,6 +821,14 @@ export async function deleteStaffSalaryPayment(formData: FormData) {
   if (existingTransaction?.staff_id) {
     await syncStaffSalaryLedgers(supabase, existingTransaction.staff_id);
   }
+  await recordActivity(supabase, {
+    module: "staff",
+    action: "deleted",
+    title: "Staff salary transaction deleted",
+    description: "Salary ledger recalculated",
+    entityType: "staff_salary_transaction",
+    entityId: id,
+  });
   revalidateAll("/staff", "/staff/payment/create", "/");
   redirectWithNotice("/staff", formData, "Staff salary transaction", "deleted");
 }
@@ -909,6 +932,7 @@ export async function upsertPurchase(formData: FormData) {
     redirect("/purchases/create?notice=Select%20or%20type%20a%20supplier");
   }
 
+  let savedPurchaseId = id;
   if (id) {
     await supabase.from("purchases").update(purchasePayload).eq("id", id);
     await supabase.from("purchase_items").delete().eq("purchase_id", id);
@@ -935,6 +959,7 @@ export async function upsertPurchase(formData: FormData) {
       .single();
 
     if (data?.id) {
+      savedPurchaseId = data.id;
       await supabase.from("purchase_items").insert(
         normalizedPurchaseItems.map((item) => ({
           ...item,
@@ -953,6 +978,19 @@ export async function upsertPurchase(formData: FormData) {
     }
   }
 
+  await recordActivity(supabase, {
+    module: "purchases",
+    action: actionType,
+    title: `Purchase ${actionType}`,
+    description: purchasePayload.purchase_number,
+    amount: totalAmount,
+    entityType: "purchase",
+    entityId: savedPurchaseId || null,
+    metadata: {
+      payment_status: paymentStatus,
+      paid_amount: paidAmount,
+    },
+  });
   revalidateAll("/purchases", "/products", "/vendors");
   if (vendorId) {
     revalidatePath(`/vendors/${vendorId}`);
@@ -988,6 +1026,15 @@ export async function upsertPurchaseExpense(formData: FormData) {
     await supabase.from("purchase_expenses").insert(payload);
   }
 
+  await recordActivity(supabase, {
+    module: "expenses",
+    action: actionType,
+    title: `Expense ${actionType}`,
+    description: payload.expense_title,
+    amount: payload.amount,
+    entityType: "purchase_expense",
+    entityId: id || null,
+  });
   revalidateAll("/purchases", "/purchases/expense/create");
   redirectWithNotice("/purchases", formData, "Expense", actionType);
 }
@@ -995,7 +1042,21 @@ export async function upsertPurchaseExpense(formData: FormData) {
 export async function deletePurchaseExpense(formData: FormData) {
   const supabase = await getSupabaseClient();
   const id = readText(formData, "id");
+  const { data: expense } = await supabase
+    .from("purchase_expenses")
+    .select("expense_title, amount")
+    .eq("id", id)
+    .maybeSingle();
   await supabase.from("purchase_expenses").delete().eq("id", id);
+  await recordActivity(supabase, {
+    module: "expenses",
+    action: "deleted",
+    title: "Expense deleted",
+    description: expense?.expense_title ?? "Purchase expense",
+    amount: Number(expense?.amount ?? 0),
+    entityType: "purchase_expense",
+    entityId: id,
+  });
   revalidateAll("/purchases");
   redirectWithNotice("/purchases", formData, "Expense", "deleted");
 }
@@ -1003,7 +1064,21 @@ export async function deletePurchaseExpense(formData: FormData) {
 export async function deletePurchase(formData: FormData) {
   const supabase = await getSupabaseClient();
   const id = readText(formData, "id");
+  const { data: purchase } = await supabase
+    .from("purchases")
+    .select("purchase_number, total_amount")
+    .eq("id", id)
+    .maybeSingle();
   await supabase.from("purchases").delete().eq("id", id);
+  await recordActivity(supabase, {
+    module: "purchases",
+    action: "deleted",
+    title: "Purchase deleted",
+    description: purchase?.purchase_number ?? "Purchase",
+    amount: Number(purchase?.total_amount ?? 0),
+    entityType: "purchase",
+    entityId: id,
+  });
   revalidateAll("/purchases");
   redirectWithNotice("/purchases", formData, "Purchase", "deleted");
 }
@@ -1038,6 +1113,10 @@ export async function upsertSale(formData: FormData) {
   const salesFormPath = id ? `/sales/create?edit=${id}` : "/sales/create";
 
   if (!invoiceNumber) {
+    redirect(`${salesFormPath}${salesFormPath.includes("?") ? "&" : "?"}notice=Bill%20number%20is%20required`);
+  }
+
+  if (/^SA-\d{4}\/\d{2}\/\d{2}-$/.test(invoiceNumber)) {
     redirect(`${salesFormPath}${salesFormPath.includes("?") ? "&" : "?"}notice=Bill%20number%20is%20required`);
   }
 
@@ -1162,6 +1241,7 @@ export async function upsertSale(formData: FormData) {
     notes: readText(formData, "notes") || null,
   };
 
+  let savedSaleId = id;
   if (id) {
     const { error: saleUpdateError } = await supabase.from("sales").update(salesPayload).eq("id", id);
     if (saleUpdateError) {
@@ -1208,6 +1288,7 @@ export async function upsertSale(formData: FormData) {
     }
 
     if (data?.id && normalizedSaleItems.length) {
+      savedSaleId = data.id;
       const { error: insertItemsError } = await supabase.from("sales_items").insert(
         normalizedSaleItems.map((item) => ({
           ...item,
@@ -1230,6 +1311,19 @@ export async function upsertSale(formData: FormData) {
     }
   }
 
+  await recordActivity(supabase, {
+    module: "sales",
+    action: actionType,
+    title: `Sale ${actionType}`,
+    description: `${invoiceNumber} - ${customerName}`,
+    amount: grossTotal,
+    entityType: "sale",
+    entityId: savedSaleId || null,
+    metadata: {
+      payment_status: paymentStatus,
+      amount_received: amountReceived,
+    },
+  });
   revalidateAll("/", "/sales", "/sales/create", "/customers");
   if (customerId) {
     revalidatePath(`/customers/${customerId}`);
@@ -1245,11 +1339,20 @@ export async function deleteSale(formData: FormData) {
   const id = readText(formData, "id");
   const { data: sale } = await supabase
     .from("sales")
-    .select("customer_id")
+    .select("customer_id, invoice_number, grand_total")
     .eq("id", id)
     .single();
 
   await supabase.from("sales").delete().eq("id", id);
+  await recordActivity(supabase, {
+    module: "sales",
+    action: "deleted",
+    title: "Sale deleted",
+    description: sale?.invoice_number ?? "Sale",
+    amount: Number(sale?.grand_total ?? 0),
+    entityType: "sale",
+    entityId: id,
+  });
   revalidateAll("/", "/sales", "/customers");
   if (sale?.customer_id) {
     revalidatePath(`/customers/${sale.customer_id}`);

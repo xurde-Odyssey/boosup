@@ -8,7 +8,7 @@ export function FormSectionHeader({
 }: {
   eyebrow: string;
   title: string;
-  description: string;
+  description?: string;
   action?: ReactNode;
 }) {
   return (
@@ -18,7 +18,9 @@ export function FormSectionHeader({
           {eyebrow}
         </div>
         <h4 className="mt-3 text-base font-bold text-slate-900">{title}</h4>
-        <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-500">{description}</p>
+        {description ? (
+          <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-500">{description}</p>
+        ) : null}
       </div>
       {action}
     </div>

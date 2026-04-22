@@ -1,8 +1,15 @@
 import {
+  Archive,
+  BadgeDollarSign,
   ChevronDown,
   Building2,
+  DatabaseBackup,
+  Download,
+  ReceiptText,
   Settings2,
   SlidersHorizontal,
+  ShoppingCart,
+  Users,
 } from "lucide-react";
 import { upsertCompanySettings } from "@/app/actions";
 import { Header } from "@/components/dashboard/Header";
@@ -36,6 +43,28 @@ export default async function SettingsPage({
 
   const settingsRows = settingsResponse.data ?? [];
   const companySettings = buildCompanySettings(settingsRows[0] ?? null);
+  const backupActions = [
+    {
+      label: settingsMessages.exportSalesCsv,
+      icon: ReceiptText,
+    },
+    {
+      label: settingsMessages.exportCustomersCsv,
+      icon: Users,
+    },
+    {
+      label: settingsMessages.exportPurchasesCsv,
+      icon: ShoppingCart,
+    },
+    {
+      label: settingsMessages.exportStaffSalaryCsv,
+      icon: BadgeDollarSign,
+    },
+    {
+      label: settingsMessages.exportAllReportsZip,
+      icon: Archive,
+    },
+  ];
 
   return (
     <div className="flex min-h-screen bg-slate-50/50">
@@ -175,7 +204,7 @@ export default async function SettingsPage({
                     <input
                       name="favicon_path"
                       defaultValue={companySettings.faviconPath}
-                      placeholder="/logos/icon.png"
+                      placeholder="/logos/book.ico"
                       className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-blue-500 focus:bg-white"
                     />
                     <p className="mt-2 text-xs text-slate-500">
@@ -217,6 +246,49 @@ export default async function SettingsPage({
             <SystemPreferencesPanel />
           </section>
         </div>
+
+        <section className="mt-6 rounded-[24px] border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div className="flex items-start gap-4">
+              <div className="rounded-2xl bg-emerald-50 p-3 text-emerald-700">
+                <DatabaseBackup className="h-5 w-5" />
+              </div>
+              <div className="min-w-0">
+                <div className="text-[11px] font-bold uppercase tracking-[0.24em] text-slate-400">
+                  {settingsMessages.areaLabel}
+                </div>
+                <h3 className="mt-2 text-lg font-bold text-slate-900">
+                  {settingsMessages.backupTitle}
+                </h3>
+                <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500">
+                  {settingsMessages.backupDescription}
+                </p>
+              </div>
+            </div>
+            <span className="inline-flex w-fit items-center rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700">
+              {settingsMessages.backupComingSoon}
+            </span>
+          </div>
+
+          <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
+            {backupActions.map((action) => {
+              const Icon = action.icon;
+
+              return (
+                <button
+                  key={action.label}
+                  type="button"
+                  disabled
+                  className="inline-flex min-h-14 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-600 shadow-sm transition-colors disabled:cursor-not-allowed disabled:opacity-75"
+                >
+                  <Icon className="h-4 w-4 shrink-0" />
+                  <span className="text-left">{action.label}</span>
+                  <Download className="ml-auto h-4 w-4 shrink-0 text-slate-400" />
+                </button>
+              );
+            })}
+          </div>
+        </section>
       </main>
     </div>
   );
