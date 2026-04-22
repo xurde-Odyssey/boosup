@@ -7,6 +7,7 @@ import { Input } from "@/components/shared/Input";
 import { ReportToolbar } from "@/components/shared/ReportToolbar";
 import { Select } from "@/components/shared/Select";
 import { upsertVendor } from "@/app/actions";
+import { getServerLocale } from "@/lib/i18n-server";
 import { getSupabaseClient } from "@/lib/supabase/server";
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
@@ -18,6 +19,7 @@ export default async function CreateVendorPage({
 }) {
   const supabase = await getSupabaseClient();
   const params = await searchParams;
+  const locale = await getServerLocale(params.lang);
   const editId = typeof params.edit === "string" ? params.edit : "";
   const notice = typeof params.notice === "string" ? params.notice : "";
 
@@ -42,7 +44,10 @@ export default async function CreateVendorPage({
         />
 
         {notice && <ActionNotice message={notice} />}
-        <ReportToolbar actionPath={editingVendor ? `/vendors/create?edit=${editingVendor.id}` : "/vendors/create"} />
+        <ReportToolbar
+          actionPath={editingVendor ? `/vendors/create?edit=${editingVendor.id}` : "/vendors/create"}
+          locale={locale}
+        />
 
         <Card className="max-w-2xl p-6">
           <div className="mb-6">

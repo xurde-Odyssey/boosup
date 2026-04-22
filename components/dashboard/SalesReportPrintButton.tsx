@@ -12,6 +12,7 @@ import {
   PRINT_TABLE_WRAP_CLASS,
 } from "@/components/shared/PrintDocument";
 import { CompanySettings, DEFAULT_COMPANY_SETTINGS } from "@/lib/company-settings";
+import { type AppLocale, getMessages } from "@/lib/i18n";
 
 type SummaryMetric = {
   title: string;
@@ -35,13 +36,16 @@ export function SalesReportPrintButton({
   metrics,
   invoices,
   company = DEFAULT_COMPANY_SETTINGS,
+  locale = "en",
 }: {
   generatedDate: string;
   selectedPeriod: string;
   metrics: SummaryMetric[];
   invoices: SalesInvoiceRow[];
   company?: CompanySettings;
+  locale?: AppLocale;
 }) {
+  const messages = getMessages(locale);
   const isMounted = useSyncExternalStore(
     () => () => {},
     () => true,
@@ -72,7 +76,7 @@ export function SalesReportPrintButton({
       >
         <span className="inline-flex items-center gap-2">
           <Printer className="h-4 w-4" />
-          Generate Report
+          {messages.reportToolbar.generateReport}
         </span>
       </button>
 

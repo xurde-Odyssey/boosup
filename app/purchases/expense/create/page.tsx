@@ -3,6 +3,7 @@ import { Header } from "@/components/dashboard/Header";
 import { PurchaseExpenseForm } from "@/components/purchases/PurchaseExpenseForm";
 import { Sidebar } from "@/components/dashboard/Sidebar";
 import { ReportToolbar } from "@/components/shared/ReportToolbar";
+import { getServerLocale } from "@/lib/i18n-server";
 import { getSupabaseClient } from "@/lib/supabase/server";
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
@@ -19,6 +20,7 @@ export default async function CreatePurchaseExpensePage({
 }) {
   const supabase = await getSupabaseClient();
   const params = await searchParams;
+  const locale = await getServerLocale(params.lang);
   const editId = typeof params.edit === "string" ? params.edit : "";
   const notice = typeof params.notice === "string" ? params.notice : "";
   const todayDate = getTodayDate();
@@ -46,7 +48,10 @@ export default async function CreatePurchaseExpensePage({
         />
 
         {notice && <ActionNotice message={notice} />}
-        <ReportToolbar actionPath={editingExpense ? `/purchases/expense/create?edit=${editingExpense.id}` : "/purchases/expense/create"} />
+        <ReportToolbar
+          actionPath={editingExpense ? `/purchases/expense/create?edit=${editingExpense.id}` : "/purchases/expense/create"}
+          locale={locale}
+        />
 
         <section className="max-w-3xl rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
           <div className="mb-6">

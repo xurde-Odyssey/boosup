@@ -165,6 +165,7 @@ export default async function RecentSalesInvoicesPage({
           selectedRange={selectedRange}
           fromDate={fromDate}
           toDate={toDate}
+          locale={locale}
         />
         <PageActionStrip
           actions={[

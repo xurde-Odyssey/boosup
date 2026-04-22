@@ -15,6 +15,8 @@ import { Sidebar } from "@/components/dashboard/Sidebar";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { PageActionStrip } from "@/components/shared/PageActionStrip";
 import { SectionCard } from "@/components/shared/SectionCard";
+import { getMessages } from "@/lib/i18n";
+import { getServerLocale } from "@/lib/i18n-server";
 import { formatBsDisplayDate } from "@/lib/nepali-date";
 import { formatCurrency } from "@/lib/presentation";
 import { getSupabaseClient } from "@/lib/supabase/server";
@@ -23,13 +25,13 @@ import { cn } from "@/lib/utils";
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
 const moduleConfig = {
-  sales: { label: "Sales", icon: ReceiptText, tone: "bg-emerald-50 text-emerald-700" },
-  purchases: { label: "Purchases", icon: ShoppingCart, tone: "bg-blue-50 text-blue-700" },
-  suppliers: { label: "Suppliers", icon: Truck, tone: "bg-amber-50 text-amber-700" },
-  customers: { label: "Customers", icon: Users, tone: "bg-green-50 text-green-700" },
-  staff: { label: "Staff", icon: BadgeDollarSign, tone: "bg-slate-100 text-slate-700" },
-  products: { label: "Products", icon: Package, tone: "bg-cyan-50 text-cyan-700" },
-  expenses: { label: "Expenses", icon: HandCoins, tone: "bg-orange-50 text-orange-700" },
+  sales: { icon: ReceiptText, tone: "bg-emerald-50 text-emerald-700" },
+  purchases: { icon: ShoppingCart, tone: "bg-blue-50 text-blue-700" },
+  suppliers: { icon: Truck, tone: "bg-amber-50 text-amber-700" },
+  customers: { icon: Users, tone: "bg-green-50 text-green-700" },
+  staff: { icon: BadgeDollarSign, tone: "bg-slate-100 text-slate-700" },
+  products: { icon: Package, tone: "bg-cyan-50 text-cyan-700" },
+  expenses: { icon: HandCoins, tone: "bg-orange-50 text-orange-700" },
 };
 
 const moduleOptions = Object.entries(moduleConfig);
@@ -52,6 +54,9 @@ export default async function ActivityPage({
   searchParams: SearchParams;
 }) {
   const params = await searchParams;
+  const locale = await getServerLocale(params.lang);
+  const messages = getMessages(locale);
+  const activityMessages = messages.activityPage;
   const selectedModule = typeof params.module === "string" ? params.module : "all";
   const search = typeof params.q === "string" ? params.q.trim() : "";
   const action = typeof params.action === "string" ? params.action : "ALL";
@@ -108,12 +113,13 @@ export default async function ActivityPage({
 
       <main className="flex-1 overflow-y-auto p-4 pt-20 sm:p-6 sm:pt-24 lg:p-8 lg:pt-8">
         <Header
-          title="Activity Log"
-          description="A simple record of recent business actions across sales, purchases, payments, products, customers, suppliers, and staff."
+          title={activityMessages.title}
+          description={activityMessages.subtitle}
         />
         <PageActionStrip
+          locale={locale}
           actions={[
-            { label: "Back To Dashboard", href: "/", variant: "secondary", icon: History },
+            { label: activityMessages.backToDashboard, href: "/", variant: "secondary", icon: History },
           ]}
         />
 
@@ -127,9 +133,9 @@ export default async function ActivityPage({
                 : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50",
             )}
           >
-            All
+            {activityMessages.all}
           </Link>
-          {moduleOptions.map(([value, config]) => (
+          {moduleOptions.map(([value]) => (
             <Link
               key={value}
               href={`/activity?module=${value}`}
@@ -140,7 +146,7 @@ export default async function ActivityPage({
                   : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50",
               )}
             >
-              {config.label}
+              {activityMessages.modules[value as keyof typeof activityMessages.modules] ?? value}
             </Link>
           ))}
         </div>
@@ -151,51 +157,51 @@ export default async function ActivityPage({
             <div className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1.7fr)_220px_220px_220px]">
               <div>
                 <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-600">
-                  Search
+                  {activityMessages.search}
                 </label>
                 <input
                   type="text"
                   name="q"
                   defaultValue={search}
-                  placeholder="Title, description, module, action"
+                  placeholder={activityMessages.searchPlaceholder}
                   className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-blue-500"
                 />
               </div>
               <div>
                 <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-600">
-                  Status
+                  {activityMessages.status}
                 </label>
                 <select
                   name="action"
                   defaultValue={action}
                   className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-blue-500"
                 >
-                  <option value="ALL">All</option>
-                  <option value="created">Created</option>
-                  <option value="updated">Updated</option>
-                  <option value="deleted">Deleted</option>
-                  <option value="payment">Payment</option>
+                  <option value="ALL">{activityMessages.all}</option>
+                  <option value="created">{activityMessages.actions.created}</option>
+                  <option value="updated">{activityMessages.actions.updated}</option>
+                  <option value="deleted">{activityMessages.actions.deleted}</option>
+                  <option value="payment">{activityMessages.actions.payment}</option>
                 </select>
               </div>
               <div>
                 <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-600">
-                  Sort
+                  {activityMessages.sort}
                 </label>
                 <select
                   name="sort"
                   defaultValue={sort}
                   className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-blue-500"
                 >
-                  <option value="created_desc">Newest</option>
-                  <option value="created_asc">Oldest</option>
-                  <option value="module_asc">Module</option>
-                  <option value="action_asc">Action</option>
-                  <option value="amount_desc">Amount High-Low</option>
+                  <option value="created_desc">{activityMessages.newest}</option>
+                  <option value="created_asc">{activityMessages.oldest}</option>
+                  <option value="module_asc">{activityMessages.module}</option>
+                  <option value="action_asc">{activityMessages.action}</option>
+                  <option value="amount_desc">{activityMessages.amountHighLow}</option>
                 </select>
               </div>
               <div>
                 <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-600">
-                  Per Page
+                  {activityMessages.perPage}
                 </label>
                 <select
                   name="perPage"
@@ -213,13 +219,13 @@ export default async function ActivityPage({
                 type="submit"
                 className="rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white"
               >
-                Apply
+                {activityMessages.apply}
               </button>
               <Link
                 href={selectedModule === "all" ? "/activity" : `/activity?module=${selectedModule}`}
                 className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-700"
               >
-                Reset
+                {activityMessages.reset}
               </Link>
             </div>
           </form>
@@ -227,9 +233,12 @@ export default async function ActivityPage({
 
         <SectionCard className="overflow-hidden" padded={false}>
           <div className="border-b border-slate-50 p-6">
-            <h3 className="text-lg font-bold text-slate-900">Recent Activity</h3>
+            <h3 className="text-lg font-bold text-slate-900">{activityMessages.recentActivity}</h3>
             <p className="mt-1 text-xs text-slate-500">
-              Showing {paginatedRows.length} of {rows.length} {selectedModule === "all" ? "entries" : `${selectedModule} entries`}.
+              {activityMessages.showing} {paginatedRows.length} {activityMessages.of} {rows.length}{" "}
+              {selectedModule === "all"
+                ? activityMessages.entries
+                : `${activityMessages.modules[selectedModule as keyof typeof activityMessages.modules] ?? selectedModule} ${activityMessages.entries}`}
             </p>
           </div>
 
@@ -237,8 +246,8 @@ export default async function ActivityPage({
             <div className="p-10">
               <EmptyState
                 icon={FileText}
-                title="No activity yet"
-                description="New actions will appear here after records are created, updated, deleted, or payments are added."
+                title={activityMessages.emptyTitle}
+                description={activityMessages.emptyDescription}
               />
             </div>
           ) : (
@@ -246,20 +255,26 @@ export default async function ActivityPage({
               <table className="w-full text-left">
                 <thead>
                   <tr className="bg-slate-50/80 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                    <th className="px-6 py-4">Activity</th>
-                    <th className="px-6 py-4">Module</th>
-                    <th className="px-6 py-4">Action</th>
-                    <th className="px-6 py-4">Amount</th>
-                    <th className="px-6 py-4">Date</th>
+                    <th className="px-6 py-4">{activityMessages.activity}</th>
+                    <th className="px-6 py-4">{activityMessages.module}</th>
+                    <th className="px-6 py-4">{activityMessages.action}</th>
+                    <th className="px-6 py-4">{activityMessages.amount}</th>
+                    <th className="px-6 py-4">{activityMessages.date}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-50">
                   {paginatedRows.map((activity) => {
                     const config =
                       moduleConfig[activity.module as keyof typeof moduleConfig] ??
-                      { label: activity.module, icon: History, tone: "bg-slate-100 text-slate-700" };
+                      { icon: History, tone: "bg-slate-100 text-slate-700" };
                     const Icon = config.icon;
                     const date = activity.created_at ? activity.created_at.slice(0, 10) : null;
+                    const moduleLabel =
+                      activityMessages.modules[activity.module as keyof typeof activityMessages.modules] ??
+                      activity.module;
+                    const actionLabel =
+                      activityMessages.actions[activity.action as keyof typeof activityMessages.actions] ??
+                      activity.action;
 
                     return (
                       <tr key={activity.id} className="transition-colors hover:bg-blue-50/40">
@@ -279,10 +294,10 @@ export default async function ActivityPage({
                           </div>
                         </td>
                         <td className="px-6 py-4 text-sm font-semibold text-slate-700">
-                          {config.label}
+                          {moduleLabel}
                         </td>
                         <td className="px-6 py-4 text-sm text-slate-600">
-                          {activity.action}
+                          {actionLabel}
                         </td>
                         <td className="px-6 py-4 text-sm font-bold text-slate-900">
                           {activity.amount === null || activity.amount === undefined
@@ -303,7 +318,7 @@ export default async function ActivityPage({
         {rows.length > perPage ? (
           <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm">
             <div className="font-medium text-slate-500">
-              Page {safeCurrentPage} of {totalPages}
+              {activityMessages.page} {safeCurrentPage} {activityMessages.of} {totalPages}
             </div>
             <div className="flex gap-2">
               <Link
@@ -320,7 +335,7 @@ export default async function ActivityPage({
                   safeCurrentPage <= 1 && "pointer-events-none opacity-50",
                 )}
               >
-                Previous
+                {activityMessages.previous}
               </Link>
               <Link
                 href={`/activity?${new URLSearchParams({
@@ -336,7 +351,7 @@ export default async function ActivityPage({
                   safeCurrentPage >= totalPages && "pointer-events-none opacity-50",
                 )}
               >
-                Next
+                {activityMessages.next}
               </Link>
             </div>
           </div>

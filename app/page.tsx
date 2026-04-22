@@ -639,6 +639,7 @@ export default async function Home({
               selectedRange={selectedRange}
               fromDate={fromDate}
               toDate={toDate}
+              locale={locale}
             />
           </div>
         }

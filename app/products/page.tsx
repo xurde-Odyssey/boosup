@@ -11,7 +11,9 @@ import { FieldHint } from "@/components/shared/FieldHint";
 import { PageActionStrip } from "@/components/shared/PageActionStrip";
 import { PaginationControls } from "@/components/shared/PaginationControls";
 import { SectionCard } from "@/components/shared/SectionCard";
-import { StatusBadge } from "@/components/shared/StatusBadge";
+import { LocalizedStatusBadge } from "@/components/shared/StatusBadge";
+import { getMessages } from "@/lib/i18n";
+import { getServerLocale } from "@/lib/i18n-server";
 import { getSupabaseClient } from "@/lib/supabase/server";
 import { formatCurrency } from "@/lib/presentation";
 
@@ -42,6 +44,9 @@ export default async function ProductsPage({
 }) {
   const supabase = await getSupabaseClient();
   const params = await searchParams;
+  const locale = await getServerLocale(params.lang);
+  const messages = getMessages(locale);
+  const productsMessages = messages.productsPage;
   const editId = typeof params.edit === "string" ? params.edit : "";
   const notice = typeof params.notice === "string" ? params.notice : "";
   const search = typeof params.q === "string" ? params.q.trim() : "";
@@ -106,49 +111,52 @@ export default async function ProductsPage({
 
       <main className="flex-1 overflow-y-auto p-4 pt-20 sm:p-6 sm:pt-24 lg:p-8 lg:pt-8">
         <Header
-          title="Your Products"
-          description="Create and manage products stored in Supabase for sales and purchases."
+          title={productsMessages.title}
+          description={productsMessages.subtitle}
         />
         {notice && <ActionNotice message={notice} />}
         <PageActionStrip
           actions={[
-            { label: editingProduct ? "Update Product" : "Create Product", href: "#product-form" },
-            { label: "Browse Product Table", href: "#product-table", variant: "secondary" },
+            {
+              label: editingProduct ? productsMessages.updateProduct : productsMessages.createProduct,
+              href: "#product-form",
+            },
+            { label: productsMessages.browseProductTable, href: "#product-table", variant: "secondary" },
           ]}
         />
 
         <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
           <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
             <div className="mb-4 flex items-center justify-between">
-              <h3 className="text-sm font-medium text-slate-500">Total Products</h3>
+              <h3 className="text-sm font-medium text-slate-500">{productsMessages.totalProducts}</h3>
               <div className="rounded-lg bg-blue-50 p-2 text-blue-600">
                 <Boxes className="h-5 w-5" />
               </div>
             </div>
             <div className="text-2xl font-bold text-slate-900">{productRows.length}</div>
-            <p className="text-xs font-semibold text-blue-600">Products added manually</p>
+            <p className="text-xs font-semibold text-blue-600">{productsMessages.productsAddedManually}</p>
           </div>
 
           <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
             <div className="mb-4 flex items-center justify-between">
-              <h3 className="text-sm font-medium text-slate-500">Sales Ready</h3>
+              <h3 className="text-sm font-medium text-slate-500">{productsMessages.salesReady}</h3>
               <div className="rounded-lg bg-green-50 p-2 text-green-600">
                 <ShoppingBag className="h-5 w-5" />
               </div>
             </div>
             <div className="text-2xl font-bold text-slate-900">{activeProducts}</div>
-            <p className="text-xs font-semibold text-green-600">Active for sales use</p>
+            <p className="text-xs font-semibold text-green-600">{productsMessages.activeForSalesUse}</p>
           </div>
 
           <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
             <div className="mb-4 flex items-center justify-between">
-              <h3 className="text-sm font-medium text-slate-500">Draft Setup</h3>
+              <h3 className="text-sm font-medium text-slate-500">{productsMessages.draftSetup}</h3>
               <div className="rounded-lg bg-slate-100 p-2 text-slate-600">
                 <PackagePlus className="h-5 w-5" />
               </div>
             </div>
             <div className="text-2xl font-bold text-slate-900">{draftProducts}</div>
-            <p className="text-xs font-semibold text-slate-500">Draft products</p>
+            <p className="text-xs font-semibold text-slate-500">{productsMessages.draftProducts}</p>
           </div>
         </div>
 
@@ -156,10 +164,10 @@ export default async function ProductsPage({
           <SectionCard id="product-form">
             <div className="mb-6">
               <h3 className="text-lg font-bold text-slate-900">
-                {editingProduct ? "Update Product" : "Create Product"}
+                {editingProduct ? productsMessages.updateProduct : productsMessages.createProduct}
               </h3>
               <p className="text-sm text-slate-500">
-                Product master setup persisted in Supabase.
+                {productsMessages.formSubtitle}
               </p>
             </div>
 
@@ -173,19 +181,23 @@ export default async function ProductsPage({
               />
 
               <div>
-                <label className="mb-2 block text-sm font-semibold text-slate-700">Product Name</label>
+                <label className="mb-2 block text-sm font-semibold text-slate-700">
+                  {productsMessages.productName}
+                </label>
                 <input
                   name="name"
                   type="text"
                   required
                   defaultValue={editingProduct?.name ?? ""}
-                  placeholder="Enter product name"
+                  placeholder={productsMessages.productNamePlaceholder}
                   className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition focus:border-blue-500 focus:bg-white"
                 />
               </div>
 
               <div>
-                <label className="mb-2 block text-sm font-semibold text-slate-700">Product Code</label>
+                <label className="mb-2 block text-sm font-semibold text-slate-700">
+                  {productsMessages.productCode}
+                </label>
                 <input
                   type="text"
                   readOnly
@@ -193,12 +205,14 @@ export default async function ProductsPage({
                   className="w-full rounded-xl border border-slate-200 bg-slate-100 px-4 py-3 text-sm font-semibold text-slate-700 outline-none"
                 />
                 <FieldHint>
-                  Product codes are generated automatically in the DS01 format.
+                  {productsMessages.productCodeHint}
                 </FieldHint>
               </div>
 
               <div>
-                <label className="mb-2 block text-sm font-semibold text-slate-700">Sales Rate</label>
+                <label className="mb-2 block text-sm font-semibold text-slate-700">
+                  {productsMessages.salesRate}
+                </label>
                 <input
                   name="sales_rate"
                   type="number"
@@ -211,7 +225,9 @@ export default async function ProductsPage({
 
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div>
-                  <label className="mb-2 block text-sm font-semibold text-slate-700">Category</label>
+                  <label className="mb-2 block text-sm font-semibold text-slate-700">
+                    {productsMessages.category}
+                  </label>
                   <input
                     name="category"
                     type="text"
@@ -221,7 +237,9 @@ export default async function ProductsPage({
                 </div>
 
                 <div>
-                  <label className="mb-2 block text-sm font-semibold text-slate-700">Unit</label>
+                  <label className="mb-2 block text-sm font-semibold text-slate-700">
+                    {productsMessages.unit}
+                  </label>
                   <input
                     name="unit"
                     type="text"
@@ -232,20 +250,24 @@ export default async function ProductsPage({
               </div>
 
               <div>
-                <label className="mb-2 block text-sm font-semibold text-slate-700">Status</label>
+                <label className="mb-2 block text-sm font-semibold text-slate-700">
+                  {productsMessages.status}
+                </label>
                 <select
                   name="status"
                   defaultValue={editingProduct?.status ?? "ACTIVE"}
                   className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition focus:border-blue-500 focus:bg-white"
                 >
-                  <option value="ACTIVE">ACTIVE</option>
-                  <option value="DRAFT">DRAFT</option>
-                  <option value="INACTIVE">INACTIVE</option>
+                  <option value="ACTIVE">{messages.status.ACTIVE}</option>
+                  <option value="DRAFT">{messages.status.DRAFT}</option>
+                  <option value="INACTIVE">{messages.status.INACTIVE}</option>
                 </select>
               </div>
 
               <div>
-                <label className="mb-2 block text-sm font-semibold text-slate-700">Notes</label>
+                <label className="mb-2 block text-sm font-semibold text-slate-700">
+                  {productsMessages.notes}
+                </label>
                 <textarea
                   name="notes"
                   rows={4}
@@ -260,14 +282,14 @@ export default async function ProductsPage({
                   className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3 font-semibold text-white transition-colors hover:bg-blue-700"
                 >
                   <PackagePlus className="h-4 w-4" />
-                  {editingProduct ? "Update Product" : "Save Product"}
+                  {editingProduct ? productsMessages.updateProduct : productsMessages.saveProduct}
                 </button>
                 {editingProduct && (
                   <Link
                     href="/products"
                     className="inline-flex items-center justify-center rounded-xl border border-slate-200 px-5 py-3 font-semibold text-slate-700"
                   >
-                    Cancel
+                    {productsMessages.cancel}
                   </Link>
                 )}
               </div>
@@ -277,12 +299,12 @@ export default async function ProductsPage({
           <SectionCard id="product-table" className="overflow-hidden" padded={false}>
             <div className="flex items-center justify-between border-b border-slate-50 p-6">
               <div>
-                <h3 className="text-lg font-bold text-slate-900">Product Table</h3>
-                <p className="mt-1 text-xs text-slate-500">Live product list from Supabase.</p>
+                <h3 className="text-lg font-bold text-slate-900">{productsMessages.productTable}</h3>
+                <p className="mt-1 text-xs text-slate-500">{productsMessages.tableSubtitle}</p>
               </div>
               <div className="inline-flex items-center gap-2 rounded-xl bg-slate-50 px-3 py-2 text-sm font-medium text-slate-600">
                 <Tag className="h-4 w-4 text-slate-400" />
-                {productRows.length} items
+                {productRows.length} {productsMessages.items}
               </div>
             </div>
 
@@ -291,50 +313,50 @@ export default async function ProductsPage({
                 <div className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1.7fr)_220px_220px_220px]">
                   <div>
                     <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-600">
-                      Search
+                      {productsMessages.search}
                     </label>
                     <input
                       type="text"
                       name="q"
                       defaultValue={search}
-                      placeholder="Code, name, category, unit"
+                      placeholder={productsMessages.searchPlaceholder}
                       className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-blue-500"
                     />
                   </div>
                   <div>
                     <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-600">
-                      Status
+                      {productsMessages.status}
                     </label>
                     <select
                       name="status"
                       defaultValue={status}
                       className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-blue-500"
                     >
-                      <option value="ALL">All</option>
-                      <option value="ACTIVE">Active</option>
-                      <option value="DRAFT">Draft</option>
-                      <option value="INACTIVE">Inactive</option>
+                      <option value="ALL">{productsMessages.all}</option>
+                      <option value="ACTIVE">{messages.status.ACTIVE}</option>
+                      <option value="DRAFT">{messages.status.DRAFT}</option>
+                      <option value="INACTIVE">{messages.status.INACTIVE}</option>
                     </select>
                   </div>
                   <div>
                     <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-600">
-                      Sort
+                      {productsMessages.sort}
                     </label>
                     <select
                       name="sort"
                       defaultValue={sort}
                       className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-blue-500"
                     >
-                      <option value="code_asc">Code</option>
-                      <option value="name_asc">Name</option>
-                      <option value="rate_desc">Rate High-Low</option>
-                      <option value="rate_asc">Rate Low-High</option>
-                      <option value="status_asc">Status</option>
+                      <option value="code_asc">{productsMessages.code}</option>
+                      <option value="name_asc">{productsMessages.name}</option>
+                      <option value="rate_desc">{productsMessages.rateHighLow}</option>
+                      <option value="rate_asc">{productsMessages.rateLowHigh}</option>
+                      <option value="status_asc">{productsMessages.status}</option>
                     </select>
                   </div>
                   <div>
                     <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-600">
-                      Per Page
+                      {productsMessages.perPage}
                     </label>
                     <select
                       name="perPage"
@@ -352,13 +374,13 @@ export default async function ProductsPage({
                     type="submit"
                     className="rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white"
                   >
-                    Apply
+                    {productsMessages.apply}
                   </button>
                   <Link
                     href="/products"
                     className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-700"
                   >
-                    Reset
+                    {productsMessages.reset}
                   </Link>
                 </div>
               </form>
@@ -368,13 +390,15 @@ export default async function ProductsPage({
               <table className="w-full text-left">
                 <thead>
                   <tr className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                    <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">Code</th>
-                    <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">Product</th>
-                    <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">Category</th>
-                    <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">Sales Rate</th>
-                    <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">Unit</th>
-                    <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">Status</th>
-                    <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4 text-right">Actions</th>
+                    <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">{productsMessages.code}</th>
+                    <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">{productsMessages.product}</th>
+                    <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">{productsMessages.category}</th>
+                    <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">{productsMessages.salesRate}</th>
+                    <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">{productsMessages.unit}</th>
+                    <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">{productsMessages.status}</th>
+                    <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4 text-right">
+                      {productsMessages.actions}
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-50">
@@ -393,8 +417,9 @@ export default async function ProductsPage({
                       </td>
                       <td className="px-6 py-4 text-sm text-slate-500">{product.unit}</td>
                       <td className="px-6 py-4">
-                        <StatusBadge
-                          label={product.status}
+                        <LocalizedStatusBadge
+                          status={product.status}
+                          locale={locale}
                           tone={
                             product.status === "ACTIVE"
                               ? "success"
@@ -408,22 +433,22 @@ export default async function ProductsPage({
                         <div className="flex items-center justify-end gap-2">
                           <ActionIconButton
                             href={`/products?edit=${product.id}`}
-                            label={`Edit product ${product.name}`}
+                            label={`${productsMessages.editProduct} ${product.name}`}
                           >
                             <Pencil className="h-4 w-4" />
                           </ActionIconButton>
                           <ActionIconButton
                             href={`/products?edit=${product.id}`}
-                            label={`Open update view for product ${product.name}`}
+                            label={`${productsMessages.openUpdateView} ${product.name}`}
                           >
                             <RefreshCcw className="h-4 w-4" />
                           </ActionIconButton>
                           <ConfirmActionForm
                             action={deleteProduct}
-                            confirmMessage="Are you sure you want to delete this product?"
+                            confirmMessage={productsMessages.deleteConfirm}
                             hiddenFields={[{ name: "id", value: product.id }]}
                           >
-                            <ActionIconButton type="submit" label={`Delete product ${product.name}`}>
+                            <ActionIconButton type="submit" label={`${productsMessages.deleteProduct} ${product.name}`}>
                               <Trash2 className="h-4 w-4" />
                             </ActionIconButton>
                           </ConfirmActionForm>
@@ -436,9 +461,9 @@ export default async function ProductsPage({
                       <td colSpan={7} className="px-6 py-10">
                         <EmptyState
                           icon={PackagePlus}
-                          title="No products added yet"
-                          description="Create your finished goods here so sales entry can reuse them without manual typing."
-                          actionLabel="Create Product"
+                          title={productsMessages.emptyTitle}
+                          description={productsMessages.emptyDescription}
+                          actionLabel={productsMessages.createProduct}
                           actionHref="#product-form"
                         />
                       </td>

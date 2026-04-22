@@ -185,7 +185,7 @@ export default async function VendorLedgerPage({
           primaryActionLabel="Back To Suppliers"
           primaryActionHref="/vendors"
         />
-        <ReportToolbar actionPath={`/vendors/${id}`} />
+        <ReportToolbar actionPath={`/vendors/${id}`} locale={locale} />
 
         <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
           <SummaryCard

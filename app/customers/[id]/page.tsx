@@ -12,6 +12,8 @@ import { QueryNoticeToast } from "@/components/shared/QueryNoticeToast";
 import { SectionCard } from "@/components/shared/SectionCard";
 import { LocalizedPaymentStatusBadge, LocalizedStatusBadge } from "@/components/shared/StatusBadge";
 import { getCompanySettings } from "@/lib/company-settings-server";
+import { getMessages } from "@/lib/i18n";
+import { getServerLocale } from "@/lib/i18n-server";
 import { formatBsDisplayDate } from "@/lib/nepali-date";
 import { formatCurrency } from "@/lib/presentation";
 import { getSupabaseClient } from "@/lib/supabase/server";
@@ -29,6 +31,9 @@ export default async function CustomerProfilePage({
   const [{ id }, query] = await Promise.all([params, searchParams]);
   const notice = typeof query.notice === "string" ? query.notice : "";
   const openPaymentModal = (Array.isArray(query.action) ? query.action[0] : query.action) === "pay";
+  const locale = await getServerLocale(query.lang);
+  const messages = getMessages(locale);
+  const profileMessages = messages.customerProfilePage;
   const supabase = await getSupabaseClient();
   const company = await getCompanySettings();
   const todayDate = new Intl.DateTimeFormat("en-CA", {
@@ -145,49 +150,49 @@ export default async function CustomerProfilePage({
 
       <main className="flex-1 overflow-y-auto p-4 pt-20 sm:p-6 sm:pt-24 lg:p-8 lg:pt-8">
         <Header
-          title={`${customer.name} Ledger`}
-          description="Customer-wise history based on sales linked to this saved customer profile."
+          title={`${customer.name} ${profileMessages.ledgerSuffix}`}
+          description={profileMessages.description}
         />
         <QueryNoticeToast message={notice} />
         <PageActionStrip
           actions={[
-            { label: "Back To Customers", href: "/customers", variant: "secondary", icon: ArrowLeft },
-            { label: "Create Sales Bill", href: "/sales/create", icon: FilePlus2 },
+            { label: profileMessages.backToCustomers, href: "/customers", variant: "secondary", icon: ArrowLeft },
+            { label: profileMessages.createSalesBill, href: "/sales/create", icon: FilePlus2 },
           ]}
         />
 
         <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
           <SummaryCard
-            title="Total Invoiced"
+            title={profileMessages.totalInvoiced}
             value={formatCurrency(totalInvoiced)}
-            trend={`${customerSales.length} linked invoices`}
+            trend={`${customerSales.length} ${profileMessages.linkedInvoices}`}
             trendType="positive"
             icon={ReceiptText}
             iconBgColor="bg-blue-50"
             iconColor="text-blue-600"
           />
           <SummaryCard
-            title="Total Paid"
+            title={profileMessages.totalPaid}
             value={formatCurrency(totalPaid)}
-            trend="Collected from linked invoices"
+            trend={profileMessages.collectedFromLinkedInvoices}
             trendType="positive"
             icon={WalletCards}
             iconBgColor="bg-green-50"
             iconColor="text-green-600"
           />
           <SummaryCard
-            title="Total Due"
+            title={profileMessages.totalDue}
             value={formatCurrency(totalDue)}
-            trend={totalDue > 0 ? "Collection pending" : "No linked due"}
+            trend={totalDue > 0 ? profileMessages.collectionPending : profileMessages.noLinkedDue}
             trendType={totalDue > 0 ? "negative" : "neutral"}
             icon={WalletCards}
             iconBgColor="bg-amber-50"
             iconColor="text-amber-600"
           />
           <SummaryCard
-            title="Last Sale"
+            title={profileMessages.lastSale}
             value={formatBsDisplayDate(lastSaleDate)}
-            trend="Recent linked invoice"
+            trend={profileMessages.recentLinkedInvoice}
             trendType="neutral"
             icon={ReceiptText}
             iconBgColor="bg-slate-100"
@@ -199,30 +204,30 @@ export default async function CustomerProfilePage({
           <SectionCard>
             <div className="mb-5 flex items-start justify-between gap-3">
               <div>
-                <h3 className="text-lg font-bold text-slate-900">Customer Details</h3>
-                <p className="mt-1 text-xs text-slate-500">Saved profile information.</p>
+                <h3 className="text-lg font-bold text-slate-900">{profileMessages.customerDetails}</h3>
+                <p className="mt-1 text-xs text-slate-500">{profileMessages.savedProfileInformation}</p>
               </div>
-              <LocalizedStatusBadge status={customer.status ?? "ACTIVE"} />
+              <LocalizedStatusBadge status={customer.status ?? "ACTIVE"} locale={locale} />
             </div>
             <dl className="space-y-4 text-sm">
               <div>
-                <dt className="text-xs font-bold uppercase tracking-wider text-slate-400">Name</dt>
+                <dt className="text-xs font-bold uppercase tracking-wider text-slate-400">{profileMessages.name}</dt>
                 <dd className="mt-1 font-semibold text-slate-900">{customer.name}</dd>
               </div>
               <div>
-                <dt className="text-xs font-bold uppercase tracking-wider text-slate-400">Phone</dt>
+                <dt className="text-xs font-bold uppercase tracking-wider text-slate-400">{profileMessages.phone}</dt>
                 <dd className="mt-1 text-slate-700">{customer.phone || "-"}</dd>
               </div>
               <div>
-                <dt className="text-xs font-bold uppercase tracking-wider text-slate-400">Email</dt>
+                <dt className="text-xs font-bold uppercase tracking-wider text-slate-400">{profileMessages.email}</dt>
                 <dd className="mt-1 text-slate-700">{customer.email || "-"}</dd>
               </div>
               <div>
-                <dt className="text-xs font-bold uppercase tracking-wider text-slate-400">Address</dt>
+                <dt className="text-xs font-bold uppercase tracking-wider text-slate-400">{profileMessages.address}</dt>
                 <dd className="mt-1 text-slate-700">{customer.address || "-"}</dd>
               </div>
               <div>
-                <dt className="text-xs font-bold uppercase tracking-wider text-slate-400">Notes</dt>
+                <dt className="text-xs font-bold uppercase tracking-wider text-slate-400">{profileMessages.notes}</dt>
                 <dd className="mt-1 text-slate-700">{customer.notes || "-"}</dd>
               </div>
             </dl>
@@ -233,13 +238,34 @@ export default async function CustomerProfilePage({
                 defaultDate={todayDate}
                 totalDue={totalDue}
                 autoOpen={openPaymentModal}
+                labels={{
+                  addPayment: profileMessages.addPayment,
+                  noUnpaidInvoicesTitle: profileMessages.noUnpaidInvoicesTitle,
+                  noUnpaidInvoicesHint: profileMessages.noUnpaidInvoicesHint,
+                  addCustomerPayment: profileMessages.addCustomerPayment,
+                  addCustomerPaymentDescription: profileMessages.addCustomerPaymentDescription,
+                  closePaymentModal: profileMessages.closePaymentModal,
+                  customer: profileMessages.customer,
+                  currentDueBalance: profileMessages.currentDueBalance,
+                  paymentAmount: profileMessages.paymentAmount,
+                  maximumReceivable: profileMessages.maximumReceivable,
+                  paymentMethod: profileMessages.paymentMethod,
+                  cash: profileMessages.cash,
+                  mobile: profileMessages.mobile,
+                  paymentDateBs: profileMessages.paymentDateBs,
+                  note: profileMessages.note,
+                  optionalPaymentNote: profileMessages.optionalPaymentNote,
+                  autoApplyOldest: profileMessages.autoApplyOldest,
+                  cancel: profileMessages.cancel,
+                  savePayment: profileMessages.savePayment,
+                }}
               />
               <Link
                 href={`/customers/create?edit=${customer.id}`}
                 className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 px-4 py-2 font-semibold text-slate-700 transition-colors hover:bg-slate-50"
               >
                 <Pencil className="h-4 w-4" />
-                Edit Profile
+                {profileMessages.editProfile}
               </Link>
               <CustomerPrintPreview
                 company={company}
@@ -256,28 +282,29 @@ export default async function CustomerProfilePage({
                   invoices: customerSales,
                 }}
                 className="w-full"
+                label={profileMessages.printStatement}
               />
             </div>
           </SectionCard>
 
           <SectionCard className="overflow-hidden" padded={false}>
             <div className="border-b border-slate-50 p-6">
-              <h3 className="text-lg font-bold text-slate-900">Recent Linked Invoices</h3>
+              <h3 className="text-lg font-bold text-slate-900">{profileMessages.recentLinkedInvoices}</h3>
               <p className="mt-1 text-xs text-slate-500">
-                This ledger excludes manual one-time customer-name invoices unless they are linked to this profile.
+                {profileMessages.linkedInvoicesDescription}
               </p>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-left">
                 <thead>
                   <tr className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                    <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">Invoice</th>
-                    <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">Date</th>
-                    <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">Total</th>
-                    <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">Paid</th>
-                    <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">Due</th>
-                    <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">Status</th>
-                    <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4 text-right">Action</th>
+                    <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">{profileMessages.invoice}</th>
+                    <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">{profileMessages.date}</th>
+                    <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">{profileMessages.total}</th>
+                    <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">{profileMessages.paid}</th>
+                    <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">{profileMessages.due}</th>
+                    <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">{profileMessages.status}</th>
+                    <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4 text-right">{profileMessages.action}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-50">
@@ -304,14 +331,14 @@ export default async function CustomerProfilePage({
                           {formatCurrency(sale.remaining_amount ?? 0)}
                         </td>
                         <td className="px-6 py-4">
-                          <LocalizedPaymentStatusBadge status={sale.payment_status} />
+                          <LocalizedPaymentStatusBadge status={sale.payment_status} locale={locale} />
                         </td>
                         <td className="px-6 py-4 text-right">
                           <Link
                             href={`/sales/create?edit=${sale.id}`}
                             className="text-sm font-semibold text-blue-600 hover:text-blue-700"
                           >
-                            Open Bill
+                            {profileMessages.openBill}
                           </Link>
                         </td>
                       </tr>
@@ -320,7 +347,7 @@ export default async function CustomerProfilePage({
                           <td colSpan={7} className="px-6 py-4">
                             <div className="rounded-xl border border-slate-100 bg-white p-4">
                               <div className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-400">
-                                Invoice Payment History
+                                {profileMessages.invoicePaymentHistory}
                               </div>
                               <div className="space-y-2">
                                 {sale.salePayments.map((payment) => (
@@ -332,7 +359,7 @@ export default async function CustomerProfilePage({
                                       {formatBsDisplayDate(payment.payment_date)}
                                     </div>
                                     <div className="min-w-0 flex-1 text-slate-500">
-                                      {payment.notes || "Invoice payment"}
+                                      {payment.notes || profileMessages.invoicePayment}
                                     </div>
                                     <div className="font-semibold text-green-700">
                                       {formatCurrency(payment.amount)}
@@ -349,7 +376,7 @@ export default async function CustomerProfilePage({
                   {customerSales.length === 0 ? (
                     <tr>
                       <td colSpan={7} className="px-6 py-10 text-center text-sm text-slate-500">
-                        No linked invoices yet. Select this customer profile while creating a sales bill to build the ledger.
+                        {profileMessages.noLinkedInvoices}
                       </td>
                     </tr>
                   ) : null}
@@ -361,20 +388,20 @@ export default async function CustomerProfilePage({
 
         <SectionCard className="mt-6 overflow-hidden" padded={false}>
           <div className="border-b border-slate-50 p-6">
-            <h3 className="text-lg font-bold text-slate-900">Customer Payment Receipts</h3>
+            <h3 className="text-lg font-bold text-slate-900">{profileMessages.customerPaymentReceipts}</h3>
             <p className="mt-1 text-xs text-slate-500">
-              Grouped customer payments with invoice allocations saved in one transaction.
+              {profileMessages.customerPaymentReceiptsDescription}
             </p>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-left">
               <thead>
                 <tr className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                  <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">Date</th>
-                  <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">Amount</th>
-                  <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">Method</th>
-                  <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">Allocated Bills</th>
-                  <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">Note</th>
+                  <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">{profileMessages.date}</th>
+                  <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">{profileMessages.amount}</th>
+                  <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">{profileMessages.method}</th>
+                  <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">{profileMessages.allocatedBills}</th>
+                  <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">{profileMessages.note}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
@@ -409,7 +436,7 @@ export default async function CustomerProfilePage({
                 {customerPaymentRows.length === 0 ? (
                   <tr>
                     <td colSpan={5} className="px-6 py-10 text-center text-sm text-slate-500">
-                      No grouped customer payment receipts yet.
+                      {profileMessages.noGroupedPayments}
                     </td>
                   </tr>
                 ) : null}
@@ -420,19 +447,19 @@ export default async function CustomerProfilePage({
 
         <SectionCard className="mt-6 overflow-hidden" padded={false}>
           <div className="border-b border-slate-50 p-6">
-            <h3 className="text-lg font-bold text-slate-900">Invoice Payment History</h3>
+            <h3 className="text-lg font-bold text-slate-900">{profileMessages.invoicePaymentHistory}</h3>
             <p className="mt-1 text-xs text-slate-500">
-              Payment entries recorded against linked sales invoices for this customer.
+              {profileMessages.paymentEntriesDescription}
             </p>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-left">
               <thead>
                 <tr className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                  <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">Date</th>
-                  <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">Invoice</th>
-                  <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">Amount</th>
-                  <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">Note</th>
+                  <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">{profileMessages.date}</th>
+                  <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">{profileMessages.invoice}</th>
+                  <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">{profileMessages.amount}</th>
+                  <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">{profileMessages.note}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
@@ -455,7 +482,7 @@ export default async function CustomerProfilePage({
                 {paymentRows.length === 0 ? (
                   <tr>
                     <td colSpan={4} className="px-6 py-10 text-center text-sm text-slate-500">
-                      No customer payments recorded yet.
+                      {profileMessages.noCustomerPayments}
                     </td>
                   </tr>
                 ) : null}
