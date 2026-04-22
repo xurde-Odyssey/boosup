@@ -4,6 +4,7 @@ import Link from "next/link";
 import { CalendarRange, Check } from "lucide-react";
 import { ReactNode, useRef, useState } from "react";
 import { NepaliDateInput } from "@/components/shared/NepaliDateInput";
+import { type AppLocale, getMessages } from "@/lib/i18n";
 import { adToBs, bsToAd } from "@/lib/nepali-date";
 import { cn } from "@/lib/utils";
 
@@ -52,13 +53,17 @@ export function ReportToolbar({
   fromDate,
   toDate,
   reportButton,
+  locale = "en",
 }: {
   actionPath: string;
   selectedRange?: string;
   fromDate?: string;
   toDate?: string;
   reportButton?: ReactNode;
+  locale?: AppLocale;
 }) {
+  const messages = getMessages(locale);
+  const toolbarMessages = messages.reportToolbar;
   const today = getTodayDate();
   const formRef = useRef<HTMLFormElement>(null);
   const [range, setRange] = useState(selectedRange);
@@ -67,10 +72,10 @@ export function ReportToolbar({
   const [toBs, setToBs] = useState(adToBs(toDate ?? defaults.to));
   const showCustomDates = range === "custom";
   const rangeOptions = [
-    { value: "week", label: "Week" },
-    { value: "month", label: "Month" },
-    { value: "year", label: "Year" },
-    { value: "custom", label: "Custom" },
+    { value: "week", label: toolbarMessages.week },
+    { value: "month", label: toolbarMessages.month },
+    { value: "year", label: toolbarMessages.year },
+    { value: "custom", label: toolbarMessages.custom },
   ];
 
   const handleRangeChange = (nextRange: string) => {
@@ -105,9 +110,11 @@ export function ReportToolbar({
               </div>
               <div>
                 <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-400">
-                  Report Range
+                  {toolbarMessages.reportRange}
                 </div>
-                <div className="text-sm font-semibold text-slate-800">Filter the visible report view</div>
+                <div className="text-sm font-semibold text-slate-800">
+                  {toolbarMessages.filterVisibleReportView}
+                </div>
               </div>
             </div>
 
@@ -141,21 +148,21 @@ export function ReportToolbar({
                 type="submit"
                 className="w-full rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-blue-700 sm:w-auto"
               >
-                Apply
+                {toolbarMessages.apply}
               </button>
             )}
             <Link
               href={actionPath}
               className="inline-flex w-full items-center justify-center rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 sm:w-auto"
             >
-              Reset
+              {toolbarMessages.reset}
             </Link>
             {reportButton ?? (
               <button
                 type="button"
                 className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 sm:w-auto"
               >
-                Generate Report
+                {toolbarMessages.generateReport}
               </button>
             )}
           </div>
@@ -166,7 +173,7 @@ export function ReportToolbar({
             <div className="grid grid-cols-1 gap-4 xl:max-w-[860px] xl:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] xl:items-end">
               <div>
               <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-500">
-                Date From
+                {toolbarMessages.dateFrom}
               </label>
                 <NepaliDateInput
                   value={fromBs}
@@ -176,11 +183,11 @@ export function ReportToolbar({
                 />
               </div>
               <div className="hidden xl:flex xl:h-[50px] xl:items-center xl:justify-center xl:px-2">
-                <div className="text-sm font-semibold text-slate-400">to</div>
+                <div className="text-sm font-semibold text-slate-400">{toolbarMessages.to}</div>
               </div>
               <div>
                 <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-500">
-                  Date To
+                  {toolbarMessages.dateTo}
                 </label>
                 <NepaliDateInput
                   value={toBs}

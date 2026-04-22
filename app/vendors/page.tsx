@@ -144,7 +144,7 @@ export default async function VendorsPage({
           description={messages.suppliersPage.subtitle}
         />
         {notice && <ActionNotice message={notice} />}
-        <ReportToolbar actionPath="/vendors" />
+        <ReportToolbar actionPath="/vendors" locale={locale} />
         <PageActionStrip
           locale={locale}
           actions={[

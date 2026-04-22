@@ -196,6 +196,7 @@ export default async function RecordedSalaryTransactionsPage({
           selectedRange={selectedRange}
           fromDate={fromDate}
           toDate={toDate}
+          locale={locale}
         />
         <PageActionStrip
           locale={locale}

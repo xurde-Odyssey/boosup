@@ -26,6 +26,7 @@ import { PageActionStrip } from "@/components/shared/PageActionStrip";
 import { PaginationControls } from "@/components/shared/PaginationControls";
 import { QueryNoticeToast } from "@/components/shared/QueryNoticeToast";
 import { ReportToolbar } from "@/components/shared/ReportToolbar";
+import { getServerLocale } from "@/lib/i18n-server";
 import { formatBsDisplayDate } from "@/lib/nepali-date";
 import { formatCurrency } from "@/lib/presentation";
 import { getSupabaseClient } from "@/lib/supabase/server";
@@ -90,6 +91,7 @@ export default async function PurchasesPage({
 }) {
   const supabase = await getSupabaseClient();
   const params = await searchParams;
+  const locale = await getServerLocale(params.lang);
   const notice = typeof params.notice === "string" ? params.notice : "";
   const selectedRange = typeof params.range === "string" ? params.range : "year";
   const todayDate = getTodayDate();
@@ -185,7 +187,13 @@ export default async function PurchasesPage({
           description="Track supplier profiles, purchase totals, and outstanding credit."
         />
         <QueryNoticeToast message={notice} />
-        <ReportToolbar actionPath="/purchases" selectedRange={selectedRange} fromDate={fromDate} toDate={toDate} />
+        <ReportToolbar
+          actionPath="/purchases"
+          selectedRange={selectedRange}
+          fromDate={fromDate}
+          toDate={toDate}
+          locale={locale}
+        />
         <PageActionStrip
           actions={[
             { label: "Create Purchase Bill", href: "/purchases/create", icon: FilePlus },

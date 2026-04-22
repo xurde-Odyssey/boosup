@@ -272,9 +272,11 @@ export default async function SalesPage({
           selectedRange={selectedRange}
           fromDate={fromDate}
           toDate={toDate}
+          locale={locale}
           reportButton={
             <SalesReportPrintButton
               company={company}
+              locale={locale}
               generatedDate={formatBsDisplayDate(todayDate)}
               selectedPeriod={formatReportPeriod(selectedRange, fromDate, toDate)}
               metrics={[

@@ -1,0 +1,931 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Boosup Architecture Map</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f8fafc;
+        --panel: #ffffff;
+        --panel-soft: #f1f5f9;
+        --text: #0f172a;
+        --muted: #64748b;
+        --line: #dbe4ee;
+        --blue: #1d4ed8;
+        --green: #047857;
+        --amber: #b45309;
+        --red: #b91c1c;
+        --purple: #7c3aed;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        line-height: 1.55;
+      }
+
+      a {
+        color: inherit;
+        text-decoration: none;
+      }
+
+      a:hover {
+        color: var(--blue);
+        text-decoration: underline;
+      }
+
+      .shell {
+        display: grid;
+        grid-template-columns: 280px minmax(0, 1fr);
+        min-height: 100vh;
+      }
+
+      .sidebar {
+        position: sticky;
+        top: 0;
+        height: 100vh;
+        overflow: auto;
+        border-right: 1px solid var(--line);
+        background: #ffffff;
+        padding: 24px;
+      }
+
+      .brand {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        margin-bottom: 24px;
+      }
+
+      .brand h1 {
+        margin: 0;
+        font-size: 22px;
+        letter-spacing: 0;
+      }
+
+      .brand p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .nav-title {
+        margin: 22px 0 8px;
+        color: #94a3b8;
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+
+      .nav-link {
+        display: block;
+        border-radius: 8px;
+        color: #334155;
+        font-size: 14px;
+        font-weight: 650;
+        padding: 8px 10px;
+      }
+
+      .nav-link:hover {
+        background: #eff6ff;
+        text-decoration: none;
+      }
+
+      main {
+        padding: 32px;
+      }
+
+      .hero {
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: var(--panel);
+        padding: 28px;
+      }
+
+      .hero h2 {
+        margin: 0;
+        font-size: 30px;
+      }
+
+      .hero p {
+        max-width: 900px;
+        margin: 12px 0 0;
+        color: var(--muted);
+      }
+
+      section {
+        margin-top: 24px;
+      }
+
+      .section-head {
+        display: flex;
+        align-items: end;
+        justify-content: space-between;
+        gap: 16px;
+        margin-bottom: 12px;
+      }
+
+      .section-head h2 {
+        margin: 0;
+        font-size: 22px;
+      }
+
+      .section-head p {
+        margin: 4px 0 0;
+        color: var(--muted);
+        font-size: 14px;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 14px;
+      }
+
+      .grid-3 {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 14px;
+      }
+
+      .card {
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: var(--panel);
+        padding: 18px;
+      }
+
+      .card h3 {
+        margin: 0 0 10px;
+        font-size: 17px;
+      }
+
+      .card p {
+        margin: 0 0 12px;
+        color: var(--muted);
+        font-size: 14px;
+      }
+
+      .link-list {
+        display: grid;
+        gap: 8px;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+      }
+
+      .link-list li {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-items: center;
+        min-width: 0;
+      }
+
+      .file {
+        display: inline-flex;
+        max-width: 100%;
+        overflow-wrap: anywhere;
+        border: 1px solid #cbd5e1;
+        border-radius: 7px;
+        background: #f8fafc;
+        color: #0f172a;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        font-size: 12px;
+        padding: 4px 7px;
+      }
+
+      .file:hover {
+        background: #eff6ff;
+        text-decoration: none;
+      }
+
+      .tag {
+        display: inline-flex;
+        border-radius: 999px;
+        background: #e0f2fe;
+        color: #075985;
+        font-size: 11px;
+        font-weight: 800;
+        padding: 3px 8px;
+        text-transform: uppercase;
+      }
+
+      .flow {
+        display: grid;
+        gap: 10px;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+      }
+
+      .flow li {
+        position: relative;
+        border: 1px solid var(--line);
+        border-radius: 9px;
+        background: var(--panel);
+        padding: 12px 14px;
+      }
+
+      .flow li + li::before {
+        content: "connects to";
+        position: absolute;
+        top: -20px;
+        left: 14px;
+        color: #94a3b8;
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .flow strong {
+        display: block;
+        margin-bottom: 4px;
+      }
+
+      .flow span {
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .table {
+        width: 100%;
+        border-collapse: collapse;
+        overflow: hidden;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: var(--panel);
+      }
+
+      .table th,
+      .table td {
+        border-bottom: 1px solid var(--line);
+        padding: 12px;
+        text-align: left;
+        vertical-align: top;
+      }
+
+      .table th {
+        background: #f1f5f9;
+        color: #475569;
+        font-size: 12px;
+        text-transform: uppercase;
+      }
+
+      .table tr:last-child td {
+        border-bottom: 0;
+      }
+
+      .note {
+        border-left: 4px solid var(--blue);
+        border-radius: 8px;
+        background: #eff6ff;
+        color: #1e3a8a;
+        padding: 14px 16px;
+      }
+
+      .qa-list {
+        display: grid;
+        gap: 12px;
+      }
+
+      .qa {
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: var(--panel);
+        padding: 16px 18px;
+      }
+
+      .qa h3 {
+        margin: 0 0 8px;
+        font-size: 16px;
+      }
+
+      .qa p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 14px;
+      }
+
+      @media (max-width: 980px) {
+        .shell {
+          grid-template-columns: 1fr;
+        }
+
+        .sidebar {
+          position: static;
+          height: auto;
+        }
+
+        main {
+          padding: 20px;
+        }
+
+        .grid,
+        .grid-3 {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <h1>Boosup Architecture</h1>
+          <p>Clickable map of modules, files, functions, and database links.</p>
+        </div>
+
+        <div class="nav-title">Start</div>
+        <a class="nav-link" href="#overview">Overview</a>
+        <a class="nav-link" href="#folder-map">Folder Map</a>
+        <a class="nav-link" href="#module-map">Module Map</a>
+
+        <div class="nav-title">Business Flows</div>
+        <a class="nav-link" href="#sales-flow">Sales</a>
+        <a class="nav-link" href="#customer-flow">Customers</a>
+        <a class="nav-link" href="#purchase-flow">Purchases</a>
+        <a class="nav-link" href="#supplier-flow">Suppliers</a>
+        <a class="nav-link" href="#staff-flow">Staff Salary</a>
+        <a class="nav-link" href="#dashboard-flow">Dashboard</a>
+
+        <div class="nav-title">Reference</div>
+        <a class="nav-link" href="#server-actions">Server Actions</a>
+        <a class="nav-link" href="#database-map">Database Map</a>
+        <a class="nav-link" href="#technical-qa">Technical Q&A</a>
+        <a class="nav-link" href="#how-to-read">How To Read The Code</a>
+      </aside>
+
+      <main>
+        <div id="overview" class="hero">
+          <h2>Bookkeeping System Connection Map</h2>
+          <p>
+            Boosup is a Next.js app backed by Supabase PostgreSQL. Pages live in
+            <a class="file" href="../app/">app/</a>, UI blocks live in
+            <a class="file" href="../components/">components/</a>, reusable calculations live in
+            <a class="file" href="../lib/">lib/</a>, and the database structure lives in
+            <a class="file" href="../supabase/">supabase/</a>.
+          </p>
+        </div>
+
+        <section id="folder-map">
+          <div class="section-head">
+            <div>
+              <h2>Folder Map</h2>
+              <p>Where to look first when you want to understand or change something.</p>
+            </div>
+          </div>
+
+          <div class="grid">
+            <div class="card">
+              <h3>Pages and Server Actions</h3>
+              <p>Routes, page loading, and business writes.</p>
+              <ul class="link-list">
+                <li><a class="file" href="../app/page.tsx">app/page.tsx</a><span>Dashboard</span></li>
+                <li><a class="file" href="../app/actions.ts">app/actions.ts</a><span>Create/update/delete/payment logic</span></li>
+                <li><a class="file" href="../app/layout.tsx">app/layout.tsx</a><span>Root layout and favicon</span></li>
+                <li><a class="file" href="../app/settings/page.tsx">app/settings/page.tsx</a><span>Settings and backup UI</span></li>
+                <li><a class="file" href="../app/activity/page.tsx">app/activity/page.tsx</a><span>Activity log page</span></li>
+              </ul>
+            </div>
+
+            <div class="card">
+              <h3>Reusable Logic</h3>
+              <p>Calculations, Supabase clients, dates, and formatting.</p>
+              <ul class="link-list">
+                <li><a class="file" href="../lib/financial.ts">lib/financial.ts</a><span>Payment and balance calculations</span></li>
+                <li><a class="file" href="../lib/staff-payroll.ts">lib/staff-payroll.ts</a><span>Staff ledger calculations</span></li>
+                <li><a class="file" href="../lib/nepali-date.ts">lib/nepali-date.ts</a><span>BS/AD date helpers</span></li>
+                <li><a class="file" href="../lib/supabase/server.ts">lib/supabase/server.ts</a><span>Server Supabase client</span></li>
+                <li><a class="file" href="../lib/supabase/client.ts">lib/supabase/client.ts</a><span>Browser Supabase client</span></li>
+              </ul>
+            </div>
+
+            <div class="card">
+              <h3>UI Components</h3>
+              <p>Forms, modals, cards, tables, print previews, and navigation.</p>
+              <ul class="link-list">
+                <li><a class="file" href="../components/dashboard/Sidebar.tsx">components/dashboard/Sidebar.tsx</a><span>Main navigation</span></li>
+                <li><a class="file" href="../components/sales/SalesForm.tsx">components/sales/SalesForm.tsx</a><span>Sales bill form</span></li>
+                <li><a class="file" href="../components/purchases/PurchaseForm.tsx">components/purchases/PurchaseForm.tsx</a><span>Purchase bill form</span></li>
+                <li><a class="file" href="../components/customers/CustomerPaymentModal.tsx">components/customers/CustomerPaymentModal.tsx</a><span>Customer payment modal</span></li>
+                <li><a class="file" href="../components/vendors/SupplierPaymentModal.tsx">components/vendors/SupplierPaymentModal.tsx</a><span>Supplier payment modal</span></li>
+              </ul>
+            </div>
+
+            <div class="card">
+              <h3>Database</h3>
+              <p>Full schema and incremental update scripts.</p>
+              <ul class="link-list">
+                <li><a class="file" href="../supabase/schema.sql">supabase/schema.sql</a><span>Full current schema</span></li>
+                <li><a class="file" href="../supabase/migrations/20260422_add_activity_logs.sql">activity migration</a><span>Activity table</span></li>
+                <li><a class="file" href="../supabase/migrations/20260422_customer_payment_transactions.sql">customer payment migration</a><span>Transactional customer payments</span></li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
+        <section id="module-map">
+          <div class="section-head">
+            <div>
+              <h2>Module Link List</h2>
+              <p>Each module connects pages, components, server actions, and database tables.</p>
+            </div>
+          </div>
+
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Module</th>
+                <th>Pages</th>
+                <th>Components</th>
+                <th>Server Actions</th>
+                <th>Tables</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><span class="tag">Sales</span></td>
+                <td>
+                  <a class="file" href="../app/sales/page.tsx">sales/page</a>
+                  <a class="file" href="../app/sales/create/page.tsx">sales/create</a>
+                  <a class="file" href="../app/sales/view/page.tsx">sales/view</a>
+                </td>
+                <td>
+                  <a class="file" href="../components/sales/SalesForm.tsx">SalesForm</a>
+                  <a class="file" href="../components/sales/SalesPrintPreview.tsx">SalesPrintPreview</a>
+                </td>
+                <td><a class="file" href="../app/actions.ts">upsertSale, deleteSale</a></td>
+                <td>sales, sales_items, sales_payments</td>
+              </tr>
+              <tr>
+                <td><span class="tag">Customers</span></td>
+                <td>
+                  <a class="file" href="../app/customers/page.tsx">customers/page</a>
+                  <a class="file" href="../app/customers/[id]/page.tsx">customers/[id]</a>
+                  <a class="file" href="../app/customers/create/page.tsx">customers/create</a>
+                </td>
+                <td>
+                  <a class="file" href="../components/customers/CustomerProfileForm.tsx">CustomerProfileForm</a>
+                  <a class="file" href="../components/customers/CustomerPaymentModal.tsx">CustomerPaymentModal</a>
+                  <a class="file" href="../components/customers/CustomerPrintPreview.tsx">CustomerPrintPreview</a>
+                </td>
+                <td><a class="file" href="../app/actions.ts">upsertCustomer, createCustomerPayment</a></td>
+                <td>customers, customer_payments, customer_payment_allocations, sales</td>
+              </tr>
+              <tr>
+                <td><span class="tag">Purchases</span></td>
+                <td>
+                  <a class="file" href="../app/purchases/page.tsx">purchases/page</a>
+                  <a class="file" href="../app/purchases/create/page.tsx">purchases/create</a>
+                  <a class="file" href="../app/purchases/expense/create/page.tsx">purchase expense</a>
+                </td>
+                <td>
+                  <a class="file" href="../components/purchases/PurchaseForm.tsx">PurchaseForm</a>
+                  <a class="file" href="../components/purchases/PurchaseExpenseForm.tsx">PurchaseExpenseForm</a>
+                </td>
+                <td><a class="file" href="../app/actions.ts">upsertPurchase, upsertPurchaseExpense</a></td>
+                <td>purchases, purchase_items, purchase_payments, purchase_expenses</td>
+              </tr>
+              <tr>
+                <td><span class="tag">Suppliers</span></td>
+                <td>
+                  <a class="file" href="../app/vendors/page.tsx">vendors/page</a>
+                  <a class="file" href="../app/vendors/[id]/page.tsx">vendors/[id]</a>
+                  <a class="file" href="../app/vendors/create/page.tsx">vendors/create</a>
+                </td>
+                <td>
+                  <a class="file" href="../components/vendors/SupplierPaymentModal.tsx">SupplierPaymentModal</a>
+                  <a class="file" href="../components/vendors/VendorPrintPreview.tsx">VendorPrintPreview</a>
+                </td>
+                <td><a class="file" href="../app/actions.ts">upsertVendor, createSupplierPayment</a></td>
+                <td>vendors, supplier_payments, supplier_payment_allocations, purchases</td>
+              </tr>
+              <tr>
+                <td><span class="tag">Staff</span></td>
+                <td>
+                  <a class="file" href="../app/staff/page.tsx">staff/page</a>
+                  <a class="file" href="../app/staff/create/page.tsx">staff/create</a>
+                  <a class="file" href="../app/staff/payment/create/page.tsx">staff/payment</a>
+                  <a class="file" href="../app/staff/view/page.tsx">staff/view</a>
+                </td>
+                <td>
+                  <a class="file" href="../components/staff/StaffProfileForm.tsx">StaffProfileForm</a>
+                  <a class="file" href="../components/staff/StaffSalaryPaymentForm.tsx">StaffSalaryPaymentForm</a>
+                  <a class="file" href="../components/staff/StaffTransactionsTable.tsx">StaffTransactionsTable</a>
+                </td>
+                <td><a class="file" href="../app/actions.ts">upsertStaffSalaryPayment, syncStaffSalaryLedgers</a></td>
+                <td>staff_profiles, staff_salary_ledgers, staff_salary_transactions</td>
+              </tr>
+              <tr>
+                <td><span class="tag">Dashboard</span></td>
+                <td><a class="file" href="../app/page.tsx">app/page.tsx</a></td>
+                <td><a class="file" href="../components/dashboard/">components/dashboard/</a></td>
+                <td>Read-only page calculations</td>
+                <td>sales, purchases, expenses, staff, customers, vendors, activity_logs</td>
+              </tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section id="sales-flow">
+          <div class="section-head">
+            <div>
+              <h2>Sales Flow</h2>
+              <p>How creating or editing a sales bill connects through the system.</p>
+            </div>
+          </div>
+          <ol class="flow">
+            <li><strong><a class="file" href="../app/sales/create/page.tsx">app/sales/create/page.tsx</a></strong><span>Loads products, customers, company settings, and existing sale data when editing.</span></li>
+            <li><strong><a class="file" href="../components/sales/SalesForm.tsx">components/sales/SalesForm.tsx</a></strong><span>Collects bill number, customer, date, items, tax, discount, payment, and notes.</span></li>
+            <li><strong><a class="file" href="../app/actions.ts">app/actions.ts: upsertSale</a></strong><span>Validates input, calculates totals, writes sales, sales_items, optional sales_payments, and activity_logs.</span></li>
+            <li><strong><a class="file" href="../lib/financial.ts">lib/financial.ts</a></strong><span>Provides calculateSalesPaymentState for received amount, status, and remaining balance safety.</span></li>
+            <li><strong><a class="file" href="../app/sales/page.tsx">app/sales/page.tsx</a> and <a class="file" href="../app/customers/[id]/page.tsx">customer profile</a></strong><span>Read saved sales and payment history for reports and ledgers.</span></li>
+          </ol>
+        </section>
+
+        <section id="customer-flow">
+          <div class="section-head">
+            <div>
+              <h2>Customer Payment Flow</h2>
+              <p>This is the newest safer transactional flow.</p>
+            </div>
+          </div>
+          <ol class="flow">
+            <li><strong><a class="file" href="../app/customers/[id]/page.tsx">app/customers/[id]/page.tsx</a></strong><span>Shows customer ledger, linked invoices, grouped payment receipts, and invoice payment history.</span></li>
+            <li><strong><a class="file" href="../components/customers/CustomerPaymentModal.tsx">CustomerPaymentModal</a></strong><span>Collects payment amount, method, date, and note.</span></li>
+            <li><strong><a class="file" href="../app/actions.ts">app/actions.ts: createCustomerPayment</a></strong><span>Validates basic form values and calls the Supabase RPC.</span></li>
+            <li><strong><a class="file" href="../supabase/migrations/20260422_customer_payment_transactions.sql">record_customer_payment_with_allocations RPC</a></strong><span>In one PostgreSQL transaction, inserts customer_payments, inserts allocations, updates invoice paid/status, and inserts sales_payments.</span></li>
+            <li><strong>Tables</strong><span>customer_payments -> customer_payment_allocations -> sales -> sales_payments.</span></li>
+          </ol>
+          <div class="note">
+            If any invoice allocation or payment-history insert fails, the whole customer payment rolls back.
+          </div>
+        </section>
+
+        <section id="purchase-flow">
+          <div class="section-head">
+            <div>
+              <h2>Purchase Flow</h2>
+              <p>Purchase bill creation and payment history.</p>
+            </div>
+          </div>
+          <ol class="flow">
+            <li><strong><a class="file" href="../app/purchases/create/page.tsx">app/purchases/create/page.tsx</a></strong><span>Loads vendors and existing purchase data when editing.</span></li>
+            <li><strong><a class="file" href="../components/purchases/PurchaseForm.tsx">PurchaseForm</a></strong><span>Collects supplier, items, payment status, amount paid now, and notes.</span></li>
+            <li><strong><a class="file" href="../app/actions.ts">app/actions.ts: upsertPurchase</a></strong><span>Writes purchases, purchase_items, optional purchase_payments, and activity_logs.</span></li>
+            <li><strong><a class="file" href="../lib/financial.ts">lib/financial.ts</a></strong><span>Provides calculatePurchasePaymentState and resolvePurchasePaymentStatus.</span></li>
+            <li><strong><a class="file" href="../app/purchases/page.tsx">app/purchases/page.tsx</a></strong><span>Displays purchases, expenses, and recent payments.</span></li>
+          </ol>
+        </section>
+
+        <section id="supplier-flow">
+          <div class="section-head">
+            <div>
+              <h2>Supplier Payment Flow</h2>
+              <p>Supplier-level payment allocation to oldest unpaid purchase bills.</p>
+            </div>
+          </div>
+          <ol class="flow">
+            <li><strong><a class="file" href="../app/vendors/[id]/page.tsx">app/vendors/[id]/page.tsx</a></strong><span>Shows supplier profile, bills, payable balances, supplier payments, and bill payment history.</span></li>
+            <li><strong><a class="file" href="../components/vendors/SupplierPaymentModal.tsx">SupplierPaymentModal</a></strong><span>Collects supplier payment amount, method, date, and note.</span></li>
+            <li><strong><a class="file" href="../app/actions.ts">app/actions.ts: createSupplierPayment</a></strong><span>Allocates payment FIFO, inserts supplier_payments, supplier_payment_allocations, purchase_payments, and updates purchases.</span></li>
+            <li><strong><a class="file" href="../lib/financial.ts">lib/financial.ts</a></strong><span>Provides allocateSupplierPaymentToOldestBills and supplier payable calculations.</span></li>
+            <li><strong>Tables</strong><span>supplier_payments -> supplier_payment_allocations -> purchases -> purchase_payments.</span></li>
+          </ol>
+        </section>
+
+        <section id="staff-flow">
+          <div class="section-head">
+            <div>
+              <h2>Staff Salary Flow</h2>
+              <p>Monthly ledger plus transaction history.</p>
+            </div>
+          </div>
+          <ol class="flow">
+            <li><strong><a class="file" href="../app/staff/payment/create/page.tsx">app/staff/payment/create/page.tsx</a></strong><span>Loads staff options and existing salary transaction when editing.</span></li>
+            <li><strong><a class="file" href="../components/staff/StaffSalaryPaymentForm.tsx">StaffSalaryPaymentForm</a></strong><span>Collects staff, month, salary settings, advance/salary type, amount, date, and note.</span></li>
+            <li><strong><a class="file" href="../app/actions.ts">app/actions.ts: upsertStaffSalaryPayment</a></strong><span>Upserts monthly ledger, inserts/updates transaction, then syncs staff ledgers.</span></li>
+            <li><strong><a class="file" href="../lib/staff-payroll.ts">lib/staff-payroll.ts</a></strong><span>Recalculates total advance, salary paid, remaining, carry forward, and status.</span></li>
+            <li><strong><a class="file" href="../app/staff/page.tsx">app/staff/page.tsx</a></strong><span>Displays staff summaries, ledgers, and transactions.</span></li>
+          </ol>
+        </section>
+
+        <section id="dashboard-flow">
+          <div class="section-head">
+            <div>
+              <h2>Dashboard Flow</h2>
+              <p>The dashboard reads many modules and summarizes business state.</p>
+            </div>
+          </div>
+          <ol class="flow">
+            <li><strong><a class="file" href="../app/page.tsx">app/page.tsx</a></strong><span>Fetches sales, purchases, expenses, staff ledgers, customers, vendors, and activity logs.</span></li>
+            <li><strong><a class="file" href="../lib/financial.ts">lib/financial.ts</a></strong><span>Calculates dashboard totals and payment states.</span></li>
+            <li><strong><a class="file" href="../lib/staff-payroll.ts">lib/staff-payroll.ts</a></strong><span>Builds staff salary snapshots used by dashboard/staff pages.</span></li>
+            <li><strong><a class="file" href="../components/dashboard/">components/dashboard/</a></strong><span>Renders KPI cards, charts, activity cards, report buttons, and tables.</span></li>
+            <li><strong><a class="file" href="../app/activity/page.tsx">app/activity/page.tsx</a></strong><span>Shows full activity records that the dashboard previews.</span></li>
+          </ol>
+        </section>
+
+        <section id="server-actions">
+          <div class="section-head">
+            <div>
+              <h2>Server Actions Quick Index</h2>
+              <p>All business writes are centralized in one file.</p>
+            </div>
+          </div>
+          <div class="grid-3">
+            <div class="card">
+              <h3>Master Data</h3>
+              <ul class="link-list">
+                <li><a class="file" href="../app/actions.ts">upsertProduct</a></li>
+                <li><a class="file" href="../app/actions.ts">deleteProduct</a></li>
+                <li><a class="file" href="../app/actions.ts">upsertCustomer</a></li>
+                <li><a class="file" href="../app/actions.ts">upsertVendor</a></li>
+                <li><a class="file" href="../app/actions.ts">upsertStaffProfile</a></li>
+              </ul>
+            </div>
+            <div class="card">
+              <h3>Financial Records</h3>
+              <ul class="link-list">
+                <li><a class="file" href="../app/actions.ts">upsertSale</a></li>
+                <li><a class="file" href="../app/actions.ts">upsertPurchase</a></li>
+                <li><a class="file" href="../app/actions.ts">upsertPurchaseExpense</a></li>
+                <li><a class="file" href="../app/actions.ts">upsertStaffSalaryPayment</a></li>
+              </ul>
+            </div>
+            <div class="card">
+              <h3>Payments and Settings</h3>
+              <ul class="link-list">
+                <li><a class="file" href="../app/actions.ts">createCustomerPayment</a></li>
+                <li><a class="file" href="../app/actions.ts">createSupplierPayment</a></li>
+                <li><a class="file" href="../app/actions.ts">upsertCompanySettings</a></li>
+                <li><a class="file" href="../app/actions.ts">recordActivity</a></li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
+        <section id="database-map">
+          <div class="section-head">
+            <div>
+              <h2>Database Relationship Map</h2>
+              <p>Tables connect through IDs. Parent records own child histories.</p>
+            </div>
+          </div>
+
+          <div class="grid">
+            <div class="card">
+              <h3>Sales and Customers</h3>
+              <ul class="link-list">
+                <li><span class="file">customers.id</span><span>connects to</span><span class="file">sales.customer_id</span></li>
+                <li><span class="file">sales.id</span><span>connects to</span><span class="file">sales_items.sale_id</span></li>
+                <li><span class="file">sales.id</span><span>connects to</span><span class="file">sales_payments.sale_id</span></li>
+                <li><span class="file">customer_payments.id</span><span>connects to</span><span class="file">customer_payment_allocations.customer_payment_id</span></li>
+                <li><span class="file">customer_payments.id</span><span>connects to</span><span class="file">sales_payments.customer_payment_id</span></li>
+              </ul>
+            </div>
+
+            <div class="card">
+              <h3>Purchases and Suppliers</h3>
+              <ul class="link-list">
+                <li><span class="file">vendors.id</span><span>connects to</span><span class="file">purchases.vendor_id</span></li>
+                <li><span class="file">purchases.id</span><span>connects to</span><span class="file">purchase_items.purchase_id</span></li>
+                <li><span class="file">purchases.id</span><span>connects to</span><span class="file">purchase_payments.purchase_id</span></li>
+                <li><span class="file">supplier_payments.id</span><span>connects to</span><span class="file">supplier_payment_allocations.supplier_payment_id</span></li>
+                <li><span class="file">purchases.id</span><span>connects to</span><span class="file">supplier_payment_allocations.purchase_id</span></li>
+              </ul>
+            </div>
+
+            <div class="card">
+              <h3>Staff Salary</h3>
+              <ul class="link-list">
+                <li><span class="file">staff_profiles.id</span><span>connects to</span><span class="file">staff_salary_ledgers.staff_id</span></li>
+                <li><span class="file">staff_profiles.id</span><span>connects to</span><span class="file">staff_salary_transactions.staff_id</span></li>
+                <li><span class="file">staff_salary_ledgers.id</span><span>connects to</span><span class="file">staff_salary_transactions.ledger_id</span></li>
+              </ul>
+            </div>
+
+            <div class="card">
+              <h3>System</h3>
+              <ul class="link-list">
+                <li><span class="file">activity_logs</span><span>stores actions from server actions</span></li>
+                <li><span class="file">company_settings</span><span>stores business name, logo, favicon, print identity</span></li>
+                <li><span class="file">products</span><span>can be selected in sales items</span></li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
+        <section id="technical-qa">
+          <div class="section-head">
+            <div>
+              <h2>Technical Q&A</h2>
+              <p>Common programming and architecture questions someone may ask about the system.</p>
+            </div>
+          </div>
+
+          <div class="qa-list">
+            <div class="qa">
+              <h3>Which programming language is used?</h3>
+              <p>
+                The application is written in TypeScript. The frontend and backend route logic use
+                Next.js with React components, server components, and server actions.
+              </p>
+            </div>
+
+            <div class="qa">
+              <h3>Which framework is used for the app?</h3>
+              <p>
+                The app uses Next.js App Router. Pages are inside <span class="file">app/</span>,
+                reusable UI is inside <span class="file">components/</span>, and shared helper logic is
+                inside <span class="file">lib/</span>.
+              </p>
+            </div>
+
+            <div class="qa">
+              <h3>What is used for the backend?</h3>
+              <p>
+                Supabase is used as the backend platform. The app uses Supabase PostgreSQL for data,
+                Supabase Auth for authentication, and Supabase server clients for protected database
+                reads and writes.
+              </p>
+            </div>
+
+            <div class="qa">
+              <h3>Where is the data saved?</h3>
+              <p>
+                Business data is saved in Supabase PostgreSQL tables such as
+                <span class="file">sales</span>, <span class="file">purchases</span>,
+                <span class="file">customers</span>, <span class="file">vendors</span>,
+                <span class="file">products</span>, <span class="file">staff_salary_ledgers</span>,
+                and <span class="file">activity_logs</span>.
+              </p>
+            </div>
+
+            <div class="qa">
+              <h3>Where is the database schema defined?</h3>
+              <p>
+                The full schema is kept in <a class="file" href="../supabase/schema.sql">supabase/schema.sql</a>.
+                Smaller update scripts are kept in <a class="file" href="../supabase/migrations/">supabase/migrations/</a>
+                so changes can be tracked and applied step by step.
+              </p>
+            </div>
+
+            <div class="qa">
+              <h3>How does the app connect to Supabase?</h3>
+              <p>
+                Server-side pages and actions use <a class="file" href="../lib/supabase/server.ts">lib/supabase/server.ts</a>.
+                Browser-side code can use <a class="file" href="../lib/supabase/client.ts">lib/supabase/client.ts</a>
+                when client access is needed.
+              </p>
+            </div>
+
+            <div class="qa">
+              <h3>Where is create, update, delete, and payment logic written?</h3>
+              <p>
+                Most business writes are centralized in <a class="file" href="../app/actions.ts">app/actions.ts</a>.
+                Examples include <span class="file">upsertSale</span>, <span class="file">upsertPurchase</span>,
+                <span class="file">createCustomerPayment</span>, <span class="file">createSupplierPayment</span>,
+                and <span class="file">upsertStaffSalaryPayment</span>.
+              </p>
+            </div>
+
+            <div class="qa">
+              <h3>How are financial calculations handled?</h3>
+              <p>
+                Shared calculations live in <a class="file" href="../lib/financial.ts">lib/financial.ts</a>
+                and staff salary calculations live in
+                <a class="file" href="../lib/staff-payroll.ts">lib/staff-payroll.ts</a>. This keeps payment
+                status, remaining balance, supplier payable, and salary ledger logic consistent across pages.
+              </p>
+            </div>
+
+            <div class="qa">
+              <h3>Does the system use APIs?</h3>
+              <p>
+                Most writes use Next.js server actions instead of separate REST endpoints. Supabase itself
+                provides the database API, and PostgreSQL RPC is used where a safer transaction is needed,
+                such as customer payment allocation.
+              </p>
+            </div>
+
+            <div class="qa">
+              <h3>How are customer and supplier payments stored?</h3>
+              <p>
+                Customer payments are stored in <span class="file">customer_payments</span> and allocated
+                through <span class="file">customer_payment_allocations</span>. Supplier payments are stored
+                in <span class="file">supplier_payments</span> and allocated through
+                <span class="file">supplier_payment_allocations</span>. Bill-level histories are also stored
+                in <span class="file">sales_payments</span> and <span class="file">purchase_payments</span>.
+              </p>
+            </div>
+
+            <div class="qa">
+              <h3>How is transactional safety handled?</h3>
+              <p>
+                Some flows are handled in the application action layer, while the safer customer payment
+                allocation flow uses a PostgreSQL RPC transaction. If one insert or update fails in that RPC,
+                the whole payment allocation is rolled back.
+              </p>
+            </div>
+
+            <div class="qa">
+              <h3>How is the activity log created?</h3>
+              <p>
+                Server actions call <span class="file">recordActivity</span> in
+                <a class="file" href="../app/actions.ts">app/actions.ts</a>. Those records are saved in
+                <span class="file">activity_logs</span> and displayed on
+                <a class="file" href="../app/activity/page.tsx">app/activity/page.tsx</a>.
+              </p>
+            </div>
+
+            <div class="qa">
+              <h3>How does language switching work?</h3>
+              <p>
+                Translation messages are stored in <a class="file" href="../messages/en.ts">messages/en.ts</a>
+                and <a class="file" href="../messages/ne.ts">messages/ne.ts</a>. Locale helpers in
+                <a class="file" href="../lib/i18n.ts">lib/i18n.ts</a> and
+                <a class="file" href="../lib/i18n-server.ts">lib/i18n-server.ts</a> choose English or Nepali
+                based on the selected language.
+              </p>
+            </div>
+
+            <div class="qa">
+              <h3>How are Nepali dates handled?</h3>
+              <p>
+                Nepali date conversion and display helpers are inside
+                <a class="file" href="../lib/nepali-date.ts">lib/nepali-date.ts</a>. Forms can show BS dates
+                while the app stores comparable AD date values for filtering and reporting.
+              </p>
+            </div>
+
+            <div class="qa">
+              <h3>What styling system is used?</h3>
+              <p>
+                The UI uses Tailwind-style utility classes inside React components. Shared layout pieces
+                such as cards, headers, buttons, badges, tables, and report toolbars live in
+                <span class="file">components/</span>.
+              </p>
+            </div>
+
+            <div class="qa">
+              <h3>Is it built for one business or SaaS?</h3>
+              <p>
+                The current version is suitable for one organization and one owner/admin account. To make it
+                multi-tenant SaaS later, the database would need organization ownership fields, stricter RLS
+                policies, and tenant-aware queries.
+              </p>
+            </div>
+
+            <div class="qa">
+              <h3>Can the system be backed up?</h3>
+              <p>
+                The settings page already has backup UI placeholders for CSV and ZIP exports. Actual backup
+                logic can be added later by reading Supabase tables and exporting sales, customers, purchases,
+                staff salary, and reports.
+              </p>
+            </div>
+
+            <div class="qa">
+              <h3>Where should a developer start if they want to change a feature?</h3>
+              <p>
+                Start from the route in <span class="file">app/</span>, then follow the component in
+                <span class="file">components/</span>, then the form action in
+                <span class="file">app/actions.ts</span>, then the helper logic in <span class="file">lib/</span>,
+                and finally the related table in <span class="file">supabase/schema.sql</span>.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <section id="how-to-read">
+          <div class="section-head">
+            <div>
+              <h2>How To Read The Code</h2>
+              <p>Use this repeatable path whenever you want to understand a feature.</p>
+            </div>
+          </div>
+          <ol class="flow">
+            <li><strong>Start from the page</strong><span>Example: <a class="file" href="../app/sales/create/page.tsx">app/sales/create/page.tsx</a></span></li>
+            <li><strong>Open the component it renders</strong><span>Example: <a class="file" href="../components/sales/SalesForm.tsx">components/sales/SalesForm.tsx</a></span></li>
+            <li><strong>Find the form action</strong><span>Example: <a class="file" href="../app/actions.ts">upsertSale in app/actions.ts</a></span></li>
+            <li><strong>Check helper calculations</strong><span>Example: <a class="file" href="../lib/financial.ts">lib/financial.ts</a></span></li>
+            <li><strong>Check database tables</strong><span>Example: <a class="file" href="../supabase/schema.sql">supabase/schema.sql</a></span></li>
+            <li><strong>Check where records are shown again</strong><span>Example: sales page, customer profile, dashboard, print preview.</span></li>
+          </ol>
+        </section>
+      </main>
+    </div>
+  </body>
+</html>

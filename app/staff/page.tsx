@@ -242,7 +242,13 @@ export default async function StaffPage({
           description={messages.staffPage.subtitle}
         />
         <QueryNoticeToast message={notice} />
-        <ReportToolbar actionPath="/staff" selectedRange={selectedRange} fromDate={fromDate} toDate={toDate} />
+        <ReportToolbar
+          actionPath="/staff"
+          selectedRange={selectedRange}
+          fromDate={fromDate}
+          toDate={toDate}
+          locale={locale}
+        />
         <PageActionStrip
           locale={locale}
           actions={[
