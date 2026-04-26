@@ -26,49 +26,11 @@ import { getMessages, getStaffMonthLabel, getStatusLabel } from "@/lib/i18n";
 import { getServerLocale } from "@/lib/i18n-server";
 import { adToBs, formatBsDisplayDate, getBsDateParts, getNepalTodayAd } from "@/lib/nepali-date";
 import { formatCurrency } from "@/lib/presentation";
+import { getReportRangeSelection, isDateInRange } from "@/lib/report-range";
 import { recalculateStaffLedgerSnapshots } from "@/lib/staff-payroll";
 import { getSupabaseClient } from "@/lib/supabase/server";
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
-
-const getDateRange = (range: string, today: string) => {
-  const current = new Date(`${today}T00:00:00`);
-
-  if (range === "week") {
-    const day = current.getDay();
-    const diff = day === 0 ? 6 : day - 1;
-    const start = new Date(current);
-    start.setDate(current.getDate() - diff);
-    return {
-      from: start.toISOString().slice(0, 10),
-      to: today,
-    };
-  }
-
-  if (range === "year") {
-    return {
-      from: `${current.getFullYear()}-01-01`,
-      to: today,
-    };
-  }
-
-  if (range === "custom") {
-    return {
-      from: today,
-      to: today,
-    };
-  }
-
-  return {
-    from: `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, "0")}-01`,
-    to: today,
-  };
-};
-
-const isWithinRange = (value: string | null | undefined, from: string, to: string) => {
-  if (!value) return false;
-  return value >= from && value <= to;
-};
 
 const isLedgerWithinRange = (
   ledger: { month: number; year: number },
@@ -94,11 +56,19 @@ export default async function StaffPage({
   const locale = await getServerLocale(params.lang);
   const messages = getMessages(locale);
   const notice = typeof params.notice === "string" ? params.notice : "";
-  const selectedRange = typeof params.range === "string" ? params.range : "year";
   const todayDate = getNepalTodayAd();
-  const defaultRange = getDateRange(selectedRange, todayDate);
-  const fromDate = typeof params.from === "string" && params.from ? params.from : defaultRange.from;
-  const toDate = typeof params.to === "string" && params.to ? params.to : defaultRange.to;
+  const rangeSelection = getReportRangeSelection(
+    typeof params.range === "string" ? params.range : "year",
+    {
+      todayIso: todayDate,
+      fromIso: typeof params.from === "string" ? params.from : undefined,
+      toIso: typeof params.to === "string" ? params.to : undefined,
+    },
+  );
+  const selectedRange = rangeSelection.selectedRange;
+  const fromDate = rangeSelection.startDateISO;
+  const toDate = rangeSelection.endDateISOInclusive;
+  const endDateExclusive = rangeSelection.endDateISOExclusive;
   const salaryStatus = typeof params.salary_status === "string" ? params.salary_status : "ALL";
   const selectedStaffId = typeof params.staff === "string" ? params.staff : "";
   const staffSearch = typeof params.staff_q === "string" ? params.staff_q.trim() : "";
@@ -129,7 +99,7 @@ export default async function StaffPage({
   const snapshots = recalculateStaffLedgerSnapshots(allLedgers, allTransactions);
   const visibleLedgers = snapshots.ledgers.filter((ledger) => isLedgerWithinRange(ledger, fromDate, toDate));
   const visibleTransactions = snapshots.transactions.filter((transaction) =>
-    isWithinRange(transaction.transaction_date, fromDate, toDate),
+    isDateInRange(transaction.transaction_date, fromDate, endDateExclusive),
   );
   const filteredLedgers =
     salaryStatus === "pending"

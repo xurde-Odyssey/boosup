@@ -10,6 +10,7 @@ import { getMessages, getStaffMonthLabel } from "@/lib/i18n";
 import { getServerLocale } from "@/lib/i18n-server";
 import { formatBsDisplayDate, getNepalTodayAd } from "@/lib/nepali-date";
 import { formatCurrency } from "@/lib/presentation";
+import { getReportRangeSelection, isDateInRange } from "@/lib/report-range";
 import { recalculateStaffLedgerSnapshots } from "@/lib/staff-payroll";
 import { getSupabaseClient } from "@/lib/supabase/server";
 
@@ -20,45 +21,6 @@ const parsePage = (value: string | string[] | undefined) => {
 };
 
 const PAGE_SIZE = 10;
-const getDateRange = (range: string, today: string) => {
-  const current = new Date(`${today}T00:00:00`);
-
-  if (range === "week") {
-    const day = current.getDay();
-    const diff = day === 0 ? 6 : day - 1;
-    const start = new Date(current);
-    start.setDate(current.getDate() - diff);
-    return {
-      from: start.toISOString().slice(0, 10),
-      to: today,
-    };
-  }
-
-  if (range === "year") {
-    return {
-      from: `${current.getFullYear()}-01-01`,
-      to: today,
-    };
-  }
-
-  if (range === "custom") {
-    return {
-      from: today,
-      to: today,
-    };
-  }
-
-  return {
-    from: `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, "0")}-01`,
-    to: today,
-  };
-};
-
-const isWithinRange = (value: string | null | undefined, from: string, to: string) => {
-  if (!value) return false;
-  return value >= from && value <= to;
-};
-
 export default async function RecordedSalaryTransactionsPage({
   searchParams,
 }: {
@@ -72,11 +34,19 @@ export default async function RecordedSalaryTransactionsPage({
   const transactionType = typeof params.type === "string" ? params.type : "ALL";
   const month = typeof params.month === "string" ? params.month : "ALL";
   const sort = typeof params.sort === "string" ? params.sort : "latest";
-  const selectedRange = typeof params.range === "string" ? params.range : "year";
   const todayDate = getNepalTodayAd();
-  const defaultRange = getDateRange(selectedRange, todayDate);
-  const fromDate = typeof params.from === "string" && params.from ? params.from : defaultRange.from;
-  const toDate = typeof params.to === "string" && params.to ? params.to : defaultRange.to;
+  const rangeSelection = getReportRangeSelection(
+    typeof params.range === "string" ? params.range : "year",
+    {
+      todayIso: todayDate,
+      fromIso: typeof params.from === "string" ? params.from : undefined,
+      toIso: typeof params.to === "string" ? params.to : undefined,
+    },
+  );
+  const selectedRange = rangeSelection.selectedRange;
+  const fromDate = rangeSelection.startDateISO;
+  const toDate = rangeSelection.endDateISOInclusive;
+  const endDateExclusive = rangeSelection.endDateISOExclusive;
   const currentPage = parsePage(params.page);
   const perPage = (() => {
     const rawValue = typeof params.perPage === "string" ? Number(params.perPage) : PAGE_SIZE;
@@ -115,7 +85,7 @@ export default async function RecordedSalaryTransactionsPage({
   );
 
   const rangedTransactions = snapshots.transactions.filter((transaction) =>
-    isWithinRange(transaction.transaction_date, fromDate, toDate),
+    isDateInRange(transaction.transaction_date, fromDate, endDateExclusive),
   );
   const searchedTransactions = search
     ? rangedTransactions.filter((transaction) => {
