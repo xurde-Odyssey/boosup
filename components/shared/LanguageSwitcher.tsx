@@ -2,8 +2,8 @@
 
 import { Languages } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useSyncExternalStore } from "react";
-import { AppLocale, getStoredLocale, LANGUAGE_COOKIE, LANGUAGE_KEY } from "@/lib/i18n";
+import { useEffect, useSyncExternalStore } from "react";
+import { AppLocale, getDocumentLocale, getStoredLocale, LANGUAGE_COOKIE, LANGUAGE_KEY } from "@/lib/i18n";
 
 const LANGUAGE_EVENT = "bookkeep-language-change";
 
@@ -27,12 +27,13 @@ const getSnapshot = () => {
     return "en" as AppLocale;
   }
 
-  return getStoredLocale();
+  return getDocumentLocale();
 };
 
 const persistLocale = (nextLocale: AppLocale) => {
   window.localStorage.setItem(LANGUAGE_KEY, nextLocale);
   document.cookie = `${LANGUAGE_COOKIE}=${nextLocale}; path=/; max-age=31536000; samesite=lax`;
+  document.documentElement.lang = nextLocale;
   window.dispatchEvent(new Event(LANGUAGE_EVENT));
 };
 
@@ -45,6 +46,13 @@ export function LanguageSwitcher({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const locale = useSyncExternalStore(subscribe, getSnapshot, () => "en");
+
+  useEffect(() => {
+    const nextLocale = getStoredLocale();
+    if (document.documentElement.lang !== nextLocale) {
+      document.documentElement.lang = nextLocale;
+    }
+  }, [locale]);
 
   const setLocale = (nextLocale: AppLocale) => {
     if (typeof window === "undefined") return;

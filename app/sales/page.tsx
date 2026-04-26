@@ -23,6 +23,7 @@ import { getMessages } from "@/lib/i18n";
 import { getServerLocale } from "@/lib/i18n-server";
 import { formatBsDisplayDate } from "@/lib/nepali-date";
 import { formatCurrency, getAvatarTone, getInitials } from "@/lib/presentation";
+import { getReportRangeSelection } from "@/lib/report-range";
 import { getSupabaseClient } from "@/lib/supabase/server";
 
 const parsePage = (value: string | string[] | undefined) => {
@@ -37,47 +38,6 @@ const getTodayDate = () =>
     timeZone: "Asia/Kathmandu",
   }).format(new Date());
 
-const getDateRange = (range: string, today: string) => {
-  const current = new Date(`${today}T00:00:00`);
-
-  if (range === "week") {
-    const day = current.getDay();
-    const diff = day === 0 ? 6 : day - 1;
-    const start = new Date(current);
-    start.setDate(current.getDate() - diff);
-    return {
-      from: start.toISOString().slice(0, 10),
-      to: today,
-    };
-  }
-
-  if (range === "year") {
-    return {
-      from: `${current.getFullYear()}-01-01`,
-      to: today,
-    };
-  }
-
-  if (range === "custom") {
-    return {
-      from: today,
-      to: today,
-    };
-  }
-
-  return {
-    from: `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, "0")}-01`,
-    to: today,
-  };
-};
-
-const formatReportPeriod = (range: string, from: string, to: string) => {
-  if (range === "week") return "This Week";
-  if (range === "month") return "This Month";
-  if (range === "year") return "This Year";
-  return `${formatBsDisplayDate(from)} - ${formatBsDisplayDate(to)}`;
-};
-
 export default async function SalesPage({
   searchParams,
 }: {
@@ -91,11 +51,19 @@ export default async function SalesPage({
   const sort = typeof params.sort === "string" ? params.sort : "date_desc";
   const status = typeof params.status === "string" ? params.status : "ALL";
   const collection = typeof params.collection === "string" ? params.collection : "";
-  const selectedRange = typeof params.range === "string" ? params.range : "year";
   const todayDate = getTodayDate();
-  const defaultRange = getDateRange(selectedRange, todayDate);
-  const fromDate = typeof params.from === "string" && params.from ? params.from : defaultRange.from;
-  const toDate = typeof params.to === "string" && params.to ? params.to : defaultRange.to;
+  const rangeSelection = getReportRangeSelection(
+    typeof params.range === "string" ? params.range : "year",
+    {
+      todayIso: todayDate,
+      fromIso: typeof params.from === "string" ? params.from : undefined,
+      toIso: typeof params.to === "string" ? params.to : undefined,
+    },
+  );
+  const selectedRange = rangeSelection.selectedRange;
+  const fromDate = rangeSelection.startDateISO;
+  const toDate = rangeSelection.endDateISOInclusive;
+  const endDateExclusive = rangeSelection.endDateISOExclusive;
   const currentPage = parsePage(params.page);
   const perPage = (() => {
     const rawValue = typeof params.perPage === "string" ? Number(params.perPage) : PAGE_SIZE;
@@ -109,7 +77,7 @@ export default async function SalesPage({
       "id, invoice_number, customer_id, customer_name, sales_date, payment_status, grand_total, amount_received, remaining_amount, customers(name)",
     )
     .gte("sales_date", fromDate)
-    .lte("sales_date", toDate)
+    .lt("sales_date", endDateExclusive)
     .order("created_at", { ascending: false });
 
   const rangedSales = allSales ?? [];
@@ -278,7 +246,7 @@ export default async function SalesPage({
               company={company}
               locale={locale}
               generatedDate={formatBsDisplayDate(todayDate)}
-              selectedPeriod={formatReportPeriod(selectedRange, fromDate, toDate)}
+              selectedPeriod={rangeSelection.displayLabel}
               metrics={[
                 { title: "Total Invoiced", value: formatCurrency(totalInvoiced) },
                 { title: "Paid Invoices", value: formatCurrency(totalPaid) },

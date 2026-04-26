@@ -73,6 +73,29 @@ const resolveGregorianDate = (formData: FormData, adKey: string, bsKey: string) 
   return bsToAd(readText(formData, bsKey));
 };
 
+const MAX_COMPANY_LOGO_BYTES = 200 * 1024;
+
+const getDataUrlByteSize = (value: string) => {
+  const [, encoded = ""] = value.split(",", 2);
+  if (!encoded) return 0;
+
+  const padding = encoded.endsWith("==") ? 2 : encoded.endsWith("=") ? 1 : 0;
+  return Math.floor((encoded.length * 3) / 4) - padding;
+};
+
+const validateCompanyLogo = (value: string) => {
+  if (!value) return { valid: true as const };
+  if (!value.startsWith("data:image/")) {
+    return { valid: true as const };
+  }
+
+  if (getDataUrlByteSize(value) > MAX_COMPANY_LOGO_BYTES) {
+    return { valid: false as const, message: "Logo must be 200 KB or smaller" };
+  }
+
+  return { valid: true as const };
+};
+
 const recordActivity = async (
   supabase: Awaited<ReturnType<typeof getSupabaseClient>>,
   payload: {
@@ -627,9 +650,16 @@ export async function createSupplierPayment(formData: FormData) {
 export async function upsertCompanySettings(formData: FormData) {
   const supabase = await getSupabaseClient();
   const id = readText(formData, "id");
+  const redirectTo = readText(formData, "redirect_to") || "/settings";
+  const logoPath = readText(formData, "logo_path");
   const successMessage = id
     ? "Company profile updated successfully"
     : "Company profile saved successfully";
+  const logoValidation = validateCompanyLogo(logoPath);
+
+  if (!logoValidation.valid) {
+    redirectWithMessage(redirectTo, logoValidation.message);
+  }
 
   const payload = {
     business_name: readText(formData, "business_name"),
@@ -637,8 +667,7 @@ export async function upsertCompanySettings(formData: FormData) {
     phone: readText(formData, "phone") || null,
     email: readText(formData, "email") || null,
     website: readText(formData, "website") || null,
-    logo_path: readText(formData, "logo_path") || null,
-    favicon_path: readText(formData, "favicon_path") || null,
+    logo_path: logoPath || null,
   };
 
   if (id) {
@@ -647,7 +676,7 @@ export async function upsertCompanySettings(formData: FormData) {
     await supabase.from("company_settings").insert(payload);
   }
 
-  revalidateAll("/settings");
+  revalidateAll("/settings", "/", "/sales", "/vendors", "/customers");
   redirectWithMessage("/settings", successMessage);
 }
 

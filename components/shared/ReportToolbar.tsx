@@ -6,46 +6,13 @@ import { ReactNode, useRef, useState } from "react";
 import { NepaliDateInput } from "@/components/shared/NepaliDateInput";
 import { type AppLocale, getMessages } from "@/lib/i18n";
 import { adToBs, bsToAd } from "@/lib/nepali-date";
+import { getReportRangeSelection, type ReportRangeKey } from "@/lib/report-range";
 import { cn } from "@/lib/utils";
 
 const getTodayDate = () =>
   new Intl.DateTimeFormat("en-CA", {
     timeZone: "Asia/Kathmandu",
   }).format(new Date());
-
-const getDefaultRange = (range: string, today: string) => {
-  const current = new Date(`${today}T00:00:00`);
-
-  if (range === "week") {
-    const day = current.getDay();
-    const diff = day === 0 ? 6 : day - 1;
-    const start = new Date(current);
-    start.setDate(current.getDate() - diff);
-    return {
-      from: start.toISOString().slice(0, 10),
-      to: today,
-    };
-  }
-
-  if (range === "year") {
-    return {
-      from: `${current.getFullYear()}-01-01`,
-      to: today,
-    };
-  }
-
-  if (range === "custom") {
-    return {
-      from: today,
-      to: today,
-    };
-  }
-
-  return {
-    from: `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, "0")}-01`,
-    to: today,
-  };
-};
 
 export function ReportToolbar({
   actionPath,
@@ -66,28 +33,40 @@ export function ReportToolbar({
   const toolbarMessages = messages.reportToolbar;
   const today = getTodayDate();
   const formRef = useRef<HTMLFormElement>(null);
-  const [range, setRange] = useState(selectedRange);
-  const defaults = getDefaultRange(range, today);
-  const [fromBs, setFromBs] = useState(adToBs(fromDate ?? defaults.from));
-  const [toBs, setToBs] = useState(adToBs(toDate ?? defaults.to));
+  const committedSelection = getReportRangeSelection(selectedRange, {
+    todayIso: today,
+    fromIso: fromDate,
+    toIso: toDate,
+  });
+  const [range, setRange] = useState(committedSelection.selectedRange);
+  const [fromBs, setFromBs] = useState(adToBs(committedSelection.startDateISO));
+  const [toBs, setToBs] = useState(adToBs(committedSelection.endDateISOInclusive));
   const showCustomDates = range === "custom";
-  const rangeOptions = [
+  const isDirty =
+    range !== committedSelection.selectedRange ||
+    fromBs !== adToBs(committedSelection.startDateISO) ||
+    toBs !== adToBs(committedSelection.endDateISOInclusive);
+  const rangeOptions: Array<{ value: ReportRangeKey; label: string }> = [
     { value: "week", label: toolbarMessages.week },
     { value: "month", label: toolbarMessages.month },
     { value: "year", label: toolbarMessages.year },
     { value: "custom", label: toolbarMessages.custom },
   ];
 
-  const handleRangeChange = (nextRange: string) => {
+  const handleRangeChange = (nextRange: ReportRangeKey) => {
     setRange(nextRange);
-    const nextDefaults = getDefaultRange(nextRange, today);
+    const nextSelection = getReportRangeSelection(nextRange, {
+      todayIso: today,
+      fromIso: fromDate,
+      toIso: toDate,
+    });
 
     if (nextRange === "custom") {
-      setFromBs(adToBs(fromDate ?? nextDefaults.from));
-      setToBs(adToBs(toDate ?? nextDefaults.to));
+      setFromBs(adToBs(committedSelection.startDateISO));
+      setToBs(adToBs(committedSelection.endDateISOInclusive));
     } else {
-      setFromBs(adToBs(nextDefaults.from));
-      setToBs(adToBs(nextDefaults.to));
+      setFromBs(adToBs(nextSelection.startDateISO));
+      setToBs(adToBs(nextSelection.endDateISOInclusive));
     }
 
     if (nextRange !== "custom") {
@@ -157,14 +136,17 @@ export function ReportToolbar({
             >
               {toolbarMessages.reset}
             </Link>
-            {reportButton ?? (
-              <button
-                type="button"
-                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 sm:w-auto"
-              >
-                {toolbarMessages.generateReport}
-              </button>
-            )}
+            <div className={cn(isDirty && "pointer-events-none opacity-50")}>
+              {reportButton ?? (
+                <button
+                  type="button"
+                  disabled={isDirty}
+                  className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed sm:w-auto"
+                >
+                  {toolbarMessages.generateReport}
+                </button>
+              )}
+            </div>
           </div>
         </div>
 

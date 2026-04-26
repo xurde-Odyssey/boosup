@@ -17,6 +17,7 @@ import {
   deletePurchase,
 } from "@/app/actions";
 import { Header } from "@/components/dashboard/Header";
+import { PurchaseReportPrintButton } from "@/components/dashboard/PurchaseReportPrintButton";
 import { Sidebar } from "@/components/dashboard/Sidebar";
 import { SummaryCard } from "@/components/dashboard/SummaryCard";
 import { ConfirmActionForm } from "@/components/shared/ConfirmActionForm";
@@ -26,9 +27,11 @@ import { PageActionStrip } from "@/components/shared/PageActionStrip";
 import { PaginationControls } from "@/components/shared/PaginationControls";
 import { QueryNoticeToast } from "@/components/shared/QueryNoticeToast";
 import { ReportToolbar } from "@/components/shared/ReportToolbar";
+import { getCompanySettings } from "@/lib/company-settings-server";
 import { getServerLocale } from "@/lib/i18n-server";
 import { formatBsDisplayDate } from "@/lib/nepali-date";
 import { formatCurrency } from "@/lib/presentation";
+import { getReportRangeSelection, isDateInRange } from "@/lib/report-range";
 import { getSupabaseClient } from "@/lib/supabase/server";
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
@@ -37,52 +40,13 @@ const parsePage = (value: string | string[] | undefined) => {
   const parsed = Number(rawValue);
   return Number.isFinite(parsed) && parsed > 0 ? parsed : 1;
 };
-const PURCHASES_PAGE_SIZE = 8;
-const EXPENSES_PAGE_SIZE = 8;
-const PAYMENTS_PAGE_SIZE = 8;
+const PURCHASES_PAGE_SIZE = 5;
+const EXPENSES_PAGE_SIZE = 5;
+const PAYMENTS_PAGE_SIZE = 5;
 const getTodayDate = () =>
   new Intl.DateTimeFormat("en-CA", {
     timeZone: "Asia/Kathmandu",
   }).format(new Date());
-
-const getDateRange = (range: string, today: string) => {
-  const current = new Date(`${today}T00:00:00`);
-
-  if (range === "week") {
-    const day = current.getDay();
-    const diff = day === 0 ? 6 : day - 1;
-    const start = new Date(current);
-    start.setDate(current.getDate() - diff);
-    return {
-      from: start.toISOString().slice(0, 10),
-      to: today,
-    };
-  }
-
-  if (range === "year") {
-    return {
-      from: `${current.getFullYear()}-01-01`,
-      to: today,
-    };
-  }
-
-  if (range === "custom") {
-    return {
-      from: today,
-      to: today,
-    };
-  }
-
-  return {
-    from: `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, "0")}-01`,
-    to: today,
-  };
-};
-
-const isWithinRange = (value: string | null | undefined, from: string, to: string) => {
-  if (!value) return false;
-  return value >= from && value <= to;
-};
 
 export default async function PurchasesPage({
   searchParams,
@@ -90,14 +54,23 @@ export default async function PurchasesPage({
   searchParams: SearchParams;
 }) {
   const supabase = await getSupabaseClient();
+  const company = await getCompanySettings();
   const params = await searchParams;
   const locale = await getServerLocale(params.lang);
   const notice = typeof params.notice === "string" ? params.notice : "";
-  const selectedRange = typeof params.range === "string" ? params.range : "year";
   const todayDate = getTodayDate();
-  const defaultRange = getDateRange(selectedRange, todayDate);
-  const fromDate = typeof params.from === "string" && params.from ? params.from : defaultRange.from;
-  const toDate = typeof params.to === "string" && params.to ? params.to : defaultRange.to;
+  const rangeSelection = getReportRangeSelection(
+    typeof params.range === "string" ? params.range : "year",
+    {
+      todayIso: todayDate,
+      fromIso: typeof params.from === "string" ? params.from : undefined,
+      toIso: typeof params.to === "string" ? params.to : undefined,
+    },
+  );
+  const selectedRange = rangeSelection.selectedRange;
+  const fromDate = rangeSelection.startDateISO;
+  const toDate = rangeSelection.endDateISOInclusive;
+  const endDateExclusive = rangeSelection.endDateISOExclusive;
   const duesOnly = typeof params.dues === "string" && params.dues === "1";
   const paymentStatus = typeof params.payment_status === "string" ? params.payment_status : "ALL";
   const expenseMin = typeof params.expense_min === "string" ? Number(params.expense_min) : 0;
@@ -126,7 +99,7 @@ export default async function PurchasesPage({
   ]);
 
   const allPurchases = (purchasesResponse.data ?? []).filter((purchase) =>
-    isWithinRange(purchase.purchase_date, fromDate, toDate),
+    isDateInRange(purchase.purchase_date, fromDate, endDateExclusive),
   );
   const purchases = allPurchases.filter((purchase) => {
     if (duesOnly && Number(purchase.credit_amount ?? 0) <= 0) return false;
@@ -135,11 +108,11 @@ export default async function PurchasesPage({
   });
   const expenses = (expensesResponse.data ?? []).filter(
     (expense) =>
-      isWithinRange(expense.expense_date, fromDate, toDate) &&
+      isDateInRange(expense.expense_date, fromDate, endDateExclusive) &&
       Number(expense.amount ?? 0) >= expenseMin,
   );
   const purchasePayments = (paymentsResponse.data ?? []).filter((payment) =>
-    isWithinRange(payment.payment_date, fromDate, toDate),
+    isDateInRange(payment.payment_date, fromDate, endDateExclusive),
   );
   const purchasesTotalPages = Math.max(Math.ceil(purchases.length / PURCHASES_PAGE_SIZE), 1);
   const expensesTotalPages = Math.max(Math.ceil(expenses.length / EXPENSES_PAGE_SIZE), 1);
@@ -176,6 +149,7 @@ export default async function PurchasesPage({
   const creditPurchases = purchases.filter(
     (purchase) => purchase.payment_type === "Credit",
   ).length;
+  const generatedReportDate = formatBsDisplayDate(todayDate);
 
   return (
     <div className="flex min-h-screen bg-slate-50/50">
@@ -193,11 +167,64 @@ export default async function PurchasesPage({
           fromDate={fromDate}
           toDate={toDate}
           locale={locale}
+          reportButton={
+            <PurchaseReportPrintButton
+              company={company}
+              locale={locale}
+              generatedDate={generatedReportDate}
+              selectedPeriod={rangeSelection.displayLabel}
+              metrics={[
+                { title: "Total Purchase", value: formatCurrency(totalPurchase) },
+                { title: "Total Credit", value: formatCurrency(totalCredit) },
+                { title: "Total Paid", value: formatCurrency(totalPaid) },
+                { title: "Misc Expenses", value: formatCurrency(totalMiscExpense) },
+              ]}
+              purchases={purchases.slice(0, 10).map((purchase) => {
+                const linkedVendor = Array.isArray(purchase.vendors)
+                  ? purchase.vendors[0]
+                  : purchase.vendors;
+                return {
+                  id: purchase.id,
+                  purchaseNumber: purchase.purchase_number,
+                  supplier: linkedVendor?.name ?? purchase.vendor_name ?? "-",
+                  totalAmount: formatCurrency(purchase.total_amount),
+                  paidAmount: formatCurrency(purchase.paid_amount ?? 0),
+                  remainingAmount: formatCurrency(purchase.credit_amount ?? 0),
+                  status: purchase.payment_status,
+                  date: formatBsDisplayDate(purchase.purchase_date),
+                };
+              })}
+              payments={purchasePayments.slice(0, 10).map((payment) => {
+                const linkedPurchase = Array.isArray(payment.purchases)
+                  ? payment.purchases[0]
+                  : payment.purchases;
+                const linkedVendor = Array.isArray(linkedPurchase?.vendors)
+                  ? linkedPurchase?.vendors[0]
+                  : linkedPurchase?.vendors;
+                return {
+                  id: payment.id,
+                  date: formatBsDisplayDate(payment.payment_date),
+                  supplier: linkedVendor?.name ?? linkedPurchase?.vendor_name ?? "-",
+                  bill: linkedPurchase?.purchase_number ?? "-",
+                  method: payment.payment_method ?? "-",
+                  amount: formatCurrency(payment.amount),
+                };
+              })}
+              expenses={expenses.slice(0, 10).map((expense) => ({
+                id: expense.id,
+                date: formatBsDisplayDate(expense.expense_date),
+                title: expense.expense_title,
+                amount: formatCurrency(expense.amount),
+                notes: expense.notes ?? "-",
+              }))}
+            />
+          }
         />
         <PageActionStrip
           actions={[
             { label: "Create Purchase Bill", href: "/purchases/create", icon: FilePlus },
             { label: "Add Expense Entry", href: "/purchases/expense/create", variant: "secondary", icon: Wallet },
+            { label: "Recorded Bills", href: "/purchases/view", variant: "secondary", icon: FileText },
           ]}
         />
 
@@ -369,6 +396,97 @@ export default async function PurchasesPage({
 
             <section className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
               <div className="border-b border-slate-50 p-6">
+                <h3 className="text-lg font-bold text-slate-900">Recent Payments</h3>
+                <p className="mt-1 text-xs text-slate-500">Latest supplier payment transactions against purchase bills.</p>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left">
+                  <thead>
+                    <tr className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                      <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">Date</th>
+                      <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">Supplier</th>
+                      <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">Bill</th>
+                      <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">Method</th>
+                      <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-50">
+                    {visiblePayments.map((payment, index) => {
+                      const linkedPurchase = Array.isArray(payment.purchases)
+                        ? payment.purchases[0]
+                        : payment.purchases;
+                      const linkedVendor = Array.isArray(linkedPurchase?.vendors)
+                        ? linkedPurchase?.vendors[0]
+                        : linkedPurchase?.vendors;
+
+                      return (
+                        <tr
+                          key={payment.id}
+                          className={`transition-colors hover:bg-blue-50/40 ${
+                            index % 2 === 0 ? "bg-white" : "bg-slate-50/40"
+                          }`}
+                        >
+                        <td className="px-6 py-4 text-sm text-slate-600">
+                          {formatBsDisplayDate(payment.payment_date)}
+                        </td>
+                        <td className="px-6 py-4 text-sm text-slate-600">
+                            {linkedVendor?.name ? (
+                              <Link
+                                href={`/vendors/${linkedPurchase?.vendor_id}`}
+                                className="font-semibold text-slate-700 hover:text-blue-600"
+                                title={`Open supplier profile for ${linkedVendor.name}`}
+                              >
+                                {linkedVendor.name}
+                              </Link>
+                          ) : linkedPurchase?.vendor_name ? (
+                            <span className="font-semibold text-slate-700">
+                              {linkedPurchase.vendor_name}
+                            </span>
+                          ) : (
+                            "-"
+                          )}
+                        </td>
+                        <td className="px-6 py-4 text-sm font-semibold text-slate-900">
+                          {linkedPurchase?.purchase_number ?? "-"}
+                        </td>
+                        <td className="px-6 py-4 text-sm text-slate-600">
+                          {payment.payment_method}
+                        </td>
+                        <td className="px-6 py-4 text-sm font-bold text-green-700">
+                          {formatCurrency(payment.amount)}
+                        </td>
+                        </tr>
+                      );
+                    })}
+                    {purchasePayments.length === 0 && (
+                      <tr>
+                        <td colSpan={5} className="px-6 py-10">
+                          <EmptyState
+                            icon={WalletCards}
+                            title="No purchase payments recorded"
+                            description="Partial and full supplier payments will build a payment trail here after bills are updated."
+                            actionLabel="Open Purchase Bills"
+                            actionHref="/purchases"
+                          />
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+              <PaginationControls
+                basePath="/purchases"
+                pageParam="paymentsPage"
+                currentPage={Math.min(paymentsPage, paymentsTotalPages)}
+                totalPages={paymentsTotalPages}
+                totalItems={purchasePayments.length}
+                pageSize={PAYMENTS_PAGE_SIZE}
+                searchParams={params}
+              />
+            </section>
+
+            <section className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
+              <div className="border-b border-slate-50 p-6">
                 <h3 className="text-lg font-bold text-slate-900">Recent Expenses</h3>
                 <p className="mt-1 text-xs text-slate-500">Courier, transport, and misc purchase expenses.</p>
               </div>
@@ -457,97 +575,6 @@ export default async function PurchasesPage({
                 totalPages={expensesTotalPages}
                 totalItems={expenses.length}
                 pageSize={EXPENSES_PAGE_SIZE}
-                searchParams={params}
-              />
-            </section>
-
-            <section className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
-              <div className="border-b border-slate-50 p-6">
-                <h3 className="text-lg font-bold text-slate-900">Recent Payments</h3>
-                <p className="mt-1 text-xs text-slate-500">Latest supplier payment transactions against purchase bills.</p>
-              </div>
-              <div className="overflow-x-auto">
-                <table className="w-full text-left">
-                  <thead>
-                    <tr className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                      <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">Date</th>
-                      <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">Supplier</th>
-                      <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">Bill</th>
-                      <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">Method</th>
-                      <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4">Amount</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-50">
-                    {visiblePayments.map((payment, index) => {
-                      const linkedPurchase = Array.isArray(payment.purchases)
-                        ? payment.purchases[0]
-                        : payment.purchases;
-                      const linkedVendor = Array.isArray(linkedPurchase?.vendors)
-                        ? linkedPurchase?.vendors[0]
-                        : linkedPurchase?.vendors;
-
-                      return (
-                        <tr
-                          key={payment.id}
-                          className={`transition-colors hover:bg-blue-50/40 ${
-                            index % 2 === 0 ? "bg-white" : "bg-slate-50/40"
-                          }`}
-                        >
-                        <td className="px-6 py-4 text-sm text-slate-600">
-                          {formatBsDisplayDate(payment.payment_date)}
-                        </td>
-                        <td className="px-6 py-4 text-sm text-slate-600">
-                            {linkedVendor?.name ? (
-                              <Link
-                                href={`/vendors/${linkedPurchase?.vendor_id}`}
-                                className="font-semibold text-slate-700 hover:text-blue-600"
-                                title={`Open supplier profile for ${linkedVendor.name}`}
-                              >
-                                {linkedVendor.name}
-                              </Link>
-                          ) : linkedPurchase?.vendor_name ? (
-                            <span className="font-semibold text-slate-700">
-                              {linkedPurchase.vendor_name}
-                            </span>
-                          ) : (
-                            "-"
-                          )}
-                        </td>
-                        <td className="px-6 py-4 text-sm font-semibold text-slate-900">
-                          {linkedPurchase?.purchase_number ?? "-"}
-                        </td>
-                        <td className="px-6 py-4 text-sm text-slate-600">
-                          {payment.payment_method}
-                        </td>
-                        <td className="px-6 py-4 text-sm font-bold text-green-700">
-                          {formatCurrency(payment.amount)}
-                        </td>
-                        </tr>
-                      );
-                    })}
-                    {purchasePayments.length === 0 && (
-                      <tr>
-                        <td colSpan={5} className="px-6 py-10">
-                          <EmptyState
-                            icon={WalletCards}
-                            title="No purchase payments recorded"
-                            description="Partial and full supplier payments will build a payment trail here after bills are updated."
-                            actionLabel="Open Purchase Bills"
-                            actionHref="/purchases"
-                          />
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-              <PaginationControls
-                basePath="/purchases"
-                pageParam="paymentsPage"
-                currentPage={Math.min(paymentsPage, paymentsTotalPages)}
-                totalPages={paymentsTotalPages}
-                totalItems={purchasePayments.length}
-                pageSize={PAYMENTS_PAGE_SIZE}
                 searchParams={params}
               />
             </section>

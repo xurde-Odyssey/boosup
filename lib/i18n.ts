@@ -44,3 +44,11 @@ export const getStoredLocale = () => {
 
   return resolveLocale(window.localStorage.getItem(LANGUAGE_KEY) ?? undefined);
 };
+
+export const getDocumentLocale = () => {
+  if (typeof document === "undefined") {
+    return "en" as AppLocale;
+  }
+
+  return resolveLocale(document.documentElement.lang);
+};

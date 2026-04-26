@@ -18,17 +18,17 @@ import {
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import appLogo from '@/app/logos/logo.png';
 import { logoutAdmin } from '@/app/actions';
 import { DEFAULT_COMPANY_SETTINGS } from '@/lib/company-settings';
-import { getMessages, getStoredLocale } from '@/lib/i18n';
+import { getDocumentLocale, getMessages, getStoredLocale } from '@/lib/i18n';
 import { getSupabaseBrowserClient } from '@/lib/supabase/client';
 
 export function Sidebar() {
   const pathname = usePathname();
-  const [locale, setLocale] = useState(() => getStoredLocale());
+  const [locale, setLocale] = useState(() => getDocumentLocale());
   const messages = getMessages(locale);
   const [companyName, setCompanyName] = useState(DEFAULT_COMPANY_SETTINGS.businessName);
+  const [companyLogo, setCompanyLogo] = useState(DEFAULT_COMPANY_SETTINGS.logoPath);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const navItems = [
     { icon: LayoutDashboard, label: messages.common.dashboard, href: '/' },
@@ -45,19 +45,24 @@ export function Sidebar() {
 
     void supabase
       .from("company_settings")
-      .select("business_name")
+      .select("business_name, logo_path")
       .order("created_at", { ascending: true })
       .limit(1)
       .then(({ data }) => {
-        const nextName = data?.[0]?.business_name?.trim();
+        const nextSettings = data?.[0];
+        const nextName = nextSettings?.business_name?.trim();
         if (nextName) {
           setCompanyName(nextName);
+        }
+        if (nextSettings?.logo_path?.trim()) {
+          setCompanyLogo(nextSettings.logo_path.trim());
         }
       });
   }, []);
 
   useEffect(() => {
     const syncLocale = () => setLocale(getStoredLocale());
+    syncLocale();
     window.addEventListener("bookkeep-language-change", syncLocale);
     window.addEventListener("storage", syncLocale);
 
@@ -115,11 +120,12 @@ export function Sidebar() {
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-12 items-center justify-center overflow-hidden rounded-2xl border border-slate-200 bg-white p-1 dark:border-slate-700 dark:bg-slate-950">
             <Image
-              src={appLogo}
+              src={companyLogo}
               alt={`${companyName} logo`}
               width={46}
               height={28}
               className="h-full w-full object-contain"
+              unoptimized
             />
           </div>
           <div className="min-w-0 flex-1">
@@ -171,12 +177,13 @@ export function Sidebar() {
         <Link href="/" className="flex min-w-0 items-center gap-3" onClick={() => setIsMobileMenuOpen(false)}>
           <div className="flex h-10 w-12 items-center justify-center overflow-hidden rounded-2xl border border-slate-200 bg-white p-1 dark:border-slate-700 dark:bg-slate-900">
             <Image
-              src={appLogo}
+              src={companyLogo}
               alt="BookKeep Pro logo"
               width={46}
               height={28}
               className="h-full w-full object-contain"
               priority
+              unoptimized
             />
           </div>
           <div className="flex items-center gap-3">
@@ -209,12 +216,13 @@ export function Sidebar() {
               <Link href="/" className="flex min-w-0 items-center gap-3" onClick={() => setIsMobileMenuOpen(false)}>
                 <div className="flex h-11 w-14 items-center justify-center overflow-hidden rounded-2xl border border-slate-200 bg-white p-1 dark:border-slate-700 dark:bg-slate-900">
                   <Image
-                    src={appLogo}
+                    src={companyLogo}
                     alt="BookKeep Pro logo"
                     width={52}
                     height={32}
                     className="h-full w-full object-contain"
                     priority
+                    unoptimized
                   />
                 </div>
                 <div className="min-w-0">
@@ -242,12 +250,13 @@ export function Sidebar() {
           <Link href="/" className="flex items-center gap-3">
             <div className="flex h-11 w-14 items-center justify-center overflow-hidden rounded-2xl border border-slate-200 bg-white p-1 dark:border-slate-700 dark:bg-slate-900">
               <Image
-                src={appLogo}
+                src={companyLogo}
                 alt="BookKeep Pro logo"
                 width={52}
                 height={32}
                 className="h-full w-full object-contain"
                 priority
+                unoptimized
               />
             </div>
             <div>

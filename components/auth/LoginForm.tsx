@@ -5,12 +5,25 @@ import { Eye, EyeOff } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 
+type LoginFormLabels = {
+  email: string;
+  emailPlaceholder: string;
+  password: string;
+  passwordPlaceholder: string;
+  hidePassword: string;
+  showPassword: string;
+  signingIn: string;
+  loginButton: string;
+};
+
 export function LoginForm({
   nextPath,
   initialError,
+  labels,
 }: {
   nextPath: string;
   initialError: string;
+  labels: LoginFormLabels;
 }) {
   const router = useRouter();
   const [email, setEmail] = useState("");
@@ -43,7 +56,7 @@ export function LoginForm({
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
       <div>
-        <label className="mb-2 block text-sm font-semibold text-slate-700">Email</label>
+        <label className="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-200">{labels.email}</label>
         <input
           name="email"
           type="email"
@@ -51,12 +64,12 @@ export function LoginForm({
           required
           value={email}
           onChange={(event) => setEmail(event.target.value)}
-          placeholder="Enter admin email"
-          className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-blue-500 focus:bg-white"
+          placeholder={labels.emailPlaceholder}
+          className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none focus:border-blue-500 focus:bg-white dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:focus:bg-slate-950"
         />
       </div>
       <div>
-        <label className="mb-2 block text-sm font-semibold text-slate-700">Password</label>
+        <label className="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-200">{labels.password}</label>
         <div className="relative">
           <input
             name="password"
@@ -64,15 +77,15 @@ export function LoginForm({
             required
             value={password}
             onChange={(event) => setPassword(event.target.value)}
-            placeholder="Enter admin password"
-            className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 pr-12 text-sm outline-none focus:border-blue-500 focus:bg-white"
+            placeholder={labels.passwordPlaceholder}
+            className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 pr-12 text-sm text-slate-900 outline-none focus:border-blue-500 focus:bg-white dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:focus:bg-slate-950"
           />
           <button
             type="button"
             onClick={() => setShowPassword((current) => !current)}
-            aria-label={showPassword ? "Hide password" : "Show password"}
+            aria-label={showPassword ? labels.hidePassword : labels.showPassword}
             aria-pressed={showPassword}
-            className="absolute inset-y-0 right-0 inline-flex w-12 items-center justify-center rounded-r-2xl text-slate-500 transition-colors hover:text-slate-700 focus:outline-none"
+            className="absolute inset-y-0 right-0 inline-flex w-12 items-center justify-center rounded-r-2xl text-slate-500 transition-colors hover:text-slate-700 focus:outline-none dark:text-slate-400 dark:hover:text-slate-200"
           >
             {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
           </button>
@@ -88,7 +101,7 @@ export function LoginForm({
         disabled={isSubmitting}
         className="inline-flex w-full items-center justify-center rounded-2xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
       >
-        {isSubmitting ? "Signing In..." : "Login To Admin Panel"}
+        {isSubmitting ? labels.signingIn : labels.loginButton}
       </button>
     </form>
   );

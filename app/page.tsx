@@ -16,13 +16,13 @@ import { ActivityCard } from "@/components/dashboard/ActivityCard";
 import { ChartCard } from "@/components/dashboard/ChartCard";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
+import { DashboardReportPrintButton } from "@/components/dashboard/DashboardReportPrintButton";
 import { DashboardGrid } from "@/components/dashboard/DashboardGrid";
 import { ExpenseBreakdownChart } from "@/components/dashboard/ExpenseBreakdownChart";
 import { KpiCard } from "@/components/dashboard/KpiCard";
 import { SalesPurchasesChart } from "@/components/dashboard/SalesPurchasesChart";
 import { Tab, TabList, TabPanel, Tabs } from "@/components/dashboard/Tabs";
 import { TableCard } from "@/components/dashboard/TableCard";
-import { DashboardReportPrintButton } from "@/components/dashboard/DashboardReportPrintButton";
 import { Button } from "@/components/shared/Button";
 import { LanguageSwitcher } from "@/components/shared/LanguageSwitcher";
 import { ReportToolbar } from "@/components/shared/ReportToolbar";
@@ -32,6 +32,7 @@ import { calculateDashboardSummaryTotals } from "@/lib/financial";
 import { getMessages } from "@/lib/i18n";
 import { getServerLocale } from "@/lib/i18n-server";
 import { formatBsDisplayDate, getNepalDateTimeParts, getNepalTodayAd } from "@/lib/nepali-date";
+import { getReportRangeSelection, isDateInRange } from "@/lib/report-range";
 import {
   formatCurrency,
   getAvatarTone,
@@ -44,38 +45,6 @@ type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
 const monthKey = (value: string | null) =>
   value ? new Date(value).toLocaleDateString("en-US", { month: "short" }).toUpperCase() : "";
-
-const getDateRange = (range: string, today: string) => {
-  const current = new Date(`${today}T00:00:00`);
-
-  if (range === "week") {
-    const day = current.getDay();
-    const diff = day === 0 ? 6 : day - 1;
-    const start = new Date(current);
-    start.setDate(current.getDate() - diff);
-    return {
-      from: start.toISOString().slice(0, 10),
-      to: today,
-    };
-  }
-
-  if (range === "year") {
-    return {
-      from: `${current.getFullYear()}-01-01`,
-      to: today,
-    };
-  }
-
-  return {
-    from: `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, "0")}-01`,
-    to: today,
-  };
-};
-
-const isWithinRange = (value: string | null | undefined, from: string, to: string) => {
-  if (!value) return false;
-  return value >= from && value <= to;
-};
 
 const readNestedDate = (
   relation:
@@ -90,13 +59,6 @@ const readNestedDate = (
   }
 
   return relation?.[key] ?? null;
-};
-
-const formatReportPeriod = (range: string, from: string, to: string) => {
-  if (range === "week") return "This Week";
-  if (range === "month") return "This Month";
-  if (range === "year") return "This Year";
-  return `${formatBsDisplayDate(from)} - ${formatBsDisplayDate(to)}`;
 };
 
 const buildDrillDownHref = (
@@ -127,10 +89,18 @@ export default async function Home({
   const supabase = await getSupabaseClient();
   const company = await getCompanySettings();
   const todayDate = getNepalTodayAd();
-  const selectedRange = typeof params.range === "string" ? params.range : "year";
-  const defaultRange = getDateRange(selectedRange, todayDate);
-  const fromDate = typeof params.from === "string" && params.from ? params.from : defaultRange.from;
-  const toDate = typeof params.to === "string" && params.to ? params.to : defaultRange.to;
+  const rangeSelection = getReportRangeSelection(
+    typeof params.range === "string" ? params.range : "year",
+    {
+      todayIso: todayDate,
+      fromIso: typeof params.from === "string" ? params.from : undefined,
+      toIso: typeof params.to === "string" ? params.to : undefined,
+    },
+  );
+  const selectedRange = rangeSelection.selectedRange;
+  const fromDate = rangeSelection.startDateISO;
+  const toDate = rangeSelection.endDateISOInclusive;
+  const endDateExclusive = rangeSelection.endDateISOExclusive;
   const [
     salesResponse,
     purchasesResponse,
@@ -148,7 +118,7 @@ export default async function Home({
         "invoice_number, customer_name, sales_date, grand_total, amount_received, remaining_amount, payment_status, created_at",
       )
       .gte("sales_date", fromDate)
-      .lte("sales_date", toDate)
+      .lt("sales_date", endDateExclusive)
       .order("sales_date", { ascending: true }),
     supabase
       .from("purchases")
@@ -156,7 +126,7 @@ export default async function Home({
         "purchase_number, purchase_date, total_amount, paid_amount, credit_amount, payment_status, vendor_name, created_at",
       )
       .gte("purchase_date", fromDate)
-      .lte("purchase_date", toDate)
+      .lt("purchase_date", endDateExclusive)
       .order("purchase_date", { ascending: true }),
     supabase.from("staff_profiles").select("id, name, total_salary"),
     supabase
@@ -171,7 +141,7 @@ export default async function Home({
       .from("purchase_expenses")
       .select("expense_date, expense_title, amount, created_at")
       .gte("expense_date", fromDate)
-      .lte("expense_date", toDate),
+      .lt("expense_date", endDateExclusive),
     supabase
       .from("sales_items")
       .select("product_name, quantity, amount, sales(sales_date)")
@@ -199,19 +169,19 @@ export default async function Home({
   const purchaseItems = purchaseItemsResponse.data ?? [];
   const activityLogs = activityLogsResponse.data ?? [];
   const payrollMonthSummaries = staffLedgerSnapshots.ledgers;
-  const filteredSales = sales.filter((sale) => isWithinRange(sale.sales_date, fromDate, toDate));
+  const filteredSales = sales.filter((sale) => isDateInRange(sale.sales_date, fromDate, endDateExclusive));
   const filteredPurchases = purchases.filter((purchase) =>
-    isWithinRange(purchase.purchase_date, fromDate, toDate),
+    isDateInRange(purchase.purchase_date, fromDate, endDateExclusive),
   );
   const filteredExpenses = purchaseExpenses.filter((expense) =>
-    isWithinRange(expense.expense_date, fromDate, toDate),
+    isDateInRange(expense.expense_date, fromDate, endDateExclusive),
   );
   const filteredSalesItems = salesItems.filter((item) => {
     const soldOn = readNestedDate(
       item.sales as { sales_date?: string | null } | Array<{ sales_date?: string | null }> | null,
       "sales_date",
     );
-    return isWithinRange(soldOn, fromDate, toDate);
+    return isDateInRange(soldOn, fromDate, endDateExclusive);
   });
   const filteredPurchaseItems = purchaseItems.filter((item) => {
     const boughtOn = readNestedDate(
@@ -221,10 +191,10 @@ export default async function Home({
         | null,
       "purchase_date",
     );
-    return isWithinRange(boughtOn, fromDate, toDate);
+    return isDateInRange(boughtOn, fromDate, endDateExclusive);
   });
   const filteredStaffSalaryPayments = staffLedgerSnapshots.transactions.filter((transaction) =>
-    isWithinRange(transaction.transaction_date, fromDate, toDate),
+    isDateInRange(transaction.transaction_date, fromDate, endDateExclusive),
   );
 
   const { totalSales, totalPurchases, payables, netProfit } = calculateDashboardSummaryTotals({
@@ -257,13 +227,13 @@ export default async function Home({
   const payroll = payrollMonthSummaries
     .filter((ledger) => {
       const ledgerDate = `${ledger.year}-${String(ledger.month).padStart(2, "0")}-01`;
-      return ledgerDate >= fromDate && ledgerDate <= toDate;
+      return ledgerDate >= fromDate && ledgerDate < endDateExclusive;
     })
     .reduce((sum, ledger) => sum + Number(ledger.salary_paid ?? 0), 0);
   const advances = payrollMonthSummaries
     .filter((ledger) => {
       const ledgerDate = `${ledger.year}-${String(ledger.month).padStart(2, "0")}-01`;
-      return ledgerDate >= fromDate && ledgerDate <= toDate;
+      return ledgerDate >= fromDate && ledgerDate < endDateExclusive;
     })
     .reduce((sum, ledger) => sum + Number(ledger.total_advance ?? 0), 0);
   const miscExpenses = filteredExpenses.reduce(
@@ -531,7 +501,7 @@ export default async function Home({
     amount: formatCurrency(payment.amount),
     date: formatBsDisplayDate(payment.transaction_date),
   }));
-  const selectedPeriodLabel = formatReportPeriod(selectedRange, fromDate, toDate);
+  const selectedPeriodLabel = rangeSelection.displayLabel;
   const generatedReportDate = formatBsDisplayDate(todayDate);
   const nepaliNow = getNepalDateTimeParts();
   const salaryPendingHref = buildDrillDownHref("/staff", selectedRange, fromDate, toDate, {
@@ -588,29 +558,6 @@ export default async function Home({
               <HandCoins className="h-4 w-4" />
               {messages.dashboardPage.addExpense}
             </Button>
-            <DashboardReportPrintButton
-              company={company}
-              locale={locale}
-              generatedDate={generatedReportDate}
-              selectedPeriod={selectedPeriodLabel}
-              metrics={[
-                { title: messages.dashboardPage.totalSales, value: formatCurrency(totalSales) },
-                { title: messages.dashboardPage.totalPurchases, value: formatCurrency(totalPurchases) },
-                { title: messages.dashboardPage.netProfit, value: formatCurrency(netProfit) },
-                { title: messages.dashboardPage.outstandingPayables, value: formatCurrency(payables) },
-                { title: messages.dashboardPage.extraExpenses, value: formatCurrency(miscExpenses) },
-              ]}
-              customers={customers.map((customer) => ({
-                name: customer.name,
-                revenue: customer.revenue,
-                lastTransaction: customer.lastTransaction,
-              }))}
-              items={topSalesItems.map((item) => ({
-                name: item.name,
-                quantitySold: item.quantitySold,
-                salesAmount: item.salesAmount,
-              }))}
-            />
             <LanguageSwitcher />
             <ThemeToggle />
           </>
@@ -640,6 +587,36 @@ export default async function Home({
               fromDate={fromDate}
               toDate={toDate}
               locale={locale}
+              reportButton={
+                <DashboardReportPrintButton
+                  company={company}
+                  locale={locale}
+                  generatedDate={generatedReportDate}
+                  selectedPeriod={selectedPeriodLabel}
+                  metrics={[
+                    { title: messages.dashboardPage.totalSales, value: formatCurrency(totalSales) },
+                    {
+                      title: messages.dashboardPage.totalPurchases,
+                      value: formatCurrency(totalPurchases),
+                    },
+                    {
+                      title: messages.dashboardPage.outstandingPayables,
+                      value: formatCurrency(payables),
+                    },
+                    { title: messages.dashboardPage.netProfit, value: formatCurrency(netProfit) },
+                  ]}
+                  customers={customers.map((customer) => ({
+                    name: customer.name,
+                    revenue: customer.revenue,
+                    lastTransaction: customer.lastTransaction,
+                  }))}
+                  items={topSalesItems.map((item) => ({
+                    name: item.name,
+                    quantitySold: item.quantitySold,
+                    salesAmount: item.salesAmount,
+                  }))}
+                />
+              }
             />
           </div>
         }

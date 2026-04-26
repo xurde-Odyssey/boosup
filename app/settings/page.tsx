@@ -15,6 +15,7 @@ import { upsertCompanySettings } from "@/app/actions";
 import { Header } from "@/components/dashboard/Header";
 import { Sidebar } from "@/components/dashboard/Sidebar";
 import { QueryNoticeToast } from "@/components/shared/QueryNoticeToast";
+import { CompanyLogoUploadField } from "@/components/settings/CompanyLogoUploadField";
 import { SystemPreferencesPanel } from "@/components/settings/SystemPreferencesPanel";
 import { buildCompanySettings } from "@/lib/company-settings";
 import { getMessages } from "@/lib/i18n";
@@ -37,7 +38,7 @@ export default async function SettingsPage({
 
   const settingsResponse = await supabase
     .from("company_settings")
-    .select("id, business_name, address, phone, email, website, logo_path, favicon_path")
+    .select("id, business_name, address, phone, email, website, logo_path")
     .order("created_at", { ascending: true })
     .limit(1);
 
@@ -184,33 +185,20 @@ export default async function SettingsPage({
                     />
                   </div>
 
-                  <div>
-                    <label className="mb-2 block text-sm font-semibold text-slate-700">
-                      {settingsMessages.logoPath}
-                    </label>
-                    <input
-                      name="logo_path"
-                      defaultValue={companySettings.logoPath}
-                      placeholder="/logos/logo.png"
-                      className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-blue-500 focus:bg-white"
-                    />
-                    <p className="mt-2 text-xs text-slate-500">{settingsMessages.logoPathHint}</p>
-                  </div>
-
-                  <div>
-                    <label className="mb-2 block text-sm font-semibold text-slate-700">
-                      {settingsMessages.faviconPath}
-                    </label>
-                    <input
-                      name="favicon_path"
-                      defaultValue={companySettings.faviconPath}
-                      placeholder="/logos/book.ico"
-                      className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-blue-500 focus:bg-white"
-                    />
-                    <p className="mt-2 text-xs text-slate-500">
-                      {settingsMessages.faviconPathHint}
-                    </p>
-                  </div>
+                  <CompanyLogoUploadField
+                    name="logo_path"
+                    initialValue={companySettings.logoPath}
+                    labels={{
+                      label: settingsMessages.logoUpload,
+                      hint: settingsMessages.logoUploadHint,
+                      choose: settingsMessages.logoChoose,
+                      replace: settingsMessages.logoReplace,
+                      remove: settingsMessages.logoRemove,
+                      preview: settingsMessages.logoPreview,
+                      tooLarge: settingsMessages.logoTooLarge,
+                      invalidType: settingsMessages.logoInvalidType,
+                    }}
+                  />
                 </div>
 
                 <div className="mt-6 flex justify-end">
