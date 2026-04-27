@@ -19,7 +19,7 @@ import { cn } from '@/lib/utils';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { logoutAdmin } from '@/app/actions';
-import { APP_BRAND_NAME } from '@/lib/brand';
+import { APP_BRAND_LOGO_PATH, APP_BRAND_NAME } from '@/lib/brand';
 import { DEFAULT_COMPANY_SETTINGS } from '@/lib/company-settings';
 import { getDocumentLocale, getMessages, getStoredLocale } from '@/lib/i18n';
 import { getSupabaseBrowserClient } from '@/lib/supabase/client';
@@ -32,7 +32,7 @@ export function Sidebar() {
   const [companyLogo, setCompanyLogo] = useState(DEFAULT_COMPANY_SETTINGS.logoPath);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const navItems = [
-    { icon: LayoutDashboard, label: messages.common.dashboard, href: '/' },
+    { icon: LayoutDashboard, label: messages.common.dashboard, href: '/dashboard' },
     { icon: ShoppingBag, label: messages.common.sales, href: '/sales' },
     { icon: ContactRound, label: messages.common.customers, href: '/customers' },
     { icon: ShoppingCart, label: messages.common.purchases, href: '/purchases' },
@@ -175,10 +175,10 @@ export function Sidebar() {
   return (
     <>
       <div className="fixed inset-x-0 top-0 z-40 flex items-center justify-between border-b border-slate-200 bg-white/95 px-4 py-3 shadow-sm backdrop-blur lg:hidden dark:border-slate-800 dark:bg-slate-950/95">
-        <Link href="/" className="flex min-w-0 items-center gap-3" onClick={() => setIsMobileMenuOpen(false)}>
+        <Link href="/dashboard" className="flex min-w-0 items-center gap-3" onClick={() => setIsMobileMenuOpen(false)}>
           <div className="flex h-10 w-12 items-center justify-center overflow-hidden rounded-2xl border border-slate-200 bg-white p-1 dark:border-slate-700 dark:bg-slate-900">
             <Image
-              src={companyLogo}
+              src={APP_BRAND_LOGO_PATH}
               alt={`${APP_BRAND_NAME} logo`}
               width={46}
               height={28}
@@ -214,10 +214,10 @@ export function Sidebar() {
           />
           <aside className="absolute inset-y-0 left-0 flex w-[88vw] max-w-xs flex-col border-r border-slate-200 bg-white px-4 py-5 shadow-2xl dark:border-slate-800 dark:bg-slate-950">
             <div className="mb-6 flex items-center justify-between gap-3 px-2">
-              <Link href="/" className="flex min-w-0 items-center gap-3" onClick={() => setIsMobileMenuOpen(false)}>
+              <Link href="/dashboard" className="flex min-w-0 items-center gap-3" onClick={() => setIsMobileMenuOpen(false)}>
                 <div className="flex h-11 w-14 items-center justify-center overflow-hidden rounded-2xl border border-slate-200 bg-white p-1 dark:border-slate-700 dark:bg-slate-900">
                   <Image
-                    src={companyLogo}
+                    src={APP_BRAND_LOGO_PATH}
                     alt={`${APP_BRAND_NAME} logo`}
                     width={52}
                     height={32}
@@ -248,10 +248,10 @@ export function Sidebar() {
 
       <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-r border-slate-200 bg-white px-4 py-5 lg:flex dark:border-slate-800 dark:bg-slate-950">
         <div className="mb-8 flex items-center gap-3 px-2">
-          <Link href="/" className="flex items-center gap-3">
+          <Link href="/dashboard" className="flex items-center gap-3">
             <div className="flex h-11 w-14 items-center justify-center overflow-hidden rounded-2xl border border-slate-200 bg-white p-1 dark:border-slate-700 dark:bg-slate-900">
               <Image
-                src={companyLogo}
+                src={APP_BRAND_LOGO_PATH}
                 alt={`${APP_BRAND_NAME} logo`}
                 width={52}
                 height={32}
