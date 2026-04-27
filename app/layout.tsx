@@ -3,13 +3,14 @@ import { cookies } from "next/headers";
 import "nepali-datepicker-reactjs/dist/index.css";
 import { SiteFooter } from "@/components/shared/SiteFooter";
 import { SonnerToaster } from "@/components/shared/SonnerToaster";
+import { APP_BRAND_DESCRIPTION, APP_BRAND_NAME } from "@/lib/brand";
 import { LANGUAGE_COOKIE, resolveLocale } from "@/lib/i18n";
 import "./globals.css";
 
 export async function generateMetadata(): Promise<Metadata> {
   return {
-    title: "BookKeep Pro",
-    description: "Bookkeeping system for sales, purchases, suppliers, products, and staff.",
+    title: APP_BRAND_NAME,
+    description: APP_BRAND_DESCRIPTION,
     icons: {
       icon: "/logos/book.ico",
       shortcut: "/logos/book.ico",

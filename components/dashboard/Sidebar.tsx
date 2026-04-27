@@ -19,6 +19,7 @@ import { cn } from '@/lib/utils';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { logoutAdmin } from '@/app/actions';
+import { APP_BRAND_NAME } from '@/lib/brand';
 import { DEFAULT_COMPANY_SETTINGS } from '@/lib/company-settings';
 import { getDocumentLocale, getMessages, getStoredLocale } from '@/lib/i18n';
 import { getSupabaseBrowserClient } from '@/lib/supabase/client';
@@ -178,7 +179,7 @@ export function Sidebar() {
           <div className="flex h-10 w-12 items-center justify-center overflow-hidden rounded-2xl border border-slate-200 bg-white p-1 dark:border-slate-700 dark:bg-slate-900">
             <Image
               src={companyLogo}
-              alt="BookKeep Pro logo"
+              alt={`${APP_BRAND_NAME} logo`}
               width={46}
               height={28}
               className="h-full w-full object-contain"
@@ -188,7 +189,7 @@ export function Sidebar() {
           </div>
           <div className="flex items-center gap-3">
             <div className="min-w-0">
-              <h1 className="truncate leading-tight font-bold text-slate-900 dark:text-slate-50">BookKeep <span className="text-blue-600 dark:text-cyan-400">Pro</span></h1>
+              <h1 className="truncate leading-tight font-bold text-slate-900 dark:text-slate-50">{APP_BRAND_NAME}</h1>
               <p className="truncate text-[10px] font-medium uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500">{messages.common.managementSystem}</p>
             </div>
           </div>
@@ -217,7 +218,7 @@ export function Sidebar() {
                 <div className="flex h-11 w-14 items-center justify-center overflow-hidden rounded-2xl border border-slate-200 bg-white p-1 dark:border-slate-700 dark:bg-slate-900">
                   <Image
                     src={companyLogo}
-                    alt="BookKeep Pro logo"
+                    alt={`${APP_BRAND_NAME} logo`}
                     width={52}
                     height={32}
                     className="h-full w-full object-contain"
@@ -226,7 +227,7 @@ export function Sidebar() {
                   />
                 </div>
                 <div className="min-w-0">
-                  <h1 className="truncate leading-tight font-bold text-slate-900 dark:text-slate-50">BookKeep <span className="text-blue-600 dark:text-cyan-400">Pro</span></h1>
+                  <h1 className="truncate leading-tight font-bold text-slate-900 dark:text-slate-50">{APP_BRAND_NAME}</h1>
                   <p className="truncate text-[10px] font-medium uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500">{messages.common.managementSystem}</p>
                 </div>
               </Link>
@@ -251,7 +252,7 @@ export function Sidebar() {
             <div className="flex h-11 w-14 items-center justify-center overflow-hidden rounded-2xl border border-slate-200 bg-white p-1 dark:border-slate-700 dark:bg-slate-900">
               <Image
                 src={companyLogo}
-                alt="BookKeep Pro logo"
+                alt={`${APP_BRAND_NAME} logo`}
                 width={52}
                 height={32}
                 className="h-full w-full object-contain"
@@ -260,7 +261,7 @@ export function Sidebar() {
               />
             </div>
             <div>
-              <h1 className="leading-tight font-bold text-slate-900 dark:text-slate-50">BookKeep <span className="text-blue-600 dark:text-cyan-400">Pro</span></h1>
+              <h1 className="leading-tight font-bold text-slate-900 dark:text-slate-50">{APP_BRAND_NAME}</h1>
               <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500">{messages.common.managementSystem}</p>
             </div>
           </Link>

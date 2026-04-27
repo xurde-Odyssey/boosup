@@ -9,6 +9,7 @@ import {
 import { LoginForm } from "@/components/auth/LoginForm";
 import { LanguageSwitcher } from "@/components/shared/LanguageSwitcher";
 import { ThemeToggle } from "@/components/shared/ThemeToggle";
+import { APP_BRAND_NAME } from "@/lib/brand";
 import { getMessages } from "@/lib/i18n";
 import { getServerLocale } from "@/lib/i18n-server";
 
@@ -34,7 +35,7 @@ export default async function LoginPage({
             <div className="flex items-start justify-between gap-4">
               <div>
                 <div className="text-xs font-bold uppercase tracking-[0.24em] text-blue-600">
-                  BooSup
+                  {APP_BRAND_NAME}
                 </div>
                 <p className="mt-3 max-w-md text-sm leading-6 text-slate-600 dark:text-slate-300">
                   {loginMessages.tagline}
