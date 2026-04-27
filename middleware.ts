@@ -22,14 +22,19 @@ export async function middleware(request: NextRequest) {
   }
 
   const isLoginPage = pathname === "/login";
+  const isLandingPage = pathname === "/";
+  const isPublicAsset =
+    pathname.startsWith("/_next") ||
+    pathname === "/favicon.ico" ||
+    /\.[^/]+$/.test(pathname);
   const hasSessionCookie = hasSupabaseSessionCookie(request);
 
   if (process.env.NODE_ENV === "development") {
     if (
       !isLoginPage &&
-      !hasSessionCookie &&
-      !pathname.startsWith("/_next") &&
-      !pathname.startsWith("/favicon.ico")
+      !isLandingPage &&
+      !isPublicAsset &&
+      !hasSessionCookie
     ) {
       const loginUrl = new URL("/login", request.url);
       loginUrl.searchParams.set("next", pathname);
@@ -66,14 +71,14 @@ export async function middleware(request: NextRequest) {
   const isAuthenticated = Boolean(user);
 
   if (isLoginPage && isAuthenticated) {
-    return NextResponse.redirect(new URL("/", request.url));
+    return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 
   if (
     !isLoginPage &&
-    !isAuthenticated &&
-    !pathname.startsWith("/_next") &&
-    !pathname.startsWith("/favicon.ico")
+    !isLandingPage &&
+    !isPublicAsset &&
+    !isAuthenticated
   ) {
     const loginUrl = new URL("/login", request.url);
     loginUrl.searchParams.set("next", pathname);

@@ -119,7 +119,7 @@ export default async function ActivityPage({
         <PageActionStrip
           locale={locale}
           actions={[
-            { label: activityMessages.backToDashboard, href: "/", variant: "secondary", icon: History },
+            { label: activityMessages.backToDashboard, href: "/dashboard", variant: "secondary", icon: History },
           ]}
         />
 
