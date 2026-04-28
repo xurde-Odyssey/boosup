@@ -10,28 +10,28 @@ export function SiteFooter() {
 
   if (pathname === "/") {
     return (
-      <footer className="border-t border-slate-200 bg-white/90">
+      <footer className="border-t border-slate-200/80 bg-white/82 backdrop-blur">
         <div className="mx-auto max-w-7xl px-6 py-16 lg:px-8">
-          <div className="overflow-hidden rounded-[32px] bg-emerald-800 text-white shadow-[0_30px_90px_-30px_rgba(6,95,70,0.45)]">
+          <div className="overflow-hidden rounded-[32px] bg-[linear-gradient(135deg,_#0f172a_0%,_#1d4ed8_88%)] text-white shadow-[0_34px_100px_-34px_rgba(15,23,42,0.5)]">
             <div className="relative px-6 py-12 text-center sm:px-10 sm:py-14">
-              <div className="absolute -left-4 bottom-0 h-20 w-20 rounded-tr-[28px] bg-white/6" />
-              <div className="absolute right-0 top-0 h-36 w-36 rounded-bl-[28px] bg-white/6" />
+              <div className="absolute -left-4 bottom-0 h-20 w-20 rounded-tr-[28px] bg-white/5" />
+              <div className="absolute right-0 top-0 h-36 w-36 rounded-bl-[28px] bg-white/5" />
               <h3 className="text-3xl font-black tracking-tight sm:text-4xl">
                 Ready to simplify your business records?
               </h3>
-              <p className="mx-auto mt-4 max-w-3xl text-base leading-8 text-emerald-50/90 sm:text-lg">
+              <p className="mx-auto mt-4 max-w-3xl text-base leading-8 text-blue-50/90 sm:text-lg">
                 Join Nepali businesses using one system for billing, purchases, supplier records, salary tracking, and daily reporting.
               </p>
               <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
                 <Link
                   href="/login?next=/dashboard"
-                  className="inline-flex min-w-[190px] items-center justify-center rounded-2xl bg-white px-6 py-4 text-base font-semibold text-emerald-800 shadow-sm transition-colors hover:bg-emerald-50"
+                  className="inline-flex min-w-[190px] items-center justify-center rounded-2xl bg-white px-6 py-4 text-base font-semibold text-slate-950 shadow-sm transition-colors hover:bg-slate-100"
                 >
                   Start Free Trial
                 </Link>
                 <a
                   href="#demo"
-                  className="inline-flex min-w-[190px] items-center justify-center rounded-2xl border border-white/20 bg-transparent px-6 py-4 text-base font-semibold text-white transition-colors hover:bg-white/5"
+                  className="inline-flex min-w-[190px] items-center justify-center rounded-2xl border border-white/20 bg-transparent px-6 py-4 text-base font-semibold text-white transition-colors hover:bg-white/8"
                 >
                   Book a Demo
                 </a>

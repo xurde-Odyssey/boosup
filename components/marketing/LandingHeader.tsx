@@ -99,26 +99,26 @@ export function LandingHeader() {
   );
 
   return (
-    <header className="sticky top-0 z-40 border-b border-slate-200/70 bg-white/88 backdrop-blur-xl">
+    <header className="sticky top-0 z-40 border-b border-slate-200/70 bg-white/78 backdrop-blur-2xl">
       <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
         <Link href="/" className="flex min-w-0 items-center gap-3">
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden sm:h-14 sm:w-14">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden sm:h-12 sm:w-12">
             <Image
               src={APP_BRAND_LOGO_PATH}
               alt={`${APP_BRAND_NAME} logo`}
-              width={56}
-              height={56}
+              width={48}
+              height={48}
               className="h-full w-full object-contain"
               priority
               unoptimized
             />
           </div>
           <div className="min-w-0">
-            <div className="truncate text-2xl font-black tracking-tight text-blue-600 sm:text-[2.1rem]">
+            <div className="truncate text-[1.9rem] font-black tracking-tight text-blue-600 sm:text-[2rem]">
               {APP_BRAND_NAME}
             </div>
-            <div className="truncate text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-400">
-              Management System
+            <div className="truncate text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+              For real business flow
             </div>
           </div>
         </Link>
@@ -134,7 +134,7 @@ export function LandingHeader() {
           </Link>
           <Link
             href="/login?next=/dashboard"
-            className="inline-flex items-center justify-center rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white shadow-sm shadow-blue-600/25 transition-all duration-200 hover:-translate-y-0.5 hover:bg-blue-700"
+            className="inline-flex items-center justify-center rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white shadow-[0_14px_30px_-18px_rgba(37,99,235,0.75)] transition-all duration-200 hover:-translate-y-0.5 hover:bg-blue-700"
           >
             Get Started
           </Link>

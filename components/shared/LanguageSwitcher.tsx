@@ -68,7 +68,7 @@ export function LanguageSwitcher({
 
   if (compact) {
     return (
-      <div className="inline-flex items-center rounded-2xl border border-slate-200 bg-white p-1 shadow-sm dark:border-slate-700 dark:bg-slate-900/90">
+      <div className="inline-flex items-center rounded-xl border border-slate-200/80 bg-white/90 p-0.5 shadow-sm dark:border-slate-700 dark:bg-slate-900/90">
         {(["en", "ne"] as AppLocale[]).map((value) => {
           const active = locale === value;
           return (
@@ -76,7 +76,7 @@ export function LanguageSwitcher({
               key={value}
               type="button"
               onClick={() => setLocale(value)}
-              className={`rounded-xl px-3 py-2 text-sm font-semibold transition-colors ${
+              className={`rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-colors ${
                 active
                   ? "bg-blue-600 text-white"
                   : "text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800"

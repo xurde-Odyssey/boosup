@@ -29,19 +29,10 @@ export async function middleware(request: NextRequest) {
     /\.[^/]+$/.test(pathname);
   const hasSessionCookie = hasSupabaseSessionCookie(request);
 
-  if (process.env.NODE_ENV === "development") {
-    if (
-      !isLoginPage &&
-      !isLandingPage &&
-      !isPublicAsset &&
-      !hasSessionCookie
-    ) {
-      const loginUrl = new URL("/login", request.url);
-      loginUrl.searchParams.set("next", pathname);
-      return NextResponse.redirect(loginUrl);
-    }
-
-    return response;
+  if (!hasSessionCookie && !isLoginPage && !isLandingPage && !isPublicAsset) {
+    const loginUrl = new URL("/login", request.url);
+    loginUrl.searchParams.set("next", pathname);
+    return NextResponse.redirect(loginUrl);
   }
 
   const supabase = createServerClient(supabaseUrl, supabasePublishableKey, {

@@ -81,13 +81,13 @@ export default async function LoginPage({
             </div>
           </section>
 
-          <section className="flex items-center bg-white/50 p-6 backdrop-blur-xl sm:p-8 lg:p-10 dark:bg-slate-950/45">
+          <section className="relative flex items-center bg-white/50 p-6 backdrop-blur-xl sm:p-8 lg:p-10 dark:bg-slate-950/45">
             <div className="w-full">
-              <div className="mb-6">
-                <div className="mb-5 flex justify-end">
-                  <div className="inline-flex items-center gap-1.5 rounded-2xl border border-white/75 bg-white/55 p-1.5 shadow-sm shadow-slate-950/5 ring-1 ring-white/80 backdrop-blur-xl dark:border-slate-800/80 dark:bg-slate-900/55 dark:ring-slate-800/70">
+              <div className="mb-6 pt-10">
+                <div className="absolute right-6 top-6 sm:right-8 sm:top-8 lg:right-10 lg:top-10">
+                  <div className="inline-flex items-center gap-1 rounded-xl border border-white/75 bg-white/55 p-1 shadow-sm shadow-slate-950/5 ring-1 ring-white/80 backdrop-blur-xl dark:border-slate-800/80 dark:bg-slate-900/55 dark:ring-slate-800/70">
                     <LanguageSwitcher compact />
-                    <ThemeToggle />
+                    <ThemeToggle compact />
                   </div>
                 </div>
                 <div className="inline-flex h-10 w-10 items-center justify-center rounded-[18px] border border-white/70 bg-blue-50/70 text-blue-600 shadow-sm shadow-blue-950/5 ring-1 ring-blue-100/70 backdrop-blur-xl dark:border-slate-800/80 dark:bg-slate-900/80 dark:text-cyan-300 dark:ring-slate-800/70">

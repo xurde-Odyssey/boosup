@@ -32,6 +32,7 @@ export default async function CreateSalesPage({
   const salesMessages = messages.salesEntry;
   const editId = typeof params.edit === "string" ? params.edit : "";
   const shouldPrint = typeof params.print === "string" && params.print === "1";
+  const printMode = typeof params.printMode === "string" && params.printMode === "invoice" ? "invoice" : "history";
   const notice = typeof params.notice === "string" ? params.notice : "";
   const todayDate = getTodayDate();
 
@@ -225,12 +226,25 @@ export default async function CreateSalesPage({
               </div>
               <div className="mt-4 border-t border-slate-100 pt-4">
                 {editingSale ? (
-                  <SalesPrintPreview
-                    sale={editingSale}
-                    autoPrint={shouldPrint}
-                    company={company}
-                    locale={locale}
-                  />
+                  <div className="grid gap-3">
+                    <SalesPrintPreview
+                      sale={editingSale}
+                      label={messages.print.printInvoice}
+                      autoPrint={shouldPrint && printMode === "invoice"}
+                      company={company}
+                      locale={locale}
+                      mode="invoice"
+                    />
+                    <SalesPrintPreview
+                      sale={editingSale}
+                      label={messages.print.printInvoiceWithHistory}
+                      autoPrint={shouldPrint && printMode === "history"}
+                      company={company}
+                      locale={locale}
+                      mode="history"
+                      className="w-full bg-blue-600 hover:bg-blue-700"
+                    />
+                  </div>
                 ) : (
                   <button
                     type="button"
