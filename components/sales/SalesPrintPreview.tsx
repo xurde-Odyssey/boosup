@@ -1,7 +1,7 @@
 "use client";
 
 import { createPortal } from "react-dom";
-import { useCallback, useEffect, useMemo, useRef, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { Printer } from "lucide-react";
 import {
   PrintDocument,
@@ -48,13 +48,16 @@ type PrintableSale = {
   sales_payments: SalesPayment[];
 };
 
+type SalesPrintMode = "invoice" | "history";
+
 export function SalesPrintPreview({
   sale,
-  label = "Print Invoice",
+  label,
   className,
   autoPrint = false,
   company = DEFAULT_COMPANY_SETTINGS,
   locale = "en",
+  mode = "history",
 }: {
   sale: PrintableSale;
   label?: string;
@@ -62,6 +65,7 @@ export function SalesPrintPreview({
   autoPrint?: boolean;
   company?: CompanySettings;
   locale?: AppLocale;
+  mode?: SalesPrintMode;
 }) {
   const messages = getMessages(locale);
   const isMounted = useSyncExternalStore(
@@ -115,9 +119,13 @@ export function SalesPrintPreview({
   const discount = Number(sale.discount ?? 0);
   const grandTotal = Math.max(subtotal - discount + tax, 0);
   const remainingAmount = Number(sale.remaining_amount ?? 0);
-  const hasAutoPrinted = useRef(false);
+  const [isPrintMounted, setIsPrintMounted] = useState(autoPrint);
 
   const handlePrint = useCallback(() => {
+    setIsPrintMounted(true);
+  }, []);
+
+  const runPrint = useCallback(() => {
     document.body.classList.add("invoice-print-active");
     const previousTitle = document.title;
     document.title = `${sale.customer_name} - ${sale.invoice_number}`;
@@ -125,6 +133,7 @@ export function SalesPrintPreview({
     const handleAfterPrint = () => {
       document.body.classList.remove("invoice-print-active");
       document.title = previousTitle;
+      setIsPrintMounted(false);
       window.removeEventListener("afterprint", handleAfterPrint);
     };
 
@@ -133,15 +142,13 @@ export function SalesPrintPreview({
   }, [sale.customer_name, sale.invoice_number]);
 
   useEffect(() => {
-    if (!autoPrint || !isMounted || hasAutoPrinted.current) return;
-    hasAutoPrinted.current = true;
-
+    if (!isPrintMounted || !isMounted) return;
     const timer = window.setTimeout(() => {
-      handlePrint();
+      runPrint();
     }, 150);
 
     return () => window.clearTimeout(timer);
-  }, [autoPrint, handlePrint, isMounted]);
+  }, [isPrintMounted, isMounted, runPrint]);
 
   return (
     <>
@@ -154,10 +161,11 @@ export function SalesPrintPreview({
         )}
       >
         <Printer className="h-4 w-4" />
-        {label}
+        {label ?? (mode === "history" ? messages.print.printInvoiceWithHistory : messages.print.printInvoice)}
       </button>
 
       {isMounted &&
+        isPrintMounted &&
         createPortal(
           <PrintDocument root="sales-invoice" locale={locale}>
             <PrintHeader
@@ -265,38 +273,40 @@ export function SalesPrintPreview({
                 </div>
               </div>
 
-              <div className="mt-4">
-                <PrintSectionTitle>Payment History</PrintSectionTitle>
-                <div className={PRINT_TABLE_WRAP_CLASS}>
-                  <table className="w-full text-left">
-                    <thead>
-                      <tr className={PRINT_TABLE_HEAD_ROW_CLASS}>
-                        <th className="px-3 py-2">Date</th>
-                        <th className="px-3 py-2 text-right">Amount</th>
-                      </tr>
-                    </thead>
-                    <tbody className={PRINT_TABLE_BODY_CLASS}>
-                      {paymentHistory.map((payment) => (
-                        <tr key={payment.id}>
-                          <td className="px-3 py-2.5 text-slate-700">
-                            {formatBsDisplayDate(payment.payment_date)}
-                          </td>
-                          <td className="px-3 py-2.5 text-right font-semibold text-green-600">
-                            {formatCurrency(payment.amount)}
-                          </td>
+              {mode === "history" && (
+                <div className="mt-4">
+                  <PrintSectionTitle>{messages.print.paymentHistory}</PrintSectionTitle>
+                  <div className={PRINT_TABLE_WRAP_CLASS}>
+                    <table className="w-full text-left">
+                      <thead>
+                        <tr className={PRINT_TABLE_HEAD_ROW_CLASS}>
+                          <th className="px-3 py-2">{messages.print.date}</th>
+                          <th className="px-3 py-2 text-right">{messages.print.amount}</th>
                         </tr>
-                      ))}
-                      {paymentHistory.length === 0 && (
-                        <tr>
-                          <td colSpan={2} className="px-4 py-6 text-center text-slate-500">
-                            No payment transactions yet.
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody className={PRINT_TABLE_BODY_CLASS}>
+                        {paymentHistory.map((payment) => (
+                          <tr key={payment.id}>
+                            <td className="px-3 py-2.5 text-slate-700">
+                              {formatBsDisplayDate(payment.payment_date)}
+                            </td>
+                            <td className="px-3 py-2.5 text-right font-semibold text-green-600">
+                              {formatCurrency(payment.amount)}
+                            </td>
+                          </tr>
+                        ))}
+                        {paymentHistory.length === 0 && (
+                          <tr>
+                            <td colSpan={2} className="px-4 py-6 text-center text-slate-500">
+                              {messages.print.noPaymentHistory}
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
 
             {sale.notes && (

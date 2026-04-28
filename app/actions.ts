@@ -962,65 +962,41 @@ export async function upsertPurchase(formData: FormData) {
   }
 
   let savedPurchaseId = id;
-  if (id) {
-    await supabase.from("purchases").update(purchasePayload).eq("id", id);
-    await supabase.from("purchase_items").delete().eq("purchase_id", id);
-    await supabase.from("purchase_items").insert(
-      normalizedPurchaseItems.map((item) => ({
-        ...item,
-        purchase_id: id,
-      })),
-    );
-    if (normalizedPaymentNow > 0) {
-      await supabase.from("purchase_payments").insert({
-        purchase_id: id,
-        payment_date: paymentDate || purchaseDate,
-        amount: normalizedPaymentNow,
-        payment_method: paymentMethod,
-        notes: readText(formData, "notes") || null,
-      });
-    }
-  } else {
-    const { data } = await supabase
-      .from("purchases")
-      .insert(purchasePayload)
-      .select("id")
-      .single();
+  const { data: savedPurchase, error: purchaseRpcError } = await supabase.rpc(
+    "upsert_purchase_transaction",
+    {
+      p_id: id || null,
+      p_purchase_number: purchasePayload.purchase_number,
+      p_vendor_id: purchasePayload.vendor_id,
+      p_vendor_name: purchasePayload.vendor_name,
+      p_purchase_date: purchasePayload.purchase_date,
+      p_payment_status: purchasePayload.payment_status,
+      p_payment_type: purchasePayload.payment_type,
+      p_payment_method: purchasePayload.payment_method,
+      p_total_amount: purchasePayload.total_amount,
+      p_paid_amount: purchasePayload.paid_amount,
+      p_notes: purchasePayload.notes,
+      p_items: normalizedPurchaseItems,
+      p_payment_now: normalizedPaymentNow,
+      p_payment_date: paymentDate || purchaseDate,
+    },
+  );
 
-    if (data?.id) {
-      savedPurchaseId = data.id;
-      await supabase.from("purchase_items").insert(
-        normalizedPurchaseItems.map((item) => ({
-          ...item,
-          purchase_id: data.id,
-        })),
-      );
-      if (normalizedPaymentNow > 0) {
-        await supabase.from("purchase_payments").insert({
-          purchase_id: data.id,
-          payment_date: paymentDate || purchaseDate,
-          amount: normalizedPaymentNow,
-          payment_method: paymentMethod,
-          notes: readText(formData, "notes") || null,
-        });
-      }
-    }
+  if (purchaseRpcError) {
+    redirectWithMessage(
+      purchaseFormPath,
+      purchaseRpcError.message || `Failed to ${id ? "update" : "create"} purchase`,
+    );
   }
 
-  await recordActivity(supabase, {
-    module: "purchases",
-    action: actionType,
-    title: `Purchase ${actionType}`,
-    description: purchasePayload.purchase_number,
-    amount: totalAmount,
-    entityType: "purchase",
-    entityId: savedPurchaseId || null,
-    metadata: {
-      payment_status: paymentStatus,
-      paid_amount: paidAmount,
-    },
-  });
-  revalidateAll("/purchases", "/products", "/vendors");
+  if (savedPurchase) {
+    savedPurchaseId = String(savedPurchase);
+  }
+
+  revalidateAll("/dashboard", "/purchases", "/products", "/vendors");
+  if (savedPurchaseId) {
+    revalidatePath(`/purchases/create?edit=${savedPurchaseId}`);
+  }
   if (vendorId) {
     revalidatePath(`/vendors/${vendorId}`);
   }
@@ -1271,89 +1247,41 @@ export async function upsertSale(formData: FormData) {
   };
 
   let savedSaleId = id;
-  if (id) {
-    const { error: saleUpdateError } = await supabase.from("sales").update(salesPayload).eq("id", id);
-    if (saleUpdateError) {
-      redirectWithMessage(salesFormPath, saleUpdateError.message || "Failed to update sale");
-    }
+  const { data: savedSale, error: saleRpcError } = await supabase.rpc(
+    "upsert_sale_transaction",
+    {
+      p_id: id || null,
+      p_invoice_number: salesPayload.invoice_number,
+      p_customer_id: salesPayload.customer_id,
+      p_customer_name: salesPayload.customer_name,
+      p_sales_date: salesPayload.sales_date,
+      p_payment_status: salesPayload.payment_status,
+      p_subtotal: salesPayload.subtotal,
+      p_discount: salesPayload.discount,
+      p_tax: salesPayload.tax,
+      p_amount_received: salesPayload.amount_received,
+      p_notes: salesPayload.notes,
+      p_items: normalizedSaleItems,
+      p_payment_increment: paymentIncrement,
+      p_payment_date: paymentDate || salesDate,
+    },
+  );
 
-    const { error: deleteItemsError } = await supabase.from("sales_items").delete().eq("sale_id", id);
-    if (deleteItemsError) {
-      redirectWithMessage(salesFormPath, deleteItemsError.message || "Failed to refresh sales items");
-    }
-
-    if (normalizedSaleItems.length) {
-      const { error: insertItemsError } = await supabase.from("sales_items").insert(
-        normalizedSaleItems.map((item) => ({
-          ...item,
-          sale_id: id,
-        })),
-      );
-      if (insertItemsError) {
-        redirectWithMessage(salesFormPath, insertItemsError.message || "Failed to save sales items");
-      }
-    }
-    if (paymentIncrement > 0) {
-      const { error: insertPaymentError } = await supabase.from("sales_payments").insert({
-        sale_id: id,
-        payment_date: paymentDate || salesDate,
-        amount: paymentIncrement,
-      });
-      if (insertPaymentError) {
-        redirectWithMessage(salesFormPath, insertPaymentError.message || "Failed to save sales payment");
-      }
-    }
-  } else {
-    const { data, error: saleInsertError } = await supabase
-      .from("sales")
-      .insert(salesPayload)
-      .select("id")
-      .single();
-    if (saleInsertError || !data?.id) {
-      redirectWithMessage(
-        salesFormPath,
-        saleInsertError?.message || "Failed to create sale",
-      );
-    }
-
-    if (data?.id && normalizedSaleItems.length) {
-      savedSaleId = data.id;
-      const { error: insertItemsError } = await supabase.from("sales_items").insert(
-        normalizedSaleItems.map((item) => ({
-          ...item,
-          sale_id: data.id,
-        })),
-      );
-      if (insertItemsError) {
-        redirectWithMessage(salesFormPath, insertItemsError.message || "Failed to save sales items");
-      }
-    }
-    if (data?.id && paymentIncrement > 0) {
-      const { error: insertPaymentError } = await supabase.from("sales_payments").insert({
-        sale_id: data.id,
-        payment_date: paymentDate || salesDate,
-        amount: paymentIncrement,
-      });
-      if (insertPaymentError) {
-        redirectWithMessage(salesFormPath, insertPaymentError.message || "Failed to save sales payment");
-      }
-    }
+  if (saleRpcError) {
+    redirectWithMessage(
+      salesFormPath,
+      saleRpcError.message || `Failed to ${id ? "update" : "create"} sale`,
+    );
   }
 
-  await recordActivity(supabase, {
-    module: "sales",
-    action: actionType,
-    title: `Sale ${actionType}`,
-    description: `${invoiceNumber} - ${customerName}`,
-    amount: grossTotal,
-    entityType: "sale",
-    entityId: savedSaleId || null,
-    metadata: {
-      payment_status: paymentStatus,
-      amount_received: amountReceived,
-    },
-  });
-  revalidateAll("/", "/sales", "/sales/create", "/customers");
+  if (savedSale) {
+    savedSaleId = String(savedSale);
+  }
+
+  revalidateAll("/", "/dashboard", "/sales", "/sales/create", "/customers");
+  if (savedSaleId) {
+    revalidatePath(`/sales/create?edit=${savedSaleId}`);
+  }
   if (customerId) {
     revalidatePath(`/customers/${customerId}`);
   }

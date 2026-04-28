@@ -45,7 +45,11 @@ const getThemeSnapshot = () => {
   return getResolvedTheme() === "dark";
 };
 
-export function ThemeToggle() {
+export function ThemeToggle({
+  compact = false,
+}: {
+  compact?: boolean;
+}) {
   const isDark = useSyncExternalStore(subscribe, getThemeSnapshot, () => false);
 
   const toggleTheme = () => {
@@ -59,6 +63,42 @@ export function ThemeToggle() {
     window.localStorage.setItem(THEME_KEY, nextIsDark ? "dark" : "light");
     window.dispatchEvent(new Event(THEME_EVENT));
   };
+
+  if (compact) {
+    return (
+      <button
+        type="button"
+        onClick={toggleTheme}
+        className="inline-flex h-9 w-[54px] items-center rounded-xl border border-[color:var(--ui-border-strong)] bg-white/90 p-0.5 shadow-sm transition-all duration-200 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900/90 dark:hover:bg-slate-800"
+        aria-pressed={isDark}
+        title={isDark ? "Switch to light mode" : "Switch to dark mode"}
+      >
+        <div
+          className={`relative flex h-full w-full items-center rounded-[10px] px-0.5 transition-colors ${
+            isDark ? "bg-slate-800" : "bg-slate-100"
+          }`}
+        >
+          <div
+            className={`absolute top-0.5 h-7 w-7 rounded-[9px] shadow-sm transition-all duration-200 ${
+              isDark ? "translate-x-[19px] bg-slate-950" : "translate-x-0 bg-white"
+            }`}
+          />
+          <div className="relative z-10 flex w-full items-center justify-between px-1.5">
+            <SunMedium
+              className={`h-4 w-4 transition-colors ${
+                isDark ? "text-slate-500" : "text-amber-500"
+              }`}
+            />
+            <Moon
+              className={`h-4 w-4 transition-colors ${
+                isDark ? "text-cyan-300" : "text-slate-400"
+              }`}
+            />
+          </div>
+        </div>
+      </button>
+    );
+  }
 
   return (
     <button

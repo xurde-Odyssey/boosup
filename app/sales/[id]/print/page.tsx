@@ -8,15 +8,20 @@ import { formatCurrency, formatDate } from "@/lib/presentation";
 import { getSupabaseClient } from "@/lib/supabase/server";
 
 type Params = Promise<{ id: string }>;
+type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
 export default async function SalesPrintPage({
   params,
+  searchParams,
 }: {
   params: Params;
+  searchParams: SearchParams;
 }) {
   const { id } = await params;
+  const query = await searchParams;
   const supabase = await getSupabaseClient();
   const company = await getCompanySettings();
+  const printMode = typeof query.mode === "string" && query.mode === "invoice" ? "invoice" : "history";
 
   const [{ data: sale }, itemsResponse, paymentsResponse] = await Promise.all([
     supabase
@@ -100,7 +105,29 @@ export default async function SalesPrintPage({
         >
           Back To Sales
         </Link>
-        <PrintAgainButton />
+        <div className="flex items-center gap-3">
+          <Link
+            href={`/sales/${sale.id}/print?mode=invoice`}
+            className={`inline-flex rounded-xl px-4 py-2.5 text-sm font-semibold shadow-sm ${
+              printMode === "invoice"
+                ? "bg-slate-900 text-white"
+                : "border border-slate-200 bg-white text-slate-700"
+            }`}
+          >
+            Invoice Only
+          </Link>
+          <Link
+            href={`/sales/${sale.id}/print?mode=history`}
+            className={`inline-flex rounded-xl px-4 py-2.5 text-sm font-semibold shadow-sm ${
+              printMode === "history"
+                ? "bg-blue-600 text-white"
+                : "border border-slate-200 bg-white text-slate-700"
+            }`}
+          >
+            Invoice With History
+          </Link>
+          <PrintAgainButton />
+        </div>
       </div>
 
       <section className="mx-auto w-full max-w-[210mm] bg-white p-8 shadow-sm print:min-h-[297mm] print:max-w-none print:shadow-none">
@@ -209,41 +236,45 @@ export default async function SalesPrintPage({
 
         <div className="grid grid-cols-1 gap-6 border-t border-slate-200 py-6 md:grid-cols-[minmax(0,1fr)_320px]">
           <div>
-            <div className="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">
-              Payment History
-            </div>
-            <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200">
-              <table className="w-full text-left">
-                <thead>
-                  <tr className="bg-slate-50 text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                    <th className="px-4 py-3">Date</th>
-                    <th className="px-4 py-3 text-right">Amount</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 text-sm">
-                  {paymentHistory.map((payment) => (
-                    <tr key={payment.id}>
-                      <td className="px-4 py-3 text-slate-700">
-                        {formatDate(payment.payment_date)}
-                      </td>
-                      <td className="px-4 py-3 text-right font-semibold text-green-600">
-                        {formatCurrency(payment.amount)}
-                      </td>
-                    </tr>
-                  ))}
-                  {paymentHistory.length === 0 && (
-                    <tr>
-                      <td colSpan={2} className="px-4 py-6 text-center text-slate-500">
-                        No payment transactions yet.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
+            {printMode === "history" && (
+              <>
+                <div className="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">
+                  Payment History
+                </div>
+                <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200">
+                  <table className="w-full text-left">
+                    <thead>
+                      <tr className="bg-slate-50 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                        <th className="px-4 py-3">Date</th>
+                        <th className="px-4 py-3 text-right">Amount</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 text-sm">
+                      {paymentHistory.map((payment) => (
+                        <tr key={payment.id}>
+                          <td className="px-4 py-3 text-slate-700">
+                            {formatDate(payment.payment_date)}
+                          </td>
+                          <td className="px-4 py-3 text-right font-semibold text-green-600">
+                            {formatCurrency(payment.amount)}
+                          </td>
+                        </tr>
+                      ))}
+                      {paymentHistory.length === 0 && (
+                        <tr>
+                          <td colSpan={2} className="px-4 py-6 text-center text-slate-500">
+                            No payment transactions yet.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            )}
 
             {sale.notes && (
-              <div className="mt-6">
+              <div className={printMode === "history" ? "mt-6" : ""}>
                 <div className="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">
                   Notes
                 </div>
