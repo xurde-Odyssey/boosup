@@ -128,9 +128,21 @@ create table if not exists public.activity_logs (
   amount numeric(12, 2),
   entity_type text,
   entity_id uuid,
+  actor_user_id uuid,
+  actor_email text,
+  reason text,
   metadata jsonb not null default '{}'::jsonb,
   created_at timestamptz not null default timezone('utc', now())
 );
+
+alter table public.activity_logs
+  add column if not exists actor_user_id uuid;
+
+alter table public.activity_logs
+  add column if not exists actor_email text;
+
+alter table public.activity_logs
+  add column if not exists reason text;
 
 create index if not exists idx_activity_logs_created_at
   on public.activity_logs(created_at desc);
@@ -262,8 +274,16 @@ create table if not exists public.sales (
   id uuid primary key default gen_random_uuid(),
   organization_id uuid references public.organizations(id) on delete set null,
   invoice_number text not null,
+  record_status text not null default 'ACTIVE' check (record_status in ('ACTIVE', 'ARCHIVED')),
+  adjusted_from_id uuid references public.sales(id) on delete set null,
+  superseded_by_id uuid references public.sales(id) on delete set null,
+  archived_at timestamptz,
+  archived_by uuid,
+  archive_reason text,
   customer_name text not null,
+  customer_phone text,
   sales_date date not null default current_date,
+  due_date date not null default current_date,
   payment_status text not null default 'PENDING' check (payment_status in ('PAID', 'PENDING', 'PARTIAL', 'OVERDUE')),
   subtotal numeric(12, 2) not null default 0 check (subtotal >= 0),
   discount numeric(12, 2) not null default 0 check (discount >= 0),
@@ -289,7 +309,72 @@ generated always as (greatest((subtotal - discount + tax) - amount_received, 0))
 alter table public.sales
 add column if not exists customer_id uuid references public.customers(id) on delete set null;
 
+alter table public.sales
+add column if not exists customer_phone text;
+
+alter table public.sales
+add column if not exists due_date date;
+
+update public.sales
+set due_date = coalesce(due_date, sales_date);
+
+alter table public.sales
+alter column due_date set not null;
+
+alter table public.sales
+alter column due_date set default current_date;
+
+alter table public.sales
+drop constraint if exists sales_record_status_check;
+
+alter table public.sales
+add column if not exists record_status text not null default 'ACTIVE';
+
+alter table public.sales
+add column if not exists adjusted_from_id uuid references public.sales(id) on delete set null;
+
+alter table public.sales
+add column if not exists superseded_by_id uuid references public.sales(id) on delete set null;
+
+alter table public.sales
+add column if not exists archived_at timestamptz;
+
+alter table public.sales
+add column if not exists archived_by uuid;
+
+alter table public.sales
+add column if not exists archive_reason text;
+
+alter table public.sales
+add constraint sales_record_status_check
+check (record_status in ('ACTIVE', 'SUPERSEDED', 'CANCELLED', 'ARCHIVED'));
+
+update public.sales
+set
+  record_status = 'ARCHIVED',
+  archived_at = coalesce(archived_at, updated_at, created_at, timezone('utc', now())),
+  archive_reason = coalesce(
+    nullif(archive_reason, ''),
+    case
+      when record_status = 'SUPERSEDED' then 'Migrated from legacy superseded invoice'
+      when record_status = 'CANCELLED' then 'Migrated from legacy cancelled invoice'
+      else 'Archived from legacy inactive invoice'
+    end
+  )
+where record_status in ('SUPERSEDED', 'CANCELLED');
+
+alter table public.sales
+drop constraint if exists sales_record_status_check;
+
+alter table public.sales
+add constraint sales_record_status_check
+check (record_status in ('ACTIVE', 'ARCHIVED'));
+
 create index if not exists idx_sales_customer_id on public.sales(customer_id);
+create index if not exists idx_sales_record_status on public.sales(record_status);
+create index if not exists idx_sales_adjusted_from_id on public.sales(adjusted_from_id);
+create index if not exists idx_sales_superseded_by_id on public.sales(superseded_by_id);
+create index if not exists idx_sales_archived_at on public.sales(archived_at desc);
 
 create table if not exists public.sales_items (
   id uuid primary key default gen_random_uuid(),
@@ -319,6 +404,38 @@ create table if not exists public.sales_payments (
   notes text,
   created_at timestamptz not null default timezone('utc', now())
 );
+
+create table if not exists public.orders (
+  id uuid primary key default gen_random_uuid(),
+  organization_id uuid references public.organizations(id) on delete set null,
+  customer_name text not null,
+  customer_phone text,
+  items_summary text not null,
+  order_date date not null default current_date,
+  status text not null default 'NEW' check (status in ('NEW', 'PREPARING', 'DELIVERED', 'CANCELLED', 'CONVERTED')),
+  notes text,
+  converted_sale_id uuid references public.sales(id) on delete set null,
+  created_at timestamptz not null default timezone('utc', now()),
+  updated_at timestamptz not null default timezone('utc', now())
+);
+
+create index if not exists idx_orders_status on public.orders(status);
+create index if not exists idx_orders_order_date on public.orders(order_date desc);
+
+create table if not exists public.order_items (
+  id uuid primary key default gen_random_uuid(),
+  organization_id uuid references public.organizations(id) on delete set null,
+  order_id uuid not null references public.orders(id) on delete cascade,
+  product_id uuid references public.products(id) on delete set null,
+  product_name text not null,
+  quantity numeric(12, 2) not null default 1 check (quantity > 0),
+  unit_snapshot text,
+  rate_snapshot numeric(12, 2),
+  created_at timestamptz not null default timezone('utc', now()),
+  updated_at timestamptz not null default timezone('utc', now())
+);
+
+create index if not exists idx_order_items_order_id on public.order_items(order_id);
 
 create table if not exists public.customer_payments (
   id uuid primary key default gen_random_uuid(),
@@ -363,6 +480,9 @@ create table if not exists public.purchases (
   id uuid primary key default gen_random_uuid(),
   organization_id uuid references public.organizations(id) on delete set null,
   purchase_number text not null unique,
+  record_status text not null default 'ACTIVE' check (record_status in ('ACTIVE', 'SUPERSEDED', 'CANCELLED')),
+  adjusted_from_id uuid references public.purchases(id) on delete set null,
+  superseded_by_id uuid references public.purchases(id) on delete set null,
   vendor_id uuid references public.vendors(id) on delete restrict,
   vendor_name text,
   purchase_date date not null default current_date,
@@ -399,6 +519,20 @@ check (misc_expense_amount >= 0);
 
 alter table public.purchases
 add column if not exists misc_expense_note text;
+
+alter table public.purchases
+add column if not exists record_status text not null default 'ACTIVE'
+check (record_status in ('ACTIVE', 'SUPERSEDED', 'CANCELLED'));
+
+alter table public.purchases
+add column if not exists adjusted_from_id uuid references public.purchases(id) on delete set null;
+
+alter table public.purchases
+add column if not exists superseded_by_id uuid references public.purchases(id) on delete set null;
+
+create index if not exists idx_purchases_record_status on public.purchases(record_status);
+create index if not exists idx_purchases_adjusted_from_id on public.purchases(adjusted_from_id);
+create index if not exists idx_purchases_superseded_by_id on public.purchases(superseded_by_id);
 
 create table if not exists public.purchase_items (
   id uuid primary key default gen_random_uuid(),
@@ -548,6 +682,8 @@ create index if not exists idx_customers_organization_id on public.customers(org
 create index if not exists idx_sales_organization_id on public.sales(organization_id);
 create index if not exists idx_sales_items_organization_id on public.sales_items(organization_id);
 create index if not exists idx_sales_payments_organization_id on public.sales_payments(organization_id);
+create index if not exists idx_orders_organization_id on public.orders(organization_id);
+create index if not exists idx_order_items_organization_id on public.order_items(organization_id);
 create index if not exists idx_customer_payments_organization_id on public.customer_payments(organization_id);
 create index if not exists idx_customer_payment_allocations_organization_id on public.customer_payment_allocations(organization_id);
 create index if not exists idx_purchases_organization_id on public.purchases(organization_id);
@@ -608,6 +744,8 @@ alter table public.customers enable row level security;
 alter table public.sales enable row level security;
 alter table public.sales_items enable row level security;
 alter table public.sales_payments enable row level security;
+alter table public.orders enable row level security;
+alter table public.order_items enable row level security;
 alter table public.customer_payments enable row level security;
 alter table public.customer_payment_allocations enable row level security;
 alter table public.purchases enable row level security;
@@ -1435,6 +1573,18 @@ before insert or update on public.sales_payments
 for each row
 execute function public.assign_current_organization_id();
 
+drop trigger if exists orders_assign_organization_id on public.orders;
+create trigger orders_assign_organization_id
+before insert or update on public.orders
+for each row
+execute function public.assign_current_organization_id();
+
+drop trigger if exists order_items_assign_organization_id on public.order_items;
+create trigger order_items_assign_organization_id
+before insert or update on public.order_items
+for each row
+execute function public.assign_current_organization_id();
+
 drop trigger if exists customer_payments_assign_organization_id on public.customer_payments;
 create trigger customer_payments_assign_organization_id
 before insert or update on public.customer_payments
@@ -1856,6 +2006,64 @@ for delete
 to authenticated
 using (organization_id = public.get_current_user_organization_id());
 
+drop policy if exists "authenticated can read orders" on public.orders;
+create policy "authenticated can read orders"
+on public.orders
+for select
+to authenticated
+using (organization_id = public.get_current_user_organization_id());
+
+drop policy if exists "authenticated can insert orders" on public.orders;
+create policy "authenticated can insert orders"
+on public.orders
+for insert
+to authenticated
+with check (organization_id = public.get_current_user_organization_id());
+
+drop policy if exists "authenticated can update orders" on public.orders;
+create policy "authenticated can update orders"
+on public.orders
+for update
+to authenticated
+using (organization_id = public.get_current_user_organization_id())
+with check (organization_id = public.get_current_user_organization_id());
+
+drop policy if exists "authenticated can delete orders" on public.orders;
+create policy "authenticated can delete orders"
+on public.orders
+for delete
+to authenticated
+using (organization_id = public.get_current_user_organization_id());
+
+drop policy if exists "authenticated can read order items" on public.order_items;
+create policy "authenticated can read order items"
+on public.order_items
+for select
+to authenticated
+using (organization_id = public.get_current_user_organization_id());
+
+drop policy if exists "authenticated can insert order items" on public.order_items;
+create policy "authenticated can insert order items"
+on public.order_items
+for insert
+to authenticated
+with check (organization_id = public.get_current_user_organization_id());
+
+drop policy if exists "authenticated can update order items" on public.order_items;
+create policy "authenticated can update order items"
+on public.order_items
+for update
+to authenticated
+using (organization_id = public.get_current_user_organization_id())
+with check (organization_id = public.get_current_user_organization_id());
+
+drop policy if exists "authenticated can delete order items" on public.order_items;
+create policy "authenticated can delete order items"
+on public.order_items
+for delete
+to authenticated
+using (organization_id = public.get_current_user_organization_id());
+
 drop policy if exists "authenticated can read customer payments" on public.customer_payments;
 create policy "authenticated can read customer payments"
 on public.customer_payments
@@ -2184,6 +2392,18 @@ before update on public.sales
 for each row
 execute function public.set_updated_at();
 
+drop trigger if exists orders_set_updated_at on public.orders;
+create trigger orders_set_updated_at
+before update on public.orders
+for each row
+execute function public.set_updated_at();
+
+drop trigger if exists order_items_set_updated_at on public.order_items;
+create trigger order_items_set_updated_at
+before update on public.order_items
+for each row
+execute function public.set_updated_at();
+
 drop trigger if exists customer_payments_set_updated_at on public.customer_payments;
 create trigger customer_payments_set_updated_at
 before update on public.customer_payments
@@ -2293,7 +2513,7 @@ begin
   );
 
   for sale_record in
-    select id, grand_total, amount_received, remaining_amount
+    select id, grand_total, amount_received, remaining_amount, due_date
     from public.sales
     where customer_id = p_customer_id
       and remaining_amount > 0
@@ -2309,7 +2529,9 @@ begin
     );
     next_payment_status := case
       when next_amount_received >= sale_record.grand_total then 'PAID'
-      else 'PARTIAL'
+      when next_amount_received > 0 then 'PARTIAL'
+      when sale_record.due_date < current_date then 'OVERDUE'
+      else 'PENDING'
     end;
 
     update public.sales
@@ -2356,12 +2578,553 @@ begin
 end;
 $$;
 
+create or replace function public.record_supplier_payment_with_allocations(
+  p_vendor_id uuid,
+  p_payment_date date,
+  p_amount numeric,
+  p_payment_method text default 'Cash',
+  p_note text default null
+)
+returns table (
+  supplier_payment_id uuid,
+  allocated_bill_count integer
+)
+language plpgsql
+security invoker
+set search_path = public
+as $$
+declare
+  purchase_record record;
+  remaining_payment numeric(12, 2);
+  allocated_amount numeric(12, 2);
+  next_paid_amount numeric(12, 2);
+  next_remaining_amount numeric(12, 2);
+  next_payment_status text;
+  next_payment_type text;
+  total_outstanding numeric(12, 2);
+  saved_supplier_payment_id uuid;
+  allocation_count integer := 0;
+  payment_note text;
+begin
+  if p_vendor_id is null then
+    raise exception 'Supplier is required';
+  end if;
+
+  if p_payment_date is null then
+    raise exception 'Valid payment date is required';
+  end if;
+
+  if p_amount is null or p_amount <= 0 then
+    raise exception 'Enter a valid supplier payment amount';
+  end if;
+
+  if coalesce(p_payment_method, 'Cash') not in ('Cash', 'Mobile') then
+    raise exception 'Invalid supplier payment method';
+  end if;
+
+  if not exists (select 1 from public.vendors where id = p_vendor_id) then
+    raise exception 'Supplier was not found';
+  end if;
+
+  select coalesce(
+    sum(greatest(coalesce(credit_amount, total_amount - paid_amount), 0)),
+    0
+  )::numeric(12, 2)
+  into total_outstanding
+  from public.purchases
+  where vendor_id = p_vendor_id
+    and greatest(coalesce(credit_amount, total_amount - paid_amount), 0) > 0;
+
+  if total_outstanding <= 0 then
+    raise exception 'No unpaid purchase bills available for this supplier';
+  end if;
+
+  if p_amount > total_outstanding then
+    raise exception 'Payment exceeds this supplier''s total payable balance.';
+  end if;
+
+  insert into public.supplier_payments (
+    vendor_id,
+    payment_date,
+    amount,
+    payment_method,
+    note
+  )
+  values (
+    p_vendor_id,
+    p_payment_date,
+    p_amount,
+    coalesce(p_payment_method, 'Cash'),
+    nullif(p_note, '')
+  )
+  returning id into saved_supplier_payment_id;
+
+  remaining_payment := p_amount;
+  payment_note := concat_ws(
+    ' | ',
+    nullif(p_note, ''),
+    'Supplier payment allocation',
+    'Method: ' || coalesce(p_payment_method, 'Cash')
+  );
+
+  for purchase_record in
+    select id, total_amount, paid_amount, credit_amount, payment_status
+    from public.purchases
+    where vendor_id = p_vendor_id
+      and greatest(coalesce(credit_amount, total_amount - paid_amount), 0) > 0
+    order by purchase_date asc, created_at asc
+    for update
+  loop
+    exit when remaining_payment <= 0;
+
+    allocated_amount := least(
+      remaining_payment,
+      greatest(coalesce(purchase_record.credit_amount, purchase_record.total_amount - purchase_record.paid_amount), 0)
+    );
+    next_paid_amount := least(
+      coalesce(purchase_record.paid_amount, 0) + allocated_amount,
+      coalesce(purchase_record.total_amount, 0)
+    );
+    next_remaining_amount := greatest(coalesce(purchase_record.total_amount, 0) - next_paid_amount, 0);
+    next_payment_status := case
+      when next_remaining_amount <= 0 then 'PAID'
+      when next_paid_amount > 0 then
+        case
+          when purchase_record.payment_status = 'OVERDUE' then 'OVERDUE'
+          else 'PARTIAL'
+        end
+      else
+        case
+          when purchase_record.payment_status = 'OVERDUE' then 'OVERDUE'
+          else 'PENDING'
+        end
+    end;
+    next_payment_type := case
+      when next_remaining_amount <= 0 then 'Cash'
+      else 'Credit'
+    end;
+
+    update public.purchases
+    set
+      paid_amount = next_paid_amount,
+      payment_status = next_payment_status,
+      payment_type = next_payment_type,
+      payment_method = coalesce(p_payment_method, 'Cash')
+    where id = purchase_record.id;
+
+    insert into public.supplier_payment_allocations (
+      supplier_payment_id,
+      purchase_id,
+      amount
+    )
+    values (
+      saved_supplier_payment_id,
+      purchase_record.id,
+      allocated_amount
+    );
+
+    insert into public.purchase_payments (
+      purchase_id,
+      payment_date,
+      amount,
+      payment_method,
+      notes
+    )
+    values (
+      purchase_record.id,
+      p_payment_date,
+      allocated_amount,
+      coalesce(p_payment_method, 'Cash'),
+      payment_note
+    );
+
+    allocation_count := allocation_count + 1;
+    remaining_payment := remaining_payment - allocated_amount;
+  end loop;
+
+  if remaining_payment > 0 then
+    raise exception 'Unable to allocate this payment to supplier bills';
+  end if;
+
+  insert into public.activity_logs (
+    module,
+    action,
+    title,
+    description,
+    amount,
+    entity_type,
+    entity_id,
+    actor_user_id,
+    actor_email,
+    metadata
+  )
+  values (
+    'suppliers',
+    'payment',
+    'Supplier payment recorded',
+    allocation_count::text || ' bill' || case when allocation_count = 1 then '' else 's' end || ' allocated',
+    p_amount,
+    'vendor',
+    p_vendor_id,
+    auth.uid(),
+    nullif(auth.jwt() ->> 'email', ''),
+    jsonb_build_object(
+      'payment_method', coalesce(p_payment_method, 'Cash'),
+      'payment_date', p_payment_date,
+      'supplier_payment_id', saved_supplier_payment_id
+    )
+  );
+
+  return query select saved_supplier_payment_id, allocation_count;
+end;
+$$;
+
+create or replace function public.recalculate_staff_salary_ledgers(
+  p_staff_id uuid
+)
+returns void
+language plpgsql
+security invoker
+set search_path = public
+as $$
+declare
+  ledger_record record;
+  carry_in numeric(12, 2) := 0;
+  payable_amount numeric(12, 2);
+  total_advance_amount numeric(12, 2);
+  salary_paid_amount numeric(12, 2);
+  total_paid_amount numeric(12, 2);
+  remaining_amount numeric(12, 2);
+  carry_forward_amount numeric(12, 2);
+begin
+  if p_staff_id is null then
+    return;
+  end if;
+
+  delete from public.staff_salary_ledgers ledger
+  where ledger.staff_id = p_staff_id
+    and not exists (
+      select 1
+      from public.staff_salary_transactions transaction
+      where transaction.ledger_id = ledger.id
+    );
+
+  for ledger_record in
+    select id, base_salary
+    from public.staff_salary_ledgers
+    where staff_id = p_staff_id
+    order by year asc, month asc
+    for update
+  loop
+    select
+      coalesce(sum(case when type = 'ADVANCE' then amount else 0 end), 0)::numeric(12, 2),
+      coalesce(sum(case when type = 'SALARY' then amount else 0 end), 0)::numeric(12, 2)
+    into total_advance_amount, salary_paid_amount
+    from public.staff_salary_transactions
+    where ledger_id = ledger_record.id;
+
+    payable_amount := greatest(coalesce(ledger_record.base_salary, 0) - carry_in, 0);
+    total_paid_amount := total_advance_amount + salary_paid_amount;
+    remaining_amount := greatest(payable_amount - total_paid_amount, 0);
+    carry_forward_amount := greatest(total_paid_amount - payable_amount, 0);
+
+    update public.staff_salary_ledgers
+    set
+      total_advance = total_advance_amount,
+      salary_paid = salary_paid_amount,
+      total_paid = total_paid_amount,
+      remaining = remaining_amount,
+      carry_forward = carry_forward_amount,
+      status = case when remaining_amount <= 0 then 'CLOSED' else 'OPEN' end
+    where id = ledger_record.id;
+
+    carry_in := carry_forward_amount;
+  end loop;
+end;
+$$;
+
+create or replace function public.upsert_staff_salary_transaction(
+  p_id uuid,
+  p_staff_id uuid,
+  p_month integer,
+  p_year integer,
+  p_payment_date date,
+  p_working_days integer,
+  p_leave_days integer,
+  p_base_salary numeric,
+  p_amount numeric,
+  p_payment_type text default 'ADVANCE',
+  p_note text default null,
+  p_reason text default null
+)
+returns uuid
+language plpgsql
+security invoker
+set search_path = public
+as $$
+declare
+  existing_transaction record;
+  previous_transaction jsonb;
+  target_ledger_id uuid;
+  saved_transaction_id uuid;
+  normalized_leave_days integer;
+  action_name text;
+begin
+  if p_staff_id is null then
+    raise exception 'Select staff member';
+  end if;
+
+  if p_month is null or p_month < 1 or p_month > 12 or p_year is null or p_year < 2000 then
+    raise exception 'Month and year are required';
+  end if;
+
+  if p_payment_date is null then
+    raise exception 'Valid payment date is required';
+  end if;
+
+  if p_amount is null or p_amount <= 0 then
+    raise exception 'Payment amount must be greater than zero';
+  end if;
+
+  if coalesce(p_payment_type, 'ADVANCE') not in ('ADVANCE', 'SALARY') then
+    raise exception 'Invalid salary transaction type';
+  end if;
+
+  if not exists (select 1 from public.staff_profiles where id = p_staff_id) then
+    raise exception 'Selected staff member was not found';
+  end if;
+
+  normalized_leave_days := least(greatest(coalesce(p_leave_days, 0), 0), greatest(coalesce(p_working_days, 1), 1));
+
+  if p_id is not null then
+    if nullif(btrim(coalesce(p_reason, '')), '') is null then
+      raise exception 'Update reason is required';
+    end if;
+
+    select id, staff_id
+    into existing_transaction
+    from public.staff_salary_transactions
+    where id = p_id
+    for update;
+
+    if existing_transaction.id is null then
+      raise exception 'Staff salary transaction was not found';
+    end if;
+
+    select to_jsonb(transaction)
+    into previous_transaction
+    from public.staff_salary_transactions transaction
+    where transaction.id = p_id;
+  end if;
+
+  select id
+  into target_ledger_id
+  from public.staff_salary_ledgers
+  where staff_id = p_staff_id
+    and month = p_month
+    and year = p_year
+  for update;
+
+  if target_ledger_id is null then
+    insert into public.staff_salary_ledgers (
+      staff_id,
+      month,
+      year,
+      base_salary,
+      working_days,
+      leave_days,
+      total_advance,
+      salary_paid,
+      total_paid,
+      remaining,
+      carry_forward,
+      status
+    )
+    values (
+      p_staff_id,
+      p_month,
+      p_year,
+      greatest(coalesce(p_base_salary, 0), 0),
+      greatest(coalesce(p_working_days, 1), 1),
+      normalized_leave_days,
+      0,
+      0,
+      0,
+      greatest(coalesce(p_base_salary, 0), 0),
+      0,
+      'OPEN'
+    )
+    returning id into target_ledger_id;
+  else
+    update public.staff_salary_ledgers
+    set
+      base_salary = greatest(coalesce(p_base_salary, 0), 0),
+      working_days = greatest(coalesce(p_working_days, 1), 1),
+      leave_days = normalized_leave_days
+    where id = target_ledger_id;
+  end if;
+
+  if p_id is null then
+    insert into public.staff_salary_transactions (
+      staff_id,
+      ledger_id,
+      transaction_date,
+      type,
+      amount,
+      note
+    )
+    values (
+      p_staff_id,
+      target_ledger_id,
+      p_payment_date,
+      coalesce(p_payment_type, 'ADVANCE'),
+      p_amount,
+      nullif(p_note, '')
+    )
+    returning id into saved_transaction_id;
+    action_name := 'created';
+  else
+    update public.staff_salary_transactions
+    set
+      staff_id = p_staff_id,
+      ledger_id = target_ledger_id,
+      transaction_date = p_payment_date,
+      type = coalesce(p_payment_type, 'ADVANCE'),
+      amount = p_amount,
+      note = nullif(p_note, '')
+    where id = p_id
+    returning id into saved_transaction_id;
+    action_name := 'updated';
+  end if;
+
+  if existing_transaction.staff_id is not null and existing_transaction.staff_id <> p_staff_id then
+    perform public.recalculate_staff_salary_ledgers(existing_transaction.staff_id);
+  end if;
+
+  perform public.recalculate_staff_salary_ledgers(p_staff_id);
+
+  insert into public.activity_logs (
+    module,
+    action,
+    title,
+    description,
+    amount,
+    entity_type,
+    entity_id,
+    actor_user_id,
+    actor_email,
+    reason,
+    metadata
+  )
+  values (
+    'staff',
+    action_name,
+    'Staff salary transaction ' || action_name,
+    coalesce(p_payment_type, 'ADVANCE'),
+    p_amount,
+    'staff_salary_transaction',
+    saved_transaction_id,
+    auth.uid(),
+    nullif(auth.jwt() ->> 'email', ''),
+    case when action_name = 'updated' then nullif(p_reason, '') else null end,
+    jsonb_build_object(
+      'staff_id', p_staff_id,
+      'month', p_month,
+      'year', p_year,
+      'before', previous_transaction,
+      'after', jsonb_build_object(
+        'staff_id', p_staff_id,
+        'ledger_id', target_ledger_id,
+        'transaction_date', p_payment_date,
+        'type', coalesce(p_payment_type, 'ADVANCE'),
+        'amount', p_amount,
+        'note', nullif(p_note, '')
+      )
+    )
+  );
+
+  return saved_transaction_id;
+end;
+$$;
+
+create or replace function public.delete_staff_salary_transaction(
+  p_transaction_id uuid,
+  p_reason text
+)
+returns uuid
+language plpgsql
+security invoker
+set search_path = public
+as $$
+declare
+  existing_transaction record;
+  previous_transaction jsonb;
+begin
+  if p_transaction_id is null then
+    raise exception 'Staff salary transaction is required';
+  end if;
+
+  if nullif(btrim(coalesce(p_reason, '')), '') is null then
+    raise exception 'Delete reason is required';
+  end if;
+
+  select id, staff_id
+  into existing_transaction
+  from public.staff_salary_transactions
+  where id = p_transaction_id
+  for update;
+
+  if existing_transaction.id is null then
+    raise exception 'Staff salary transaction was not found';
+  end if;
+
+  select to_jsonb(transaction)
+  into previous_transaction
+  from public.staff_salary_transactions transaction
+  where transaction.id = p_transaction_id;
+
+  delete from public.staff_salary_transactions
+  where id = p_transaction_id;
+
+  perform public.recalculate_staff_salary_ledgers(existing_transaction.staff_id);
+
+  insert into public.activity_logs (
+    module,
+    action,
+    title,
+    description,
+    entity_type,
+    entity_id,
+    actor_user_id,
+    actor_email,
+    reason,
+    metadata
+  )
+  values (
+    'staff',
+    'deleted',
+    'Staff salary transaction deleted',
+    'Salary ledger recalculated',
+    'staff_salary_transaction',
+    p_transaction_id,
+    auth.uid(),
+    nullif(auth.jwt() ->> 'email', ''),
+    nullif(p_reason, ''),
+    jsonb_build_object('before', previous_transaction)
+  );
+
+  return p_transaction_id;
+end;
+$$;
+
 create or replace function public.upsert_sale_transaction(
   p_id uuid,
   p_invoice_number text,
   p_customer_id uuid,
   p_customer_name text,
+  p_customer_phone text,
   p_sales_date date,
+  p_due_date date,
   p_payment_status text,
   p_subtotal numeric,
   p_discount numeric,
@@ -2370,7 +3133,8 @@ create or replace function public.upsert_sale_transaction(
   p_notes text,
   p_items jsonb,
   p_payment_increment numeric default 0,
-  p_payment_date date default null
+  p_payment_date date default null,
+  p_change_reason text default null
 )
 returns uuid
 language plpgsql
@@ -2380,6 +3144,8 @@ as $$
 declare
   v_sale_id uuid;
   v_action text;
+  v_previous_sale jsonb;
+  v_resolved_payment_status text;
 begin
   if p_invoice_number is null or btrim(p_invoice_number) = '' then
     raise exception 'Bill number is required';
@@ -2393,9 +3159,21 @@ begin
     raise exception 'Valid sales date is required';
   end if;
 
+  if p_due_date is null then
+    raise exception 'Valid due date is required';
+  end if;
+
   if p_items is null or jsonb_typeof(p_items) <> 'array' or jsonb_array_length(p_items) = 0 then
     raise exception 'Add at least one sales item';
   end if;
+
+  v_resolved_payment_status := case
+    when greatest(coalesce(p_subtotal, 0) - coalesce(p_discount, 0) + coalesce(p_tax, 0), 0) <= 0 then 'PENDING'
+    when coalesce(p_amount_received, 0) >= greatest(coalesce(p_subtotal, 0) - coalesce(p_discount, 0) + coalesce(p_tax, 0), 0) then 'PAID'
+    when coalesce(p_amount_received, 0) > 0 then 'PARTIAL'
+    when p_due_date < current_date then 'OVERDUE'
+    else 'PENDING'
+  end;
 
   v_action := case when p_id is null then 'created' else 'updated' end;
 
@@ -2404,7 +3182,9 @@ begin
       invoice_number,
       customer_id,
       customer_name,
+      customer_phone,
       sales_date,
+      due_date,
       payment_status,
       subtotal,
       discount,
@@ -2416,8 +3196,10 @@ begin
       p_invoice_number,
       p_customer_id,
       p_customer_name,
+      nullif(p_customer_phone, ''),
       p_sales_date,
-      p_payment_status,
+      p_due_date,
+      v_resolved_payment_status,
       p_subtotal,
       p_discount,
       p_tax,
@@ -2426,13 +3208,25 @@ begin
     )
     returning id into v_sale_id;
   else
+    if nullif(btrim(coalesce(p_change_reason, '')), '') is null then
+      raise exception 'Update reason is required';
+    end if;
+
+    select to_jsonb(sale)
+    into v_previous_sale
+    from public.sales sale
+    where sale.id = p_id
+    for update;
+
     update public.sales
     set
       invoice_number = p_invoice_number,
       customer_id = p_customer_id,
       customer_name = p_customer_name,
+      customer_phone = nullif(p_customer_phone, ''),
       sales_date = p_sales_date,
-      payment_status = p_payment_status,
+      due_date = p_due_date,
+      payment_status = v_resolved_payment_status,
       subtotal = p_subtotal,
       discount = p_discount,
       tax = p_tax,
@@ -2487,6 +3281,9 @@ begin
     amount,
     entity_type,
     entity_id,
+    actor_user_id,
+    actor_email,
+    reason,
     metadata
   )
   values (
@@ -2497,9 +3294,27 @@ begin
     greatest(coalesce(p_subtotal, 0) - coalesce(p_discount, 0) + coalesce(p_tax, 0), 0),
     'sale',
     v_sale_id,
+    auth.uid(),
+    nullif(auth.jwt() ->> 'email', ''),
+    case when v_action = 'updated' then nullif(p_change_reason, '') else null end,
     jsonb_build_object(
-      'payment_status', p_payment_status,
-      'amount_received', p_amount_received
+      'payment_status', v_resolved_payment_status,
+      'amount_received', p_amount_received,
+      'before', v_previous_sale,
+      'after', jsonb_build_object(
+        'invoice_number', p_invoice_number,
+        'customer_id', p_customer_id,
+        'customer_name', p_customer_name,
+        'customer_phone', nullif(p_customer_phone, ''),
+        'sales_date', p_sales_date,
+        'due_date', p_due_date,
+        'payment_status', v_resolved_payment_status,
+        'subtotal', p_subtotal,
+        'discount', p_discount,
+        'tax', p_tax,
+        'amount_received', p_amount_received,
+        'notes', nullif(p_notes, '')
+      )
     )
   );
 
@@ -2521,7 +3336,8 @@ create or replace function public.upsert_purchase_transaction(
   p_notes text,
   p_items jsonb,
   p_payment_now numeric default 0,
-  p_payment_date date default null
+  p_payment_date date default null,
+  p_change_reason text default null
 )
 returns uuid
 language plpgsql
@@ -2531,6 +3347,7 @@ as $$
 declare
   v_purchase_id uuid;
   v_action text;
+  v_previous_purchase jsonb;
 begin
   if p_purchase_date is null then
     raise exception 'Valid purchase date is required';
@@ -2577,6 +3394,16 @@ begin
     )
     returning id into v_purchase_id;
   else
+    if nullif(btrim(coalesce(p_change_reason, '')), '') is null then
+      raise exception 'Update reason is required';
+    end if;
+
+    select to_jsonb(purchase)
+    into v_previous_purchase
+    from public.purchases purchase
+    where purchase.id = p_id
+    for update;
+
     update public.purchases
     set
       purchase_number = p_purchase_number,
@@ -2640,6 +3467,9 @@ begin
     amount,
     entity_type,
     entity_id,
+    actor_user_id,
+    actor_email,
+    reason,
     metadata
   )
   values (
@@ -2650,9 +3480,244 @@ begin
     p_total_amount,
     'purchase',
     v_purchase_id,
+    auth.uid(),
+    nullif(auth.jwt() ->> 'email', ''),
+    case when v_action = 'updated' then nullif(p_change_reason, '') else null end,
     jsonb_build_object(
       'payment_status', p_payment_status,
-      'paid_amount', p_paid_amount
+      'paid_amount', p_paid_amount,
+      'before', v_previous_purchase,
+      'after', jsonb_build_object(
+        'purchase_number', p_purchase_number,
+        'vendor_id', p_vendor_id,
+        'vendor_name', case when p_vendor_id is null then nullif(p_vendor_name, '') else null end,
+        'purchase_date', p_purchase_date,
+        'payment_status', p_payment_status,
+        'payment_type', p_payment_type,
+        'payment_method', p_payment_method,
+        'total_amount', p_total_amount,
+        'paid_amount', p_paid_amount,
+        'notes', nullif(p_notes, '')
+      )
+    )
+  );
+
+  return v_purchase_id;
+end;
+$$;
+
+create or replace function public.adjust_sale_transaction(
+  p_adjusted_from_id uuid,
+  p_invoice_number text,
+  p_customer_id uuid,
+  p_customer_name text,
+  p_customer_phone text,
+  p_sales_date date,
+  p_payment_status text,
+  p_subtotal numeric,
+  p_discount numeric,
+  p_tax numeric,
+  p_amount_received numeric,
+  p_notes text,
+  p_items jsonb,
+  p_payment_increment numeric default 0,
+  p_payment_date date default null,
+  p_change_reason text default null
+)
+returns uuid
+language plpgsql
+security invoker
+set search_path = public
+as $$
+begin
+  raise exception 'Legacy sales adjustment flow is disabled. Use Archive & Recreate instead.';
+end;
+$$;
+
+create or replace function public.adjust_purchase_transaction(
+  p_adjusted_from_id uuid,
+  p_purchase_number text,
+  p_vendor_id uuid,
+  p_vendor_name text,
+  p_purchase_date date,
+  p_payment_status text,
+  p_payment_type text,
+  p_payment_method text,
+  p_total_amount numeric,
+  p_paid_amount numeric,
+  p_notes text,
+  p_items jsonb,
+  p_payment_now numeric default 0,
+  p_payment_date date default null,
+  p_change_reason text default null
+)
+returns uuid
+language plpgsql
+security invoker
+set search_path = public
+as $$
+declare
+  source_purchase public.purchases%rowtype;
+  v_purchase_id uuid;
+begin
+  if p_adjusted_from_id is null then
+    raise exception 'Original purchase is required';
+  end if;
+
+  if nullif(btrim(coalesce(p_change_reason, '')), '') is null then
+    raise exception 'Adjustment reason is required';
+  end if;
+
+  select *
+  into source_purchase
+  from public.purchases
+  where id = p_adjusted_from_id
+  for update;
+
+  if source_purchase.id is null then
+    raise exception 'Original purchase was not found';
+  end if;
+
+  if source_purchase.record_status <> 'ACTIVE' then
+    raise exception 'Only active purchases can be adjusted';
+  end if;
+
+  if source_purchase.payment_status <> 'PAID' then
+    raise exception 'Only settled purchases can be adjusted';
+  end if;
+
+  if p_purchase_date is null then
+    raise exception 'Valid purchase date is required';
+  end if;
+
+  if p_total_amount is null or p_total_amount <= 0 then
+    raise exception 'Purchase amount must be greater than 0';
+  end if;
+
+  if p_items is null or jsonb_typeof(p_items) <> 'array' or jsonb_array_length(p_items) = 0 then
+    raise exception 'Add at least one purchase item';
+  end if;
+
+  if p_vendor_id is null and (p_vendor_name is null or btrim(p_vendor_name) = '') then
+    raise exception 'Select or type a supplier';
+  end if;
+
+  insert into public.purchases (
+    purchase_number,
+    record_status,
+    adjusted_from_id,
+    vendor_id,
+    vendor_name,
+    purchase_date,
+    payment_status,
+    payment_type,
+    payment_method,
+    total_amount,
+    paid_amount,
+    notes
+  )
+  values (
+    p_purchase_number,
+    'ACTIVE',
+    source_purchase.id,
+    p_vendor_id,
+    case when p_vendor_id is null then nullif(p_vendor_name, '') else null end,
+    p_purchase_date,
+    p_payment_status,
+    p_payment_type,
+    p_payment_method,
+    p_total_amount,
+    p_paid_amount,
+    nullif(p_notes, '')
+  )
+  returning id into v_purchase_id;
+
+  insert into public.purchase_items (
+    purchase_id,
+    product_id,
+    product_name,
+    quantity,
+    rate
+  )
+  select
+    v_purchase_id,
+    nullif(item ->> 'product_id', '')::uuid,
+    coalesce(nullif(item ->> 'product_name', ''), 'Saved purchase item'),
+    greatest(coalesce((item ->> 'quantity')::numeric, 1), 1),
+    greatest(coalesce((item ->> 'rate')::numeric, 0), 0)
+  from jsonb_array_elements(p_items) as item;
+
+  update public.purchase_payments
+  set purchase_id = v_purchase_id
+  where purchase_id = source_purchase.id;
+
+  update public.supplier_payment_allocations
+  set purchase_id = v_purchase_id
+  where purchase_id = source_purchase.id;
+
+  if coalesce(p_payment_now, 0) > 0 then
+    insert into public.purchase_payments (
+      purchase_id,
+      payment_date,
+      amount,
+      payment_method,
+      notes
+    )
+    values (
+      v_purchase_id,
+      coalesce(p_payment_date, p_purchase_date),
+      p_payment_now,
+      p_payment_method,
+      nullif(p_notes, '')
+    );
+  end if;
+
+  update public.purchases
+  set
+    record_status = 'SUPERSEDED',
+    superseded_by_id = v_purchase_id,
+    updated_at = timezone('utc', now())
+  where id = source_purchase.id;
+
+  insert into public.activity_logs (
+    module,
+    action,
+    title,
+    description,
+    amount,
+    entity_type,
+    entity_id,
+    actor_user_id,
+    actor_email,
+    reason,
+    metadata
+  )
+  values (
+    'purchases',
+    'adjusted',
+    'Purchase adjusted',
+    coalesce(p_purchase_number, '') || ' replaced ' || coalesce(source_purchase.purchase_number, ''),
+    p_total_amount,
+    'purchase',
+    v_purchase_id,
+    auth.uid(),
+    nullif(auth.jwt() ->> 'email', ''),
+    nullif(p_change_reason, ''),
+    jsonb_build_object(
+      'adjusted_from_id', source_purchase.id,
+      'before', to_jsonb(source_purchase),
+      'after', jsonb_build_object(
+        'purchase_number', p_purchase_number,
+        'vendor_id', p_vendor_id,
+        'vendor_name', case when p_vendor_id is null then nullif(p_vendor_name, '') else null end,
+        'purchase_date', p_purchase_date,
+        'payment_status', p_payment_status,
+        'payment_type', p_payment_type,
+        'payment_method', p_payment_method,
+        'total_amount', p_total_amount,
+        'paid_amount', p_paid_amount,
+        'notes', nullif(p_notes, '')
+      )
     )
   );
 
